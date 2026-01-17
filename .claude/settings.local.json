@@ -1,0 +1,28 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(wc:*)",
+      "Bash(python:*)",
+      "Bash(echo:*)",
+      "SlashCommand(/trade:*)",
+      "SlashCommand(/debate:*)",
+      "SlashCommand(/ask:*)",
+      "SlashCommand(/analyze:*)",
+      "SlashCommand(/insights:*)",
+      "Bash(python3:*)",
+      "WebSearch",
+      "Skill(watchlist_manager)",
+      "Skill(analytics_generator)",
+      "Skill(news_fetcher)",
+      "Skill(position-review)",
+      "Skill(trading-plan)",
+      "Skill(trading-debate)",
+      "Skill(signal-formatter)",
+      "Skill(portfolio_manager)",
+      "Skill(documentation-templates)",
+      "mcp__sequentialthinking__sequentialthinking"
+    ],
+    "deny": [],
+    "ask": []
+  }
+}
