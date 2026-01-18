@@ -1,6 +1,6 @@
 # Strategy Classification Reference
 
-Complete criteria for all 10 trading strategies. Use this when analyzing a stock to determine its best-fitting strategy and fit score.
+Complete criteria for all trading strategies. Use this when analyzing a stock to determine its best-fitting strategy and fit score.
 
 ---
 
@@ -10,8 +10,11 @@ Complete criteria for all 10 trading strategies. Use this when analyzing a stock
 |----------------|------------|--------------|
 | `1-10d` | `gap_and_go`, `intraday_reversal`, `high_relative_vol` | Price/Volume (technical) |
 | `2w-3m` | `trend_rider`, `mean_reversion`, `volatility_squeeze` | Price/Volume (technical) |
-| `3-6m` | `canslim`, `golden_cross` | Technical + Fundamentals |
-| `1y+` | `quality_discount`, `dividend_aristocrat` | Fundamentals + Dividends |
+| `3-6m` | `canslim`, `golden_cross`, `turnaround` | Technical + Fundamentals |
+| `3-12m` | `special_situation`, `binary_event`, `cyclical` | Catalyst/Event-driven |
+| `1y+` | `quality_discount`, `dividend_aristocrat`, `quality_at_fair_price` | Fundamentals + Dividends |
+| `until_value_opportunity` | `capital_preservation` | Risk-off/tactical |
+| `conditional` | `conditional` | Catalyst-dependent |
 
 ---
 
@@ -223,9 +226,177 @@ Golden Cross: SMA50 > SMA200 AND was below previously
 
 ---
 
-## 4. Long-Term Investing (1y+)
+### turnaround
+
+**Description:** Companies undergoing operational or financial restructuring to improve performance.
+
+**Goal:** Buy businesses before turnaround catalysts drive re-rating.
+
+**Screening Criteria:**
+
+| Criteria | Threshold | Weight |
+|----------|-----------|--------|
+| New Management or Strategy | Yes | 35 |
+| Declining Stabilizing | Yes | 35 |
+| P/B Ratio | < 1.5 | 30 |
+
+**Common Turnaround Triggers:**
+- New CEO or leadership team
+- Strategic pivot or refocusing
+- Cost-cutting initiatives announced
+- Asset sales or divestitures
+- Debt restructuring completed
+
+**Data Source:** News analysis, company filings
+
+**Characteristics:**
+- High risk, high potential reward
+- Typically oversold due to past problems
+- Catalyst-driven (earnings, strategic updates)
+- 6-18 month timeframe for proof of turnaround
+
+---
+
+## 4. Event-Driven Strategies (3-12m)
+
+**Focus:** Catalyst-driven opportunities with specific timelines.
+
+### special_situation
+
+**Description:** Investing in unique, time-limited corporate events or situations.
+
+**Goal:** Capture returns from specific catalysts rather than general market trends.
+
+**Screening Criteria:**
+
+| Criteria | Threshold | Weight |
+|----------|-----------|--------|
+| Clear Catalyst Identified | Yes | 40 |
+| Catalyst Timeline Defined | Yes | 30 |
+| Risk/Reward Ratio | ≥ 2.0 | 30 |
+
+**Common Special Situations:**
+- Corporate spin-offs or split-offs
+- M&A arbitrage opportunities
+- Activist investor campaigns
+- Restructuring or turnarounds
+- Regulatory changes creating opportunities
+- Litigation settlements
+- IPO secondaries
+- Bankruptcy reorganizations
+
+**Data Source:** News analysis, SEC filings, corporate announcements
+
+**Characteristics:**
+- Returns driven by specific events with timelines
+- Often uncorrelated with broader market
+- Requires deep situational analysis
+- Time-sensitive (catalyst has expected completion date)
+
+---
+
+### binary_event
+
+**Description:** High-risk, binary outcome stocks where success or failure hinges on a single event or decision.
+
+**Goal:** Speculative positions with asymmetric upside (10x+) but high risk of total loss.
+
+**Screening Criteria:**
+
+| Criteria | Threshold | Weight |
+|----------|-----------|--------|
+| Clear Binary Catalyst | Yes | 50 |
+| Upside Potential | > 300% | 30 |
+| Cash Position | Adequate to catalyst | 20 |
+
+**Common Binary Events:**
+- Clinical trial readouts (Phase 2/3)
+- FDA/EMA approval decisions
+- Legal verdicts (patent litigation)
+- Regulatory rulings
+- Licensing/bidding outcomes
+- Bankruptcy survival
+
+**Data Source:** News analysis, clinical trial registries, SEC filings
+
+**Characteristics:**
+- All-or-nothing outcomes
+- Timeline to catalyst usually 3-12 months
+- Position sizing critical (typically 1-2% max)
+- Not suitable for risk-averse investors
+- Often "lottery ticket" style opportunities
+
+---
+
+### cyclical
+
+**Description:** Businesses whose earnings are highly correlated with economic or commodity cycles.
+
+**Goal:** Buy at cycle bottom, sell at cycle peak. Requires timing and macro analysis.
+
+**Screening Criteria:**
+
+| Criteria | Threshold | Weight |
+|----------|-----------|--------|
+| P/E at Cycle Low | < 12x | 40 |
+| Deep Cyclical Industry | Yes | 35 |
+| Cycle Position | Bottoming | 25 |
+
+**Cyclical Industries:**
+- Semiconductors
+- Autos
+- Chemicals
+- Industrial metals
+- Energy (E&P, services)
+- Shipping/transportation
+- Homebuilding
+- Machinery
+
+**Key Indicators:**
+- P/E misleading at cycle peak (inverse relationship)
+- Book value more reliable at peaks
+- Capacity utilization rates
+- Inventory-to-sales ratios
+- Leading economic indicators
+
+**Data Source:** Industry data, macro indicators, company filings
+
+**Characteristics:**
+- High volatility with economic cycles
+- Requires macro timing skill
+- Often trades at "cheap" multiples at peak
+- Contrarian investing (buy when hated, sell when loved)
+
+---
+
+## 5. Long-Term Investing (1y+)
 
 **Focus:** Value, compounding, and business quality.
+
+### quality_at_fair_price
+
+**Description:** High-quality businesses trading at reasonable valuations (not necessarily discounted).
+
+**Goal:** Compound wealth over time by owning solid businesses at fair prices.
+
+**Screening Criteria:**
+
+| Criteria | Threshold | Weight |
+|----------|-----------|--------|
+| ROE | > 15% | 40 |
+| Debt/Equity | < 0.5 | 30 |
+| P/E vs 5-year Avg | At or near average | 30 |
+
+**Data Source:** Fundamental analysis or web search
+
+**Calculation:**
+```
+ROE = Net Income / Shareholder Equity
+D/E = Total Debt / Total Equity
+P/E vs Avg = Current P/E ≈ 5-year Average P/E (±10%)
+```
+
+---
 
 ### quality_discount
 
@@ -273,6 +444,81 @@ P/E vs Avg = Current P/E < 5-year Average P/E
 Payout Ratio = Dividends / Net Income × 100
 FCF = Operating Cash Flow - Capital Expenditures
 ```
+
+---
+
+## 6. Capital Management (until_value_opportunity)
+
+**Focus:** Risk-off positioning and tactical cash deployment.
+
+### conditional
+
+**Description:** Watchlist positions that depend on specific conditions being met before becoming actionable.
+
+**Goal:** Track opportunities that require additional information or catalysts before investment decision.
+
+**Screening Criteria:**
+
+| Criteria | Threshold | Weight |
+|----------|-----------|--------|
+| Clear Condition Identified | Yes | 50 |
+| Condition Timeline Defined | Yes | 30 |
+| Risk/Reward If Triggered | ≥ 2.0 | 20 |
+
+**Common Conditions:**
+- Earnings report (guidance, inflection)
+- Product launch/announcement
+- Regulatory decision pending
+- Legal ruling awaiting
+- Management/strategic review completion
+- Technical breakout/breakdown level
+- Competitor/product catalyst
+
+**Data Source:** News analysis, company guidance, technical levels
+
+**Characteristics:**
+- Pre-categorization for potential opportunities
+- No action until condition is met
+- Regular monitoring required
+- May convert to active strategy or be removed
+- Fit score typically 40-60 (potential, not confirmed)
+
+**Example Conditions:**
+- "Wait for Q3 earnings (Feb 4) - make-or-break for AI strategy"
+- "Entry on breakout above $120 with volume confirmation"
+- "Monitor pending FDA decision expected Q2"
+- "Condition on SoftBank maintaining <35% ownership"
+
+---
+
+### capital_preservation
+
+**Description:** Parking capital in low-risk instruments while waiting for better opportunities.
+
+**Goal:** Protect principal during uncertain markets and maintain liquidity for future opportunities.
+
+**Screening Criteria:**
+
+| Criteria | Threshold | Weight |
+|----------|-----------|--------|
+| Liquidity | High (T-bills, money market) | 50 |
+| Principal Risk | Minimal to none | 50 |
+
+**Common Instruments:**
+- Treasury bills (T-bills)
+- Money market funds
+- High-yield savings accounts
+- Short-term CDs
+- Commercial paper
+
+**Data Source:** Brokerage account, treasury rates
+
+**Characteristics:**
+- Low/no return expectation (beat inflation modestly if lucky)
+- High liquidity for quick deployment
+- Ready capital for attractive opportunities
+- Not an "investment" per se but a tactical allocation
+- Fit score typically 40-60 (reflects tactical, not strategic, nature)
 
 ---
 

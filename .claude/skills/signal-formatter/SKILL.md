@@ -1,6 +1,10 @@
 ---
 name: signal-formatter
-description: Format trading signals with all required components. Use for: "create signal", "format buy signal", "format sell signal", "trading recommendation", "investment signal", "buy/hold/sell recommendation", "investment recommendation". Ensures signals include: action, driver class, levels, meta, risks, opportunity cost, machine logic, benchmark comparison.
+description: Format trading signals with all required components. Use for: "create signal", "format buy signal", "format sell signal", "trading recommendation", "investment signal", "buy/hold/sell recommendation", "investment recommendation". Ensures signals include: action, driver class, levels, meta, risks, opportunity cost, machine logic, benchmark comparison. Mostly invoked by other skills (trading-plan, position-review).
+user-invocable: false
+allowed-tools:
+  - Read
+  - Write
 ---
 
 # Signal Formatter Skill

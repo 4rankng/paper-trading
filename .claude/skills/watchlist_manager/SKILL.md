@@ -1,6 +1,9 @@
 ---
 name: watchlist-manager
 description: Manage watchlist.json for tracking potential investments. ALWAYS use for watchlist CRUD operations: add/update/remove stocks, search, filter, get summary. **MANDATORY PRE-WORKFLOW**: Before ANY add/update with strategy classification, MUST use analytics_generator skill to create analytics/[TICKER]/ files (technical, fundamental, thesis), then READ those files to determine strategy/hold/fit. Never directly edit watchlist.json.
+allowed-tools:
+  - Read
+  - Bash(python:*)
 ---
 
 # Watchlist Manager
@@ -13,8 +16,9 @@ Lean JSON-based watchlist for tracking potential investments.
 
 1. **Use `analytics_generator` skill** to ensure analytics files exist:
    ```bash
-   # Fetch price data
+   # Fetch price data (single or batch)
    python .claude/skills/analytics_generator/scripts/fetch_prices.py --ticker TICKER
+   python .claude/skills/analytics_generator/scripts/fetch_prices.py TICKER1 TICKER2 TICKER3
 
    # Generate technical data
    python .claude/skills/analytics_generator/scripts/generate_technical.py --ticker TICKER
@@ -31,6 +35,18 @@ Lean JSON-based watchlist for tracking potential investments.
 3. **Only then** determine `strategy`, `hold`, and `fit` from the analytics
 
 **If analytics files don't exist, create them using the analytics_generator skill first.**
+
+## Data Gap Detection (Before Add/Update)
+
+**Before adding or updating with strategy classification, check for data gaps using the `ask` skill.**
+
+See [Data Gap Detection Workflow](references/data-gap-detection.md) for the complete process.
+
+**Priority gaps for watchlist_manager:** Strategy unclear, fit score impossible, missing analytics.
+
+**If strategy is unavailable**, set `strategy: null` and `hold: null` (unclassified entry).
+
+---
 
 ## Quick Start
 
@@ -62,6 +78,7 @@ python .claude/skills/watchlist_manager/scripts/watchlist_manager.py --summary
   "strategy": "trend_rider",
   "hold": "2w-3m",
   "fit": 85,
+  "buy_score": 75,
   "action": "WATCH",
   "price": 150.00,
   "exit": 200.00,
@@ -81,6 +98,7 @@ python .claude/skills/watchlist_manager/scripts/watchlist_manager.py --summary
   "hold": null,
   "action": "WATCH",
   "price": 311.88,
+  "buy_score": 45,
   "updated_at": "2026-01-18"
 }
 ```
@@ -89,11 +107,25 @@ python .claude/skills/watchlist_manager/scripts/watchlist_manager.py --summary
 |-------|--------|-------|
 | `strategy` | From [strategies.md](references/strategies.md) or `null` | Only set if fit >= 60; otherwise `null` |
 | `hold` | `1-10d`, `2w-3m`, `3-6m`, `1y+` or `null` | Only set if strategy is defined |
-| `fit` | 0-100 | Only included if strategy is defined |
+| `fit` | 0-100 | **Strategy fit** - how well stock matches trading strategy criteria |
+| `buy_score` | 0-100 | **Buy attractiveness** - how attractive to buy NOW (independent of strategy) |
 | `action` | `BUY`, `SELL`, `WATCH`, `AVOID` | Always required |
 | `price` | Current price | Optional |
 | `exit`, `stop`, `rr` | Trading levels | Only included if strategy is defined |
 | `updated_at` | YYYY-MM-DD | Auto-set on add/update |
+
+### Score Distinction
+
+- **`fit`** (Strategy Fit): How well the stock matches a specific trading strategy's criteria
+  - Determined from technical + fundamental analysis
+  - Used to decide IF a stock belongs to a strategy
+  - Only set when `strategy` is defined (fit < 60 → unclassified)
+
+- **`buy_score`** (Buy Attractiveness): How attractive the stock is to buy right now
+  - Independent of strategy classification
+  - Based on: valuation, technical setup, catalysts, risk/reward
+  - Set for ALL stocks (classified or not)
+  - Used for ranking: `--rank` command sorts by buy_score
 
 ## LLM Workflow for Adding Stocks
 
@@ -165,13 +197,14 @@ For detailed criteria, see [strategies.md](references/strategies.md).
 ## Rules
 
 1. **MANDATORY: Use analytics_generator skill FIRST** - Create analytics files before any add/update with strategy
-2. **Only classify if fit >= 60** - Otherwise set `strategy: null`, `hold: null`
-3. **Never use "unclassified" or "unknown" strings** - Use `null` instead
-4. **Trading fields (exit, stop, rr, fit) ONLY when strategy defined** - Auto-removed if `strategy: null`
-5. **Always read analytics files before determining strategy** - Don't guess from ticker alone
-6. **Use exact strategy names** - Must match values in strategies.md
-7. **Classified stocks MUST have trading levels** - Entry (price), Exit, Stop with R:R ≥ 2.0
-8. **updated_at auto-set on every add/update** - Script handles this automatically
+2. **NEVER add non-stock tickers (CASH, MONEY, MMKT)** - Cash/money market positions belong in `portfolio.json`, NOT `watchlist.json`. The watchlist is only for actual tradeable stock tickers.
+3. **Only classify if fit >= 60** - Otherwise set `strategy: null`, `hold: null`
+4. **Never use "unclassified" or "unknown" strings** - Use `null` instead
+5. **Trading fields (exit, stop, rr, fit) ONLY when strategy defined** - Auto-removed if `strategy: null`
+6. **Always read analytics files before determining strategy** - Don't guess from ticker alone
+7. **Use exact strategy names** - Must match values in strategies.md
+8. **Classified stocks MUST have trading levels** - Entry (price), Exit, Stop with R:R ≥ 2.0
+9. **updated_at auto-set on every add/update** - Script handles this automatically
 
 ## Trading Level Guidelines
 

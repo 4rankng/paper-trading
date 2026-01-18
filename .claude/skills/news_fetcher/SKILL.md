@@ -1,6 +1,10 @@
 ---
 name: news-fetcher
 description: Fetch and manage news articles from yfinance API or manual entry with YAML frontmatter. ALWAYS use for ANY news operations. **CRITICAL**: Before fetching news, ALWAYS run `list_news.py --ticker TICKER` first to check for existing articles and prevent duplicates. The yfinance API frequently returns the same articles multiple times. Triggers: "fetch news", "add news", "search news", "update article", "delete article", "news sentiment", "news by source", "news by date", "news keywords". Never manually create or edit news files - use this skill.
+allowed-tools:
+  - Read
+  - Write
+  - Bash(python:*)
 ---
 
 # News Fetcher Skill

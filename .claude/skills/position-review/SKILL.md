@@ -1,6 +1,10 @@
 ---
 name: position-review
 description: Review existing portfolio holdings for exit/hold decisions. Use for: "should I sell [TICKER]", "analyze my [TICKER] position", "review portfolio", "update on [TICKER]", "what about my holdings", "position analysis", "exit decision". DO NOT use for new buy analysis (use investment-workflow skill instead). Applies Inertia Principle: existing positions VALID unless proven DEAD.
+allowed-tools:
+  - Read
+  - Write
+  - Bash(python:*)
 ---
 
 # Position Review Skill
@@ -23,6 +27,18 @@ User: "Should I sell my AAPL position?"
 → Follow 3-step process below
 → Output: HOLD/SELL/TRIM decision
 ```
+
+## Data Gap Detection (Before Classification)
+
+**Before starting position review, check for data gaps using the `ask` skill.**
+
+See [Data Gap Detection Workflow](references/data-gap-detection.md) for the complete process.
+
+**Priority gaps for position-review:** Ambiguous machine type, missing entry rationale, unclear thesis status.
+
+**If machine type is unavailable**, default to EARNINGS_MACHINE (conservative for Inertia Principle).
+
+---
 
 ## 3-Step Position Review
 

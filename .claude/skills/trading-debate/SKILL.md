@@ -36,6 +36,16 @@ python .claude/skills/trading-debate/scripts/validate_analytics.py TICKER
 
 If files are missing or stale, run `/analyze [TICKER]` first to refresh them.
 
+## Data Gap Detection (Before Running Debate)
+
+**Before launching any multi-agent debate, check for data gaps using the `ask` skill.**
+
+See [Data Gap Detection Workflow](references/data-gap-detection.md) for the complete process.
+
+**Priority gaps for trading-debate:** Missing analytics, insufficient catalysts, machine type, sector.
+
+**If critical gaps remain unavailable** (especially catalysts or machine type), consider downgrading conviction or skipping the debate.
+
 ## Timeframe Format
 
 Timeframes use unit suffixes: `d` (days), `w` (weeks), `m` (months), `y` (years)

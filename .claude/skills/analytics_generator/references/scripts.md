@@ -10,10 +10,16 @@ Fetch and update price data from yfinance API.
 
 **Usage:**
 ```bash
-# Fetch 2 years of historical data (initial fetch)
+# Single ticker
 python .claude/skills/analytics_generator/scripts/fetch_prices.py --ticker NVDA
 
-# Incremental update (subsequent runs)
+# Batch tickers (space-separated positional arguments)
+python .claude/skills/analytics_generator/scripts/fetch_prices.py NVDA AAPL MSFT
+
+# Comma-separated
+python .claude/skills/analytics_generator/scripts/fetch_prices.py --tickers NVDA,AAPL,MSFT
+
+# Incremental update (subsequent runs - safe to run multiple times)
 python .claude/skills/analytics_generator/scripts/fetch_prices.py --ticker NVDA
 ```
 
@@ -191,8 +197,9 @@ Date,Open,High,Low,Close,Volume,Dividends,Stock Splits
 
 ### Example 1: Analyze a New Stock
 ```bash
-# 1. Fetch price data
+# 1. Fetch price data (single or batch)
 python .claude/skills/analytics_generator/scripts/fetch_prices.py --ticker TCOM
+python .claude/skills/analytics_generator/scripts/fetch_prices.py TCOM NVDA AAPL
 
 # 2. Run /analyze command (orchestrates LLM analysis)
 /analyze TCOM
@@ -245,8 +252,9 @@ python .claude/skills/analytics_generator/scripts/get_prices.py --ticker AAPL --
 **Problem:** Analytics markdown files don't exist
 **Solution:** Run `/analyze [TICKER]` command to create them, or manually run:
 ```bash
-# 1. Fetch prices
+# 1. Fetch prices (single or batch)
 python .claude/skills/analytics_generator/scripts/fetch_prices.py --ticker TICKER
+python .claude/skills/analytics_generator/scripts/fetch_prices.py TICKER1 TICKER2
 
 # 2. Generate technical and fundamental data
 python .claude/skills/analytics_generator/scripts/generate_technical.py --ticker TICKER

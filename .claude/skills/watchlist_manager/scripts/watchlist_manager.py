@@ -209,6 +209,8 @@ class WatchlistManager:
             results.sort(key=lambda x: x.get("ticker", ""))
         elif sort == "fit" or sort == "score":
             results.sort(key=lambda x: x.get("fit", 0), reverse=True)
+        elif sort == "buy" or sort == "buy_score":
+            results.sort(key=lambda x: x.get("buy_score", 50), reverse=True)
         elif sort == "rr" or sort == "risk_reward":
             results.sort(key=lambda x: x.get("rr", 0), reverse=True)
         elif sort == "price":
@@ -251,6 +253,8 @@ class WatchlistManager:
             new_stock["exit"] = stock_data["exit"]
         if stock_data.get("stop") is not None:
             new_stock["stop"] = stock_data["stop"]
+        if stock_data.get("buy_score") is not None:
+            new_stock["buy_score"] = stock_data["buy_score"]
 
         # Calculate RR if we have price, exit, stop
         if "price" in new_stock and "exit" in new_stock and "stop" in new_stock:
@@ -415,6 +419,52 @@ def format_summary_human(summary: Dict) -> str:
     return "\n".join(output)
 
 
+def format_rankings(results: List[Dict]) -> str:
+    """Format watchlist as buy attractiveness rankings."""
+    if not results:
+        return "No stocks in watchlist."
+
+    output = ["=" * 95]
+    output.append("WATCHLIST BUY ATTRACTIVENESS RANKINGS")
+    output.append("=" * 95)
+    output.append(f"{'Rank':<6} {'Ticker':<8} {'Name':<25} {'Buy':<5} {'Fit':<5} {'Price':<10} {'Target':<10} {'Stop':<10} {'Signal':<12} {'Sector':<18}")
+    output.append("-" * 95)
+
+    for i, stock in enumerate(results, 1):
+        ticker = stock.get("ticker", "N/A")
+        name = stock.get("name", "N/A")[:23]
+        buy_score = stock.get("buy_score", 50)
+        fit = stock.get("fit", 50)
+        price = stock.get("price")
+        target = stock.get("exit", "N/A")
+        stop = stock.get("stop", "N/A")
+        sector = stock.get("sector", "N/A")[:16]
+
+        # Signal based on buy_score
+        if buy_score >= 80:
+            signal = "🟢 STRONG"
+        elif buy_score >= 70:
+            signal = "🟡 BUY"
+        elif buy_score >= 50:
+            signal = "⚪ WATCH"
+        elif buy_score >= 30:
+            signal = "🟠 WEAK"
+        else:
+            signal = "🔴 AVOID"
+
+        price_str = f"${price:.2f}" if price else "N/A"
+        target_str = f"${target}" if target else "N/A"
+        stop_str = f"${stop}" if stop else "N/A"
+
+        output.append(f"{i:<6} {ticker:<8} {name:<25} {buy_score:<5} {fit:<5} {price_str:<10} {target_str:<10} {stop_str:<10} {signal:<12} {sector:<18}")
+
+    output.append("-" * 95)
+    output.append(f"Total: {len(results)} stocks")
+    output.append("=" * 95)
+
+    return "\n".join(output)
+
+
 # ============================================================================
 # CLI
 # ============================================================================
@@ -430,6 +480,7 @@ def main():
     mode_group.add_argument('--update', action='store_true')
     mode_group.add_argument('--remove', action='store_true')
     mode_group.add_argument('--summary', action='store_true')
+    mode_group.add_argument('--rank', action='store_true', help='Show buy attractiveness rankings')
 
     # Filters
     parser.add_argument('--ticker', help='Search by ticker')
@@ -443,7 +494,7 @@ def main():
     parser.add_argument('--max-price', type=float, help='Maximum price')
     parser.add_argument('--min-rr', type=float, help='Minimum risk/reward ratio')
     parser.add_argument('--top', type=int, help='Limit results')
-    parser.add_argument('--sort', choices=['ticker', 'fit', 'rr', 'price'], help='Sort results')
+    parser.add_argument('--sort', choices=['ticker', 'fit', 'buy', 'buy_score', 'rr', 'price'], help='Sort results')
 
     # Add/Update fields
     parser.add_argument('--name', help='Stock name (required for --add)')
@@ -455,6 +506,7 @@ def main():
     parser.add_argument('--price', type=float, help='Current price')
     parser.add_argument('--exit', type=float, help='Target exit price')
     parser.add_argument('--stop', type=float, help='Stop loss price')
+    parser.add_argument('--buy-score', type=int, help='Buy attractiveness score (0-100, separate from fit)')
 
     # Output
     parser.add_argument('--format', choices=['json', 'compact', 'human'], default='json')
@@ -469,6 +521,13 @@ def main():
             print(format_summary_human(summary))
         else:
             output_success({"summary": summary})
+        return
+
+    # Rank mode - show buy attractiveness rankings
+    if args.rank:
+        watchlist = manager._load_watchlist()
+        ranked = sorted(watchlist, key=lambda x: x.get("buy_score", 50), reverse=True)
+        print(format_rankings(ranked))
         return
 
     # Add mode

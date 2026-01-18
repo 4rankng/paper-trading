@@ -20,7 +20,12 @@
       "Skill(signal-formatter)",
       "Skill(portfolio_manager)",
       "Skill(documentation-templates)",
-      "mcp__sequentialthinking__sequentialthinking"
+      "mcp__sequentialthinking__sequentialthinking",
+      "mcp__web-reader__webReader",
+      "mcp__web-search-prime__webSearchPrime",
+      "Bash(for:*)",
+      "Bash(do echo:*)",
+      "Bash(do python:*)"
     ],
     "deny": [],
     "ask": []

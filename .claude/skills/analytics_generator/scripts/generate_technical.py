@@ -413,6 +413,31 @@ def format_indicators_for_llm(indicators: Dict) -> str:
     return "\n".join(output)
 
 
+def generate_technical_for_ticker(ticker: str) -> tuple:
+    """
+    Generate technical analysis for a single ticker.
+
+    Args:
+        ticker: Stock ticker symbol
+
+    Returns:
+        Tuple of (ticker, status, output_string)
+    """
+    # Load price data
+    price_data = load_price_data(ticker)
+    if not price_data:
+        return (ticker.upper(), 'error', f"Error: Price file not found for {ticker}")
+
+    # Calculate indicators
+    indicators = calculate_indicators(price_data)
+    if not indicators:
+        return (ticker.upper(), 'error', f"Error: Could not calculate indicators for {ticker}")
+
+    # Format and output
+    formatted_output = format_indicators_for_llm(indicators)
+    return (ticker.upper(), 'success', formatted_output)
+
+
 def main():
     """Main entry point."""
     parser = argparse.ArgumentParser(
@@ -421,27 +446,87 @@ def main():
         epilog="""
 Examples:
   python generate_technical.py --ticker TCOM
-  python generate_technical.py --ticker NVDA
+  python generate_technical.py --tickers NVDA,AAPL,MSFT
+  python generate_technical.py NVDA AAPL MSFT
         """
     )
 
-    parser.add_argument('--ticker', required=True, type=str, help='Stock ticker symbol')
+    parser.add_argument('tickers_pos', nargs='*', help='Tickers as positional arguments')
+    parser.add_argument('--ticker', type=str, help='Single ticker symbol')
+    parser.add_argument('--tickers', type=str, help='Comma-separated list of tickers')
+    parser.add_argument('--format', choices=['text', 'json'], default='text',
+                       help='Output format (default: text)')
+    parser.add_argument('--separator', default='\\n\\n---\\n\\n',
+                       help='Separator between ticker outputs (default: \\n\\n---\\n\\n)')
 
     args = parser.parse_args()
 
-    # Load price data
-    price_data = load_price_data(args.ticker)
-    if not price_data:
-        sys.exit(1)
+    # Collect tickers from all sources
+    all_tickers = []
+    if args.tickers_pos:
+        all_tickers.extend(args.tickers_pos)
+    if args.ticker:
+        all_tickers.append(args.ticker)
+    if args.tickers:
+        all_tickers.extend(args.tickers.split(','))
 
-    # Calculate indicators
-    indicators = calculate_indicators(price_data)
-    if not indicators:
-        sys.exit(1)
+    if not all_tickers:
+        parser.error("--ticker, --tickers, or positional tickers required")
 
-    # Format and output
-    formatted_output = format_indicators_for_llm(indicators)
-    print(formatted_output)
+    # Single ticker mode - direct output (backward compatible)
+    if len(all_tickers) == 1:
+        price_data = load_price_data(all_tickers[0])
+        if not price_data:
+            sys.exit(1)
+
+        indicators = calculate_indicators(price_data)
+        if not indicators:
+            sys.exit(1)
+
+        formatted_output = format_indicators_for_llm(indicators)
+        print(formatted_output)
+        return
+
+    # Multiple tickers mode
+    results = {}
+    errors = []
+    outputs = []
+
+    for ticker in all_tickers:
+        ticker_upper, status, output = generate_technical_for_ticker(ticker)
+        results[ticker_upper] = {'status': status}
+        outputs.append((ticker_upper, output))
+
+        if status == 'error':
+            errors.append(ticker_upper)
+            results[ticker_upper]['error'] = output
+
+    if args.format == 'json':
+        # For JSON format, return summary only (full output would be too large)
+        json_result = {
+            'successful': len(all_tickers) - len(errors),
+            'failed': len(errors),
+            'results': results
+        }
+        print(json.dumps(json_result, indent=2))
+    else:
+        # Text format - concatenate all outputs with separator
+        for ticker, output in outputs:
+            if results[ticker]['status'] == 'success':
+                print(output)
+                if ticker != all_tickers[-1]:
+                    print(args.separator)
+            else:
+                print(f"ERROR {ticker}: {output}", file=sys.stderr)
+                if ticker != all_tickers[-1]:
+                    print(args.separator, file=sys.stderr)
+
+    if len(errors) == len(all_tickers):
+        # All failed
+        sys.exit(1)
+    elif len(errors) > 0:
+        # Partial failure - still exit with error but output successful results
+        sys.exit(1)
 
 
 if __name__ == '__main__':

@@ -13,6 +13,23 @@ from datetime import datetime
 from pathlib import Path
 
 
+EXAMPLE_USAGE = """
+Example:
+  python add_news.py --ticker AAPL --title "Earnings Beat" --source "Bloomberg" \\
+      --url "https://..." --content "Apple reported strong Q4 results..." \\
+      --date 2026-01-14
+
+  # Full timestamp with --published-date
+  python add_news.py --ticker AAPL --title "Earnings Beat" --source "Bloomberg" \\
+      --url "https://..." --content "..." --published-date "2026-01-14 14:30:00"
+
+Notes:
+  - Both --date and --published-date are accepted (YYYY-MM-DD or YYYY-MM-DD HH:MM:SS)
+  - If no date provided, current datetime is used
+  - Content can be passed as a single string; wrap in quotes if it contains spaces
+"""
+
+
 def get_project_root() -> Path:
     """Get the project root directory."""
     current_path = Path(__file__).resolve()
@@ -30,6 +47,34 @@ def generate_slug(title: str) -> str:
     return slug[:100]
 
 
+def parse_date_flexible(date_str: str) -> datetime:
+    """
+    Parse date string accepting multiple formats.
+
+    Args:
+        date_str: Date string in various formats
+
+    Returns:
+        datetime object
+
+    Raises:
+        ValueError: If no format matches
+    """
+    formats = [
+        '%Y-%m-%d %H:%M:%S',  # Full timestamp
+        '%Y-%m-%d %H:%M',     # Timestamp without seconds
+        '%Y-%m-%d',           # Date only
+        '%Y/%m/%d',           # Date with slashes
+        '%Y%m%d',             # Compact date
+    ]
+    for fmt in formats:
+        try:
+            return datetime.strptime(date_str, fmt)
+        except ValueError:
+            continue
+    raise ValueError(f"Unable to parse date: {date_str}")
+
+
 def add_news_article(ticker: str, title: str, source: str, url: str, content: str, published_date: str = None) -> dict:
     """
     Add a manual news article.
@@ -40,7 +85,7 @@ def add_news_article(ticker: str, title: str, source: str, url: str, content: st
         source: Article source
         url: Article URL
         content: Article content
-        published_date: Optional published date (format: YYYY-MM-DD HH:MM:SS)
+        published_date: Optional published date (format: YYYY-MM-DD or YYYY-MM-DD HH:MM:SS)
 
     Returns:
         Dictionary with result
@@ -55,8 +100,9 @@ def add_news_article(ticker: str, title: str, source: str, url: str, content: st
     # Parse published date or use current date
     if published_date:
         try:
-            pub_date = datetime.strptime(published_date, '%Y-%m-%d %H:%M:%S')
+            pub_date = parse_date_flexible(published_date)
         except ValueError:
+            print(f"Warning: Could not parse date '{published_date}', using current time", file=sys.stderr)
             pub_date = datetime.now()
     else:
         pub_date = datetime.now()
@@ -108,13 +154,22 @@ url: {url}
 
 def main():
     """Main entry point."""
-    parser = argparse.ArgumentParser(description='Add a manual news article')
-    parser.add_argument('--ticker', required=True, type=str, help='Stock ticker symbol')
+    parser = argparse.ArgumentParser(
+        description='Add a manual news article',
+        epilog=EXAMPLE_USAGE,
+        formatter_class=argparse.RawDescriptionHelpFormatter
+    )
+    parser.add_argument('--ticker', required=True, type=str, help='Stock ticker symbol (e.g., AAPL)')
     parser.add_argument('--title', required=True, type=str, help='Article title')
-    parser.add_argument('--source', required=True, type=str, help='Article source')
+    parser.add_argument('--source', required=True, type=str, help='Article source (e.g., Bloomberg, Reuters)')
     parser.add_argument('--url', required=True, type=str, help='Article URL')
-    parser.add_argument('--content', required=True, type=str, help='Article content')
-    parser.add_argument('--published-date', type=str, help='Published date (format: YYYY-MM-DD HH:MM:SS)')
+    parser.add_argument('--content', required=True, type=str, help='Article content or summary')
+    parser.add_argument(
+        '--published-date', '--date',
+        dest='published_date',
+        type=str,
+        help='Published date (accepts YYYY-MM-DD or YYYY-MM-DD HH:MM:SS format). Both --date and --published-date work.'
+    )
 
     args = parser.parse_args()
 

@@ -273,10 +273,12 @@ def main():
 Examples:
   python fetch_prices.py --ticker NVDA
   python fetch_prices.py --tickers NVDA,AAPL,MSFT
+  python fetch_prices.py NVDA AAPL MSFT
   python fetch_prices.py --ticker TCOM --period 1y
         """
     )
 
+    parser.add_argument('tickers_pos', nargs='*', help='Tickers as positional arguments')
     parser.add_argument('--ticker', type=str, help='Fetch data for a single ticker')
     parser.add_argument('--tickers', type=str, help='Comma-separated list of tickers')
     parser.add_argument('--period', default='2y', choices=['6mo', '1y', '2y'],
@@ -284,8 +286,17 @@ Examples:
 
     args = parser.parse_args()
 
+    # Collect tickers from all sources: positional, --ticker, --tickers
+    all_tickers = []
+    if args.tickers_pos:
+        all_tickers.extend(args.tickers_pos)
+    if args.ticker:
+        all_tickers.append(args.ticker)
+    if args.tickers:
+        all_tickers.extend(args.tickers.split(','))
+
     try:
-        fetcher = PriceFetcher(period=args.period, ticker=args.ticker, tickers=args.tickers.split(',') if args.tickers else None)
+        fetcher = PriceFetcher(period=args.period, ticker=None, tickers=all_tickers if all_tickers else None)
         summary = fetcher.fetch_all()
 
         # Output as JSON

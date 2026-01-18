@@ -1,6 +1,11 @@
 ---
 name: trading-plan
 description: Generate concise trading plan with entry/exit/stop and confidence level. Optimized for scalping/day-trading (1d-5d holds) with technicals (80%) and sentiment (15%) as primary factors. Use for: "create trading plan for [TICKER]", "generate trading plan", "/trade [TICKER] [timeframe]". Outputs to trading-plans/ folder.
+allowed-tools:
+  - Read
+  - Write
+  - Bash(python:*)
+  - Skill
 ---
 
 # Trading Plan Skill
@@ -90,6 +95,16 @@ ls -lh analytics/[TICKER]/
 If missing or stale → Execute `/analyze [TICKER]` first.
 
 ## Process
+
+### 0. Data Gap Detection
+
+**Before generating any trading plan, check for data gaps using the `ask` skill.**
+
+See [Data Gap Detection Workflow](references/data-gap-detection.md) for the complete process.
+
+**Priority gaps for trading-plan:** Benchmark Gate questions (Q1-Q6), missing analytics.
+
+---
 
 ### 1. Get Multi-Agent Insights
 

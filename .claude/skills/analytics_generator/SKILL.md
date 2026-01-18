@@ -1,6 +1,11 @@
 ---
 name: analytics-generator
 description: Manage price data AND fundamental metrics, create data-driven analytics files (technical, fundamental, thesis). ALWAYS use for: "fetch price", "get price data", "historical prices", "current price", "update prices", "download prices", "list price files", "OHLCV data", "fundamental data", "get fundamentals", "company metrics". Use with /analyze command for comprehensive stock analysis. NOT for trading recommendations (use /trade command), NOT for screening (use watchlist_manager), NOT for portfolio operations (use portfolio_manager). Never manually edit price CSV files - use scripts for all price operations.
+allowed-tools:
+  - Read
+  - Write
+  - Bash(python:*)
+  - WebSearch
 ---
 
 # Analytics Generator - Price Data, Fundamentals & Analytics Management
@@ -12,9 +17,12 @@ Fetch price data and fundamental metrics, create data-driven analytics files for
 ```bash
 # Fetch prices (2 years initial, then incremental updates)
 python .claude/skills/analytics_generator/scripts/fetch_prices.py --ticker NVDA
+python .claude/skills/analytics_generator/scripts/fetch_prices.py NVDA AAPL MSFT
+python .claude/skills/analytics_generator/scripts/fetch_prices.py --tickers NVDA,AAPL,MSFT
 
-# Get current price
+# Get current price (single or multiple)
 python .claude/skills/analytics_generator/scripts/get_price.py --ticker NVDA
+python .claude/skills/analytics_generator/scripts/get_price.py NVDA AAPL MSFT
 
 # Get fundamental metrics (JSON output)
 python .claude/skills/analytics_generator/scripts/get_fundamental.py --ticker NVDA
@@ -76,13 +84,22 @@ python .claude/skills/news_fetcher/scripts/add_news.py \
 ### Step 3: Fetch Price Data
 
 ```bash
+# Single ticker
 python .claude/skills/analytics_generator/scripts/fetch_prices.py --ticker TICKER
+
+# Batch tickers (space-separated or comma-separated)
+python .claude/skills/analytics_generator/scripts/fetch_prices.py TICKER1 TICKER2 TICKER3
+python .claude/skills/analytics_generator/scripts/fetch_prices.py --tickers TICKER1,TICKER2,TICKER3
 ```
 
 ### Step 4: Generate Technical Data
 
 ```bash
+# Single ticker
 python .claude/skills/analytics_generator/scripts/generate_technical.py --ticker TICKER
+
+# Multiple tickers
+python .claude/skills/analytics_generator/scripts/generate_technical.py TICKER1 TICKER2 TICKER3
 ```
 
 This script outputs structured technical data (not loaded into context).
@@ -174,8 +191,8 @@ The `/analyze [TICKER]` command orchestrates all skills:
 ## Available Scripts
 
 **Price Data Operations:**
-- `fetch_prices.py` - Fetch/update price data from yfinance (2 years initial, then incremental)
-- `get_price.py` - Get current price with basic info
+- `fetch_prices.py` - Fetch/update price data from yfinance (2 years initial, then incremental). Supports batch tickers: `fetch_prices.py NVDA AAPL MSFT`
+- `get_price.py` - Get current price with basic info. Supports batch: `get_price.py NVDA AAPL MSFT`
 - `get_prices.py` - Get historical prices by period (1M, 3M, 6M, 1Y, 2Y)
 - `list_prices.py` - List all available price files with metadata
 
@@ -183,7 +200,7 @@ The `/analyze [TICKER]` command orchestrates all skills:
 - `get_fundamental.py` - Get fundamental metrics as JSON (market cap, P/E, margins, growth, debt, ratios)
 
 **Technical Analysis:**
-- `generate_technical.py` - Generate structured technical data (execute, don't read)
+- `generate_technical.py` - Generate structured technical data (execute, don't read). Supports batch: `generate_technical.py NVDA AAPL MSFT`
 - `technical_indicators.py` - Utility module (imported by generate_technical.py)
 
 **Scripts are EXECUTED, not READ.** Run them via Bash tool and consume output only.

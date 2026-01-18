@@ -1,6 +1,9 @@
 ---
 name: portfolio-manager
 description: Manage portfolio holdings, execute trades, and track investment history. ALWAYS use for ANY portfolio-related query or operation. Triggers: "what is my portfolio", "show holdings", "current positions", "portfolio status", "my investments", "buy/trim/sell shares", "add/remove position", "trade history", "trade log", "recent trades", "portfolio value", "cash balance", "gain/loss", "P&L". Never directly read/write portfolio.json or trade_log.csv - use this skill instead.
+allowed-tools:
+  - Read
+  - Bash(python:*)
 ---
 
 # Portfolio Manager Skill
