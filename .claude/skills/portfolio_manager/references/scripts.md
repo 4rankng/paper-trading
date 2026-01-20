@@ -42,7 +42,6 @@ python scripts/add_holding.py \
 - `--shares`: Number of shares (required)
 - `--price`: Purchase price per share (required)
 - `--thesis-status`: Thesis validation status (options: PENDING, VALIDATING, VALIDATED, FAILED)
-- `--notes`: Optional notes about the position
 
 ### Behavior
 
@@ -185,8 +184,7 @@ Array of trade objects with:
       "gain_loss": 1025.00,
       "gain_loss_pct": 6.83,
       "portfolio_pct": 15.2,
-      "thesis_status": "VALIDATING",
-      "notes": "AI infrastructure leader"
+      "thesis_status": "VALIDATING"
     }
   ],
   "cash": {

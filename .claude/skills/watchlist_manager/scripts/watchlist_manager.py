@@ -52,6 +52,19 @@ def _parse_nullable(value: Optional[str]) -> Optional[str]:
     return value
 
 
+MAX_NOTES_WORDS = 10
+
+
+def validate_notes(notes: Optional[str]) -> Optional[str]:
+    """Validate notes are concise (max 10 words)."""
+    if notes is None:
+        return None
+    word_count = len(notes.strip().split())
+    if word_count > MAX_NOTES_WORDS:
+        raise ValueError(f"Notes too verbose: {word_count} words. Max {MAX_NOTES_WORDS} words allowed.")
+    return notes.strip()
+
+
 def output_success(data: dict) -> None:
     """Output success JSON."""
     data['status'] = 'success'
@@ -507,6 +520,7 @@ def main():
     parser.add_argument('--exit', type=float, help='Target exit price')
     parser.add_argument('--stop', type=float, help='Stop loss price')
     parser.add_argument('--buy-score', type=int, help='Buy attractiveness score (0-100, separate from fit)')
+    parser.add_argument('--notes', help='Brief key insight (max 10 words)')
 
     # Output
     parser.add_argument('--format', choices=['json', 'compact', 'human'], default='json')
@@ -545,7 +559,8 @@ def main():
             "action": args.add_action or "WATCH",
             "price": args.price,
             "exit": args.exit,
-            "stop": args.stop
+            "stop": args.stop,
+            "notes": validate_notes(args.notes)
         }
 
         result = manager.add_stock(stock_data)
@@ -574,6 +589,10 @@ def main():
             updates["hold"] = _parse_nullable(args.hold)
         if args.fit is not None:
             updates["fit"] = args.fit
+        if args.buy_score is not None:
+            updates["buy_score"] = args.buy_score
+        if args.notes is not None:
+            updates["notes"] = validate_notes(args.notes)
 
         if not updates:
             output_error("NO_UPDATES", "No fields to update")

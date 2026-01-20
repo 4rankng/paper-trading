@@ -355,157 +355,27 @@ Detailed descriptions of the 10 trading personas organized into 4 clusters: Envi
 
 **Methodology:**
 - Receives input from all 9 analyst personas
-- **Checks for veto triggers FIRST** (non-negotiable)
+- Checks for veto triggers FIRST (non-negotiable)
 - Identifies consensus vs disagreement across clusters
 - Makes final execution decision (if no veto triggered)
 - Provides conviction level and actionable trading plan
 
----
-
-### **Veto Check Process (MANDATORY - Step 1):**
-
-**1. Risk Manager Veto Check (Line-Item):**
-   - R:R < 3:1? → **AUTO-VETO** (Cannot override)
-   - Position size <0.25%? → **AUTO-VETO** (Too small to matter)
-   - Portfolio correlation >60%? → **AUTO-VETO** (Over-concentration)
-
-**2. Macro Strategist Veto Check (Contextual):**
-   - SPY/QQQ below MA-200 AND VIX >30? → **AUTO-VETO longs** (Bear market)
-   - Major macro event imminent (Fed, CPI)? → **CAP conviction at Low**
-
-**3. If Veto Triggered:**
-   - Output: "AVOID - [Persona] veto triggered: [reason]"
-   - Analysis stops. No vote counting needed.
-
----
-
-### **Decision Framework (Only if NO veto triggered):**
-
-**Vote Counting (out of 9 analysts):**
-
-- **8-9/9 bullish** → **Strong Buy, High Conviction**
-  - Requires: Risk Manager approval + Macro Strategist not Risk-Off
-  - Output: Execution plan with full position size (0.25-1%)
-
-- **6-7/9 bullish** → **Buy, Speculative Conviction**
-  - Requires: Risk Manager approval
-  - Output: Execution plan with reduced position size (0.25-0.5%)
-
-- **5/9 bullish (split)** → **Watch/Neutral, Low Conviction**
-  - Analysis: Conflicts between clusters
-  - Output: "Watchlist. Wait for clarity."
-
-- **3-4/9 bullish** → **Avoid**
-  - Analysis: Majority bearish
-  - Output: "No edge. Skip."
-
-- **0-2/9 bullish** → **Short (if applicable) or Avoid (long-only)**
-  - Analysis: Unanimous bearish
-  - Output: "Short setup detected" (if shorting enabled)
-
----
-
-### **Output Format:**
-
-```
-Verdict: [Buy / Watch / Avoid]
-Conviction Level: [High / Speculative / Low]
-
-Veto Check: [None / Risk Manager / Macro Strategist / Both]
-If Vetoed: [Reason for veto]
-
-Vote Tally: X/9 bullish
-
-Execution Plan (if Buy):
-- Entry Zone: $XX - $XX
-- Target Price: $XX (first), $XX (second)
-- Stop-Loss: $XX (hard stop)
-- Duration: X-X days
-- Position Size: X%
-
-Cluster Analysis:
-- Environment: [Bullish/Bearish/Neutral]
-- Strategy: [Trend/Reversion/Catalyst-driven]
-- Evidence: [Validated/Questioned]
-- Defense: [Approved/Concerned]
-
-Risk/Reward: X:1 ratio
-```
-
----
-
-### **CIO Biases:**
-
+**Biases:**
 - **Veto authority is ABSOLUTE** - Risk Manager and Macro Strategist vetoes cannot be overridden
 - Weighs Short-Seller's warnings heavily (red-team findings)
 - Requires Tape Reader validation (volume confirmation)
 - Uses Statistical Quant's analysis to avoid outliers
 - **Veto check happens BEFORE vote counting** (non-negotiable)
 
----
+**See [constraints.md](constraints.md) for veto triggers and conviction tiers.**
 
-### **Example Outputs:**
-
-**Example 1: High Conviction Trade (8/9 bullish, no vetoes)**
-```
-Verdict: Buy
-Conviction Level: High
-Veto Check: None
-Vote Tally: 8/9 bullish
-
-Execution Plan:
-- Entry Zone: $145 - $148
-- Target: $165 (first), $175 (second)
-- Stop-Loss: $138 (hard stop)
-- Duration: 5-10 days
-- Position Size: 0.75%
-
-Cluster Analysis:
-- Environment: Bullish (Macro tailwinds, sentiment neutral)
-- Strategy: Trend-following (Stage 2 uptrend intact)
-- Evidence: Validated (volume confirms, statistical normal)
-- Defense: Approved (R:R 4.5:1, correlation 30%)
-
-Risk/Reward: 4.5:1
-```
-
-**Example 2: Risk Manager Veto (Trade Dead)**
-```
-Verdict: AVOID
-Veto Check: Risk Manager
-Veto Details: R:R ratio is 2.2:1, below 3:1 minimum. Stop distance requires position size of 0.18%, below 0.25% minimum.
-Vote Tally: Irrelevant due to veto.
-
-Analysis: Trade rejected. Poor risk/reward setup despite bullish technicals.
-```
-
-**Example 3: Macro Strategist Conviction Cap**
-```
-Verdict: Buy
-Conviction Level: Low (Capped by Macro Strategist)
-Veto Check: None (conviction capped, not vetoed)
-Vote Tally: 7/9 bullish
-
-Execution Plan:
-- Entry Zone: $92 - $94
-- Target: $98 (first), $102 (second)
-- Stop-Loss: $89 (hard stop)
-- Duration: 3-7 days
-- Position Size: 0.25% (reduced due to Low Conviction)
-
-Cluster Analysis:
-- Environment: BEARISH (Macro risk-off regime, VIX elevated 28)
-- Strategy: Catalyst-driven (earnings beat)
-- Evidence: Validated (volume confirms)
-- Defense: Approved (R:R 3.5:1, correlation 25%)
-
-Macro Note: Market in risk-off regime (SPY below MA-200). Position size reduced. Exit early if volatility expands.
-Risk/Reward: 3.5:1
-```
+**See [workflows.md](workflows.md) for detailed execution flows.**
 
 ---
 
 ## Persona Interaction Dynamics
+
+This section covers persona-specific interactions: how clusters work together, where conflicts arise, and how to resolve them.
 
 ### **Cluster Synergies:**
 
@@ -523,66 +393,25 @@ Risk/Reward: 3.5:1
 
 ---
 
-### **Cluster Conflicts:**
+### **Cluster Conflicts (Challenge Targets):**
 
 **Strategy Conflict (Internal):**
 - Trend Architect vs Mean-Reversion (trend vs fade)
-- Resolution: Tape Reader validates with volume
+- **Challenge focus**: Is the trend strong enough to follow, or is mean reversion more likely?
+- **Resolution**: Tape Reader validates with volume; Statistical Quant provides probability assessment
 
 **Environment vs Strategy:**
 - Macro Strategist (bearish) vs Trend Architect (bullish)
-- Resolution: CIO caps conviction at Low
+- **Challenge focus**: Does the macro headwind outweigh the technical tailwind?
+- **Resolution**: CIO caps conviction at Low if macro is risk-off
 
 **Evidence vs Defense:**
 - Tape Reader (validates) vs Short-Seller (finds flaws)
-- Resolution: CIO weighs red-team findings, may reduce position size
+- **Challenge focus**: Is volume confirming the move, or is it a bull trap?
+- **Resolution**: CIO weighs red-team findings, may reduce position size
 
 ---
 
-### **Veto Hierarchy (Non-Negotiable):**
+**See [constraints.md](constraints.md) for veto hierarchy and triggers.**
 
-1. **Risk Manager (Line-Item Veto)** → If R:R < 3:1 or position <0.25% or correlation >60%
-   → Trade DEAD, regardless of other personas
-
-2. **Macro Strategist (Contextual Veto)** → If SPY below MA-200 + VIX >30
-   → Long trades DEAD or capped at Low Conviction
-
-3. **If both vetoes clear** → CIO proceeds to vote counting and synthesis
-
----
-
-### **Resolution Protocol:**
-
-1. **Check vetoes FIRST** (before any analysis synthesis)
-2. **If veto triggered** → Output "AVOID - Veto triggered" and STOP
-3. **If no veto** → Count votes from 9 analysts
-4. **Apply conviction thresholds** (8/9 = High, 6/9 = Speculative, <6 = No Trade)
-5. **CIO makes final call** with cluster-by-cluster breakdown
-
----
-
-## Summary: The High-Consciousness Framework
-
-**Why 10 Personas?**
-- Allows for "Tie-Breaker" (9 analysts + CIO as final arbiter)
-- Full coverage across 4 critical dimensions
-- Prevents groupthink through adversarial roles
-- Capital protection via veto powers
-
-**The Four Dimensions:**
-1. **Environment** (Macro + Sentiment) → "Should we even be trading?"
-2. **Strategy** (Trend + Reversion + Catalyst) → "What's the thesis?"
-3. **Evidence** (Statistical + Tape Reader) → "Is the setup valid?"
-4. **Defense** (Short-Seller + Risk Manager) → "What can go wrong?"
-
-**The Veto System:**
-- Risk Manager: Line-item veto (bad R:R, over-concentration)
-- Macro Strategist: Contextual veto (risk-off regime, crisis events)
-- CIO: Cannot override vetoes (capital preservation first)
-
-**Decision Logic:**
-- High Conviction: 8/9 agreement + Risk Manager approval + Macro not Risk-Off
-- Speculative: 6/9 agreement + Risk Manager approval
-- No Trade: Any veto, or <6 agreement
-
-**Result:** A systematic, disciplined approach to swing trading that prioritizes capital preservation while capturing high-probability setups.
+**See [workflows.md](workflows.md) for resolution protocol and execution phases.**

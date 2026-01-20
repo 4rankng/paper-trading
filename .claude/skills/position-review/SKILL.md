@@ -38,6 +38,18 @@ See [Data Gap Detection Workflow](references/data-gap-detection.md) for the comp
 
 **If machine type is unavailable**, default to EARNINGS_MACHINE (conservative for Inertia Principle).
 
+## Macro Risk Check
+
+**Before thesis validation, read latest macro thesis:** `macro/theses/macro_thesis_YYYY_MM.md`
+
+**Macro factors that can invalidate a thesis:**
+- **Recession onset:** Consumer discretionary, cyclicals may weaken despite strong fundamentals
+- **Interest rate shocks:** High-debt companies, REITs, growth stocks face headwinds
+- **Geopolitical escalation:** Supply chain disruptions, commodity price spikes
+- **Sector-specific regulations:** Policy changes that materially affect business model
+
+**If macro factor is thesis-critical:** Consider downgrade to WARNING status even if company fundamentals remain intact.
+
 ---
 
 ## 3-Step Position Review

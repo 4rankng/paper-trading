@@ -51,6 +51,7 @@ Generate up to 5 high-value, fact-based questions about a ticker to bridge infor
 - **< 300 words** total output
 - **Verifiable facts only** - no predictions/speculation
 - **Categories**: fundamental, technical, catalyst, sentiment, benchmark, system
+- **Format**: Bullet points only — DO NOT use tables for question presentation
 
 ## History Status Flow
 

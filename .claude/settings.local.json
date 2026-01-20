@@ -25,7 +25,9 @@
       "mcp__web-search-prime__webSearchPrime",
       "Bash(for:*)",
       "Bash(do echo:*)",
-      "Bash(do python:*)"
+      "Bash(do python:*)",
+      "Bash(do:*)",
+      "Bash(done:*)"
     ],
     "deny": [],
     "ask": []

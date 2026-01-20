@@ -6,6 +6,7 @@ allowed-tools:
   - Write
   - Bash(python:*)
   - WebSearch
+  - Skill(ask)
 ---
 
 # Analytics Generator - Price Data, Fundamentals & Analytics Management
@@ -146,7 +147,39 @@ If `critical_fields_present: false` or `completeness_pct < 50`:
 
 Extract available fundamentals from web results and note data limitations in analysis.
 
-### Step 6: Create Analytics Files (LLM)
+### Step 6: Data Gap Analysis (MANDATORY GATE)
+
+**Before creating any analytics files, the LLM MUST actively identify data gaps:**
+
+1. **Review all collected data:**
+   - Technical data output from `generate_technical.py`
+   - Fundamental data JSON from `get_fundamental.py` (check `data_quality` field)
+   - News articles from `news/{TICKER}/`
+
+2. **Identify gaps** across these dimensions:
+   - **Fundamental gaps**: Missing metrics, incomplete financials, unclear business model
+   - **Technical gaps**: Insufficient price history, unclear patterns, missing indicators
+   - **Catalyst gaps**: No upcoming events, unclear timeline, missing earnings dates
+   - **Sentiment gaps**: No recent news, unclear institutional flow, missing social sentiment
+   - **Benchmark gaps**: No sector context, no relative strength comparison
+
+3. **Use the `ask` skill for unresolved gaps:**
+   ```bash
+   /ask TICKER
+   ```
+   - The skill auto-filters self-answerable questions
+   - Only asks questions requiring user input (private context, qualitative judgments)
+   - Tracks history to avoid duplicate questions
+
+4. **GATE CHECK - Do NOT proceed until:**
+   - All critical data gaps are identified
+   - `ask` skill is invoked for gaps requiring user input
+   - User provides answers OR data is confirmed unavailable
+   - Analysis can proceed with available information
+
+**CRITICAL: Only produce final analytics after this gate is passed.** If new questions emerge during analysis, stop and use `/ask` before continuing.
+
+### Step 7: Create Analytics Files (LLM)
 
 Read the structured outputs from Steps 4-5 and create three markdown files:
 
@@ -158,6 +191,7 @@ Read the structured outputs from Steps 4-5 and create three markdown files:
 - Technical data (from `generate_technical.py`)
 - Fundamental data (from `get_fundamental.py`)
 - News articles (from `news/{TICKER}/`)
+- User-provided answers from `ask` skill (if any)
 
 For detailed section structures, see [Analytics Files Reference](references/ANALYTICS_FILES.md).
 
@@ -170,7 +204,8 @@ The `/analyze [TICKER]` command orchestrates all skills:
 3. **News fetching** via `news_fetcher` skill (if needed)
 4. **Technical data generation** via `generate_technical.py`
 5. **Fundamental data generation** via `get_fundamental.py`
-6. **LLM analytics creation** (incorporates price, fundamental, and news data)
+6. **Data gap analysis** via `ask` skill (MANDATORY GATE)
+7. **LLM analytics creation** (incorporates price, fundamental, news, and user-provided answers)
 
 ## File Structure
 

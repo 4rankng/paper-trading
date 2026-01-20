@@ -112,6 +112,7 @@ python .claude/skills/watchlist_manager/scripts/watchlist_manager.py --summary
 | `action` | `BUY`, `SELL`, `WATCH`, `AVOID` | Always required |
 | `price` | Current price | Optional |
 | `exit`, `stop`, `rr` | Trading levels | Only included if strategy is defined |
+| `notes` | Brief key insight | **Max 10 words. No fluff.** |
 | `updated_at` | YYYY-MM-DD | Auto-set on add/update |
 
 ### Score Distinction
@@ -205,6 +206,7 @@ For detailed criteria, see [strategies.md](references/strategies.md).
 7. **Use exact strategy names** - Must match values in strategies.md
 8. **Classified stocks MUST have trading levels** - Entry (price), Exit, Stop with R:R ≥ 2.0
 9. **updated_at auto-set on every add/update** - Script handles this automatically
+10. **Notes must be concise (max 10 words)** - Include only key metrics, catalyst, or entry guidance. No fluff phrases like "UPGRADED:", "Quality at Fair Price," or redundant margin details.
 
 ## Trading Level Guidelines
 

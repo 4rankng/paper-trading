@@ -1,6 +1,6 @@
 ---
 name: trading-debate
-description: Multi-agent debate framework for trading decisions. Auto-selects model by timeframe: Scalping (6 agents, 1-7d), Swing (10 agents, 1-4w), Position (7 agents, 1-6m), Investment (5 agents, 1y+). Use for: "swing trade analysis", "trading debate", "multi-agent analysis", "investment outlook".
+description: Multi-agent debate framework for trading decisions with adversarial analysis. Auto-selects model by timeframe: Scalping (6 agents, 1-7d), Swing (10 agents, 1-4w), Position (7 agents, 1-6m), Investment (5 agents, 1y+). Use for: "swing trade analysis", "trading debate", "multi-agent analysis", "investment outlook".
 allowed-tools:
   - Read
   - Bash(python:*)
@@ -11,185 +11,85 @@ agent: general-purpose
 
 # Trading Debate Skill
 
-Multi-agent adversarial analysis system for trading decisions. Automatically configures agent structure based on your timeframe.
+Multi-agent adversarial analysis for trading decisions. Auto-configures agent structure by timeframe.
 
 ## Quick Reference
 
-| Timeframe | Model | Agents | Focus |
-|-----------|-------|--------|-------|
-| 1d-7d | Scalping/Day | 6 | Intraday momentum, quick exits |
-| 1w-4w | Swing | 10 | Technical setups, short-term catalysts |
-| 1m-6m | Position | 7 | Medium-term trends, catalyst-driven |
-| 1y+ | Investment | 5 | Fundamentals, business quality |
+| Timeframe | Model | Reference |
+|-----------|-------|-----------|
+| 1d-7d | Scalping/Day (6 agents) | [workflows.md](references/workflows.md#scalpingday-trading-model-1d---7d-4-phase-workflow) |
+| 1w-4w | Swing (10 agents) | [workflows.md](references/workflows.md#swing-trading-model-1w---4w-5-phase-workflow) |
+| 1m-6m | Position (7 agents) | [workflows.md](references/workflows.md#position-trading-model-1m---6m-4-phase-workflow) |
+| 1y+ | Investment (5 agents) | [workflows.md](references/workflows.md#investment-model-1y-4-phase-workflow) |
 
 ## Prerequisites
 
-**CRITICAL:** This skill requires FRESH analytics files (<24 hours old):
-- `analytics/[TICKER]/[TICKER]_technical_analysis.md`
-- `analytics/[TICKER]/[TICKER]_fundamental_analysis.md`
-- `analytics/[TICKER]/[TICKER]_investment_thesis.md`
+**Macro Check:**
+```bash
+# Check current macro stance before any trading decision
+ls -lt macro/theses/ | head -5
+```
 
-**Validate analytics before running:**
+**Read latest macro thesis:** `macro/theses/macro_thesis_YYYY_MM.md`
+
+Macro factors are integrated as contextual variables in all debate models.
+
+**CRITICAL:** FRESH analytics files required (<24 hours old):
+```
+analytics/[TICKER]/[TICKER]_technical_analysis.md
+analytics/[TICKER]/[TICKER]_fundamental_analysis.md
+analytics/[TICKER]/[TICKER]_investment_thesis.md
+```
+
+**Validate:**
 ```bash
 python .claude/skills/trading-debate/scripts/validate_analytics.py TICKER
 ```
 
-If files are missing or stale, run `/analyze [TICKER]` first to refresh them.
-
-## Data Gap Detection (Before Running Debate)
-
-**Before launching any multi-agent debate, check for data gaps using the `ask` skill.**
-
-See [Data Gap Detection Workflow](references/data-gap-detection.md) for the complete process.
-
-**Priority gaps for trading-debate:** Missing analytics, insufficient catalysts, machine type, sector.
-
-**If critical gaps remain unavailable** (especially catalysts or machine type), consider downgrading conviction or skipping the debate.
+If missing/stale: run `/analyze [TICKER]`
 
 ## Timeframe Format
 
-Timeframes use unit suffixes: `d` (days), `w` (weeks), `m` (months), `y` (years)
+Unit suffixes: `d` (days), `w` (weeks), `m` (months), `y` (years)
 
-Examples: `3d`, `2w`, `6m`, `1y`
+Parse: `python .claude/skills/trading-debate/scripts/parse_timeframe.py 6m`
 
-**Parse a timeframe:**
-```bash
-python .claude/skills/trading-debate/scripts/parse_timeframe.py 6m
-```
+## Reference Files
 
-## Agent Personas (Swing Model - 10 agents)
-
-**Cluster 1: Environment** (Context)
-- **Macro Strategist** - Rates, CPI, geopolitics (**CONTEXTUAL VETO**)
-- **Sentiment & Flow** - Fear/greed, retail hype, institutional positioning
-
-**Cluster 2: Strategists** (Thesis)
-- **Trend Architect** - Momentum, EMA alignments, stage analysis
-- **Mean-Reversion Specialist** - RSI, Bollinger Bands, exhaustion
-- **Fundamental Catalyst** - Earnings quality, guidance
-
-**Cluster 3: Evidence** (Validation)
-- **Statistical Quant** - Standard deviations, volatility, probability
-- **Tape Reader** - Price/volume divergence, smart money detection
-
-**Cluster 4: Defense** (Guardians)
-- **Short-Seller** - Red-teaming, structural flaws, bear case
-- **Risk Manager** - R:R ratio, position sizing (**LINE-ITEM VETO**)
-
-**Decision Maker**
-- **Chief Investment Officer** - Synthesis, final grade, execution decision
-
-For detailed persona descriptions, veto powers, and interactions, see [personas.md](references/personas.md).
-
-## Additional Resources
-
-- **Workflows:** See [workflows.md](references/workflows.md) for detailed execution flows for each model
-- **Constraints:** See [constraints.md](references/constraints.md) for veto triggers, conviction tiers, and limits
-- **Personas:** See [personas.md](references/personas.md) for detailed persona descriptions
+| File | Contains |
+|------|----------|
+| [personas.md](references/personas.md) | Persona definitions, interactions |
+| [workflows.md](references/workflows.md) | Execution flows, iteration limits, monitoring |
+| [constraints.md](references/constraints.md) | Veto triggers, conviction tiers, limits |
+| [data-gap-detection.md](references/data-gap-detection.md) | Data validation workflow |
 
 ## When to Use
 
-**Use for:**
-- Scalping/Day trading decisions (1-7 day holds)
-- Swing trading decisions (1-4 week holds)
-- Position trading decisions (1-6 month holds)
-- Long-term investment analysis (1+ year horizon)
-- Multi-perspective analysis with adversarial debate
+**Use for:** Trading decisions (scalping, swing, position, investment)
 
-**NOT for:**
-- Portfolio management operations (use `portfolio_manager` skill)
-- Existing holding reviews (use `position-review` skill)
+**NOT for:** Portfolio management (use `portfolio_manager`), existing holding reviews (use `position-review`)
 
-## Output Location
+## Output
 
-Save ALL debate output to `trading-debates/[TICKER]/[TICKER]_YYYY_MM_DD_[TIMEFRAME].md`
+**Save debate results to:** `trading-debates/[TICKER]/[TICKER]_YYYY_MM_DD_[TIMEFRAME].md`
 
 Examples:
-- `trading-debates/LAES/LAES_2024_05_15_6m.md` ✅
-- `trading-debates/NVDA/NVDA_2024_05_15_1m.md` ✅
-## Input Format
+- `trading-debates/NVDA/NVDA_2025_01_19_2w.md`
+- `trading-debates/AAPL/AAPL_2025_01_19_1y.md`
 
-The debate compiles data from:
-1. **Technical Analysis** - Trend, RSI, EMAs, support/resistance, volume, ATR
-2. **Fundamental Analysis** - Market cap, valuation, growth, financial health
-3. **Investment Thesis** - Phenomenon classification, thesis status, catalysts
-4. **Recent news** - Latest 10 articles from `news/[TICKER]/`
-5. **Portfolio context** - Current positions, cash, correlation risk
+## Usage
 
-## Examples
+```
+/debate TICKER TIMEFRAME
+```
 
-### Example 1: Swing Trade Analysis
-```
-/debate NVDA 2w
-```
-- Loads 10-agent swing model
-- Validates analytics freshness (<24h)
-- Runs 4-phase workflow (Deep Analysis → Adversarial Debate → Confidence Vote → CIO Synthesis)
-- Outputs to `trading-debates/NVDA/NVDA_2w_debate.md`
-
-### Example 2: Long-Term Investment
-```
-/debate AAPL 1y
-```
-- Loads 5-agent investment model
-- Focuses on fundamentals, moat, valuation
-- Outputs to `trading-debates/AAPL/AAPL_1y_debate.md`
-
-### Example 3: Scalping/Day Trade
-```
-/debate TSLA 3d
-```
-- Loads 6-agent scalping model
-- Streamlined for rapid analysis
-- Tight stops (1-1.5x ATR), quick targets
+Examples: `/debate NVDA 2w` | `/debate AAPL 1y` | `/debate TSLA 3d`
 
 ## Troubleshooting
 
-### "Analytics files missing or stale"
-
-**Cause:** Required analytics files don't exist or are >24 hours old.
-
-**Solution:** Run `/analyze [TICKER]` to refresh all analytics files.
-
-### "Veto triggered - no trade"
-
-**Cause:** Risk Manager or Macro Strategist veto conditions met.
-
-**Common veto triggers:**
-- R:R < 3:1 (2:1 for day trades)
-- Position size < 0.25%
-- Portfolio correlation > 60%
-- SPY below MA-200 AND VIX > 30 (bear market)
-
-**Solution:** Accept the veto - the framework is protecting capital. No trade is better than a bad trade.
-
-### "Low conviction - watch only"
-
-**Cause:** Analyst votes split (5-6/9 for swing, 3-4/6 for position).
-
-**Solution:** Add ticker to watchlist. Wait for more clarity or stronger signals.
-
-### "Wrong model selected for timeframe"
-
-**Cause:** Timeframe unit not recognized.
-
-**Solution:** Use correct unit suffixes: `d`, `w`, `m`, `y`
-
-### Debate output not saving
-
-**Cause:** Incorrect output path.
-
-**Solution:** Always save to `trading-debates/[TICKER]/` at project root, NOT in `.claude/skills/`
-
-## Veto System (Non-negotiable)
-
-### Risk Manager Veto (Line-Item - Absolute)
-- R:R < 3:1 (2:1 for day trades)
-- Position < 0.25%
-- Correlation > 60%
-
-### Macro Strategist Veto (Contextual)
-- SPY below MA-200 AND VIX > 30
-- Major event imminent (Fed, CPI)
-
-**Important:** The CIO cannot override vetoes. Veto check happens BEFORE any synthesis.
+| Issue | Solution |
+|-------|----------|
+| Analytics missing/stale | `/analyze TICKER` |
+| Veto triggered | See [constraints.md](references/constraints.md) |
+| Low conviction | Add to watchlist |
+| Wrong model | Check timeframe suffix (d/w/m/y) |

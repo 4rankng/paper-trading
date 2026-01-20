@@ -4,7 +4,20 @@ Detailed execution workflows for each trading model.
 
 ---
 
-## Scalping/Day Trading Model (1d - 7d): 3-Phase Workflow
+## Iteration Limits (Efficiency Control)
+
+| Model | Max Rounds | Early Stop Condition |
+|-------|------------|---------------------|
+| Scalping/Day | 3 rounds | All challenges addressed OR no new evidence |
+| Swing | 5 rounds | Convergence pattern detected |
+| Position | 5 rounds | Convergence pattern detected |
+| Investment | 5 rounds | Convergence pattern detected |
+
+**Early convergence**: If 2 consecutive rounds produce no new challenges, debate ends immediately.
+
+---
+
+## Scalping/Day Trading Model (1d - 7d): 4-Phase Workflow
 
 **Agents:** 6 personas (5 analysts + 1 CIO)
 
@@ -20,7 +33,8 @@ Each analyst persona (1-5) provides concise evaluation (100-150 words):
 **Tape Reader:**
 - Volume profile (accumulation/distribution/churn)
 - Entry/exit timing (smart money detection)
-- Spread analysis (wide/narrow)
+- **Spread analysis** (liquidity check)
+- Average daily volume >1M shares preferred
 
 **Mean-Reversion Specialist:**
 - Overbought/oversold conditions (RSI, Stochastics)
@@ -31,29 +45,67 @@ Each analyst persona (1-5) provides concise evaluation (100-150 words):
 - Stop distance based on ATR (1-1.5x)
 - Position size calculation (0.25-0.5% max)
 - Quick loss cut strategy
+- **Liquidity check**: Minimum 20-day avg volume >500k shares
 
 **Sentiment & Flow:**
 - Intraday sentiment (fear/greed extremes)
 - Options flow (calls/puts, gamma exposure)
 - Hype detection (social volume spikes)
 
-### Phase 2: Quick Risk Check
+### Phase 2: Structured Challenge-Response Debate
 
-**Risk Manager validates:**
-- R:R >= 2:1 (lowered for day trades)
-- Tight stop distance (1-1.5x ATR)
-- Position size >= 0.25%
+**Iteration Cap: Maximum 3 rounds** (scalping requires speed)
 
-**Tape Reader confirms:**
-- Volume available for entry/exit
-- Liquidity sufficient (not trading during pre/post market only)
+**Step 2.1: Initial Challenges**
 
-### Phase 3: CIO Decision
+Each persona X reviews all 5 analyst answers and identifies the answer they **disagree with most**, issuing a formal challenge stating:
+1. What they disagree with (specific claim or conclusion)
+2. Why they disagree (counter-evidence or logic)
+3. What evidence would change their mind
 
-**Weighs 5 analyst inputs and assesses conviction:**
-- **High Conviction (5/5)**: All analysts aligned
-- **Medium Conviction (4/5)**: Minor disagreement
-- **Low Conviction (3/5)**: Weak consensus
+**Step 2.2: Response and Justification**
+
+The challenged persona Y must respond with:
+- **Justification**: Evidence or reasoning supporting their original position
+- **OR Concession**: Explicit concession if they cannot justify
+
+**Step 2.3: Iteration (max 3 rounds)**
+
+The debate continues in rounds until:
+- **No new challenges remain**, OR
+- **3 rounds completed**, OR
+- **2 consecutive rounds with no new challenges**
+
+**Step 2.4: Debate Convergence**
+
+The phase ends when all outstanding challenges are addressed and remaining disagreements are documented as "unresolved disputes."
+
+**Debate Rules:**
+- **Must challenge**: Each persona must challenge at least one other answer
+- **Must respond**: Challenged personas must always respond (justify or concede)
+- **Specific challenges**: Challenges must be specific, not generic
+- **Evidence-based**: All challenges and justifications must reference the analytics data
+- **Good faith**: Personas concede when they cannot justify
+
+### Phase 3: Holistic Confidence Vote
+
+After the challenge-response debate, each analyst **holistically evaluates** the entire debate transcript and scores 1-10:
+- 1-3 = Avoid
+- 4-6 = Neutral/Watch
+- 7-8 = Buy (Speculative)
+- 9-10 = Strong Buy (High Conviction)
+
+**Voting Guidance:**
+- Vote for the **most well-defended** position, not necessarily your original stance
+- Penalize positions that conceded key points
+- Reward positions that successfully defended against challenges
+
+### Phase 4: CIO Decision
+
+**Weighs 5 analyst inputs and debate outcomes, assesses conviction:**
+- **High Conviction (5/5)**: All analysts aligned, no concessions
+- **Medium Conviction (4/5)**: Minor disagreement, defended positions
+- **Low Conviction (3/5)**: Weak consensus, some concessions
 - **Avoid (<3/5)**: No edge
 
 **Outputs day trading plan with:**
@@ -64,12 +116,18 @@ Each analyst persona (1-5) provides concise evaluation (100-150 words):
 - Time stop: Exit EOD if no movement
 - Position size: 0.25-0.5%
 
+**Liquidity Check (Scalping only):**
+- Minimum average daily volume: 500k shares
+- Maximum position size: <1% of daily volume
+- Wide spreads (>2%) trigger reduction or skip
+
 **Veto Triggers (Non-negotiable):**
 - Risk Manager: R:R < 2:1, position <0.25%, correlation >60%
+- Liquidity: Daily volume <500k shares OR spread >2%
 
 ---
 
-## Swing Trading Model (1w - 4w): 4-Phase Workflow
+## Swing Trading Model (1w - 4w): 5-Phase Workflow
 
 **Agents:** 10 personas (9 analysts + 1 CIO) in 4 clusters
 
@@ -94,20 +152,78 @@ Each analyst persona (1-9) provides concise evaluation (150-200 words) based on 
 8. Short-Seller: Red-teaming, structural flaws
 9. Risk Manager: R:R, position sizing, correlation
 
-### Phase 2: Adversarial Debate
+### Phase 2: Structured Challenge-Response Debate
 
-- **Short-Seller** red-teams the bullish thesis with structural flaws
-- **Risk Manager** challenges R:R and position sizing
-- **Tape Reader** validates volume confirmation
-- **Sentiment & Flow** provides contrarian perspective
+**Iteration Cap: Maximum 5 rounds**
 
-### Phase 3: Confidence Vote
+**Step 2.1: Initial Challenges**
 
-Each analyst scores 1-10:
+Each persona X reviews all 9 analyst answers and identifies:
+- The answer they **disagree with most**
+- The specific point(s) of disagreement
+
+X then issues a **formal challenge** to that persona Y, stating:
+1. What they disagree with (specific claim or conclusion)
+2. Why they disagree (counter-evidence or logic)
+3. What evidence would change their mind
+
+**Step 2.2: Response and Justification**
+
+The challenged persona Y must respond to X's challenge with:
+1. **Justification**: Evidence or reasoning supporting their original position
+2. **OR Concession**: If they cannot justify, they explicitly concede the point
+
+A valid justification must include:
+- Concrete data points from the analytics
+- Logical reasoning that addresses the challenge
+- Acknowledgment of any weaknesses in their position
+
+**Step 2.3: Iteration (max 5 rounds)**
+
+The debate continues in rounds:
+1. Any persona may issue new challenges based on responses
+2. Challenged personas must respond or concede
+3. Once a persona concedes on a point, they retract that specific claim
+4. The process continues until:
+   - **No new challenges remain**, OR
+   - **5 rounds completed**, OR
+   - **2 consecutive rounds with no new challenges**
+
+**Step 2.4: Debate Convergence**
+
+The phase ends when:
+- All outstanding challenges have been addressed
+- All conceded points have been retracted
+- Remaining disagreements are explicitly documented as "unresolved disputes"
+
+**Debate Rules:**
+- **Must challenge**: Each persona must challenge at least one other answer
+- **Must respond**: Challenged personas must always respond (justify or concede)
+- **Specific challenges**: Challenges must be specific, not generic
+- **Evidence-based**: All challenges and justifications must reference the analytics data
+- **Good faith**: Personas concede when they cannot justify
+
+### Phase 3: Holistic Confidence Vote
+
+After the challenge-response debate concludes, each analyst **holistically evaluates**:
+- All original analyst answers
+- All challenges issued
+- All responses and justifications
+- All conceded points
+- Remaining unresolved disputes
+
+Each analyst scores 1-10 based on the **entire debate transcript**, not just their original view:
 - 1-3 = Avoid
 - 4-6 = Neutral/Watch
 - 7-8 = Buy (Speculative)
 - 9-10 = Strong Buy (High Conviction)
+
+**Voting Guidance:**
+- Vote for the **most well-defended** position, not necessarily your original stance
+- Penalize positions that conceded key points
+- Reward positions that successfully defended against challenges
+- Consider the quality of evidence and reasoning, not just the conclusion
+- **Contrarian Edge**: A lone dissent (1/9) with strong evidence warrants "Watch" status, not automatic rejection
 
 ### Phase 4: CIO Synthesis (with Veto Check)
 
@@ -128,6 +244,8 @@ Each analyst scores 1-10:
 
 - Count votes from 9 analysts
 - Identify consensus vs disagreement across clusters
+- Note any conceded points that weakened positions
+- **Check for contrarian edge**: If 1-2 analysts dissent with strong evidence, flag for "Watch" rather than "Avoid"
 - Apply conviction thresholds:
   - **8-9/9 bullish** → High Conviction (full position 0.25-1%)
   - **6-7/9 bullish** → Speculative Conviction (reduced 0.25-0.5%)
@@ -136,7 +254,7 @@ Each analyst scores 1-10:
 
 ---
 
-## Position Trading Model (1m - 6m): 3-Phase Workflow
+## Position Trading Model (1m - 6m): 4-Phase Workflow
 
 **Agents:** 7 personas (6 analysts + 1 CIO)
 
@@ -151,16 +269,60 @@ Each analyst provides evaluation (200-250 words):
 5. **Short-Seller** - Bear case, structural concerns
 6. **Macro Strategist** - Macro environment, sector rotation
 
-### Phase 2: Synthesis Debate
+### Phase 2: Structured Challenge-Response Debate
 
-Analysts discuss and challenge views, focusing on:
-- Catalyst conviction and timeline
-- Trend structure validation
-- Risk/reward assessment
+**Iteration Cap: Maximum 5 rounds**
 
-### Phase 3: CIO Decision
+**Step 2.1: Initial Challenges**
 
-- Weighs all analyst perspectives
+Each persona X reviews all 6 analyst answers and identifies the answer they **disagree with most**, issuing a formal challenge stating:
+1. What they disagree with (specific claim or conclusion)
+2. Why they disagree (counter-evidence or logic)
+3. What evidence would change their mind
+
+**Step 2.2: Response and Justification**
+
+The challenged persona Y must respond with:
+- **Justification**: Evidence or reasoning supporting their original position
+- **OR Concession**: Explicit concession if they cannot justify
+
+**Step 2.3: Iteration (max 5 rounds)**
+
+The debate continues in rounds until:
+- **No new challenges remain**, OR
+- **5 rounds completed**, OR
+- **2 consecutive rounds with no new challenges**
+
+**Step 2.4: Debate Convergence**
+
+The phase ends when all outstanding challenges are addressed and remaining disagreements are documented as "unresolved disputes."
+
+**Debate Rules:**
+- **Must challenge**: Each persona must challenge at least one other answer
+- **Must respond**: Challenged personas must always respond (justify or concede)
+- **Specific challenges**: Challenges must be specific, not generic
+- **Evidence-based**: All challenges and justifications must reference the analytics data
+- **Good faith**: Personas concede when they cannot justify
+
+### Phase 3: Holistic Confidence Vote
+
+After the challenge-response debate, each analyst **holistically evaluates** the entire debate transcript (original answers, challenges, responses, concessions, unresolved disputes) and scores 1-10:
+- 1-3 = Avoid
+- 4-6 = Neutral/Watch
+- 7-8 = Buy (Speculative)
+- 9-10 = Strong Buy (High Conviction)
+
+**Voting Guidance:**
+- Vote for the **most well-defended** position, not necessarily your original stance
+- Penalize positions that conceded key points
+- Reward positions that successfully defended against challenges
+- Consider the quality of evidence and reasoning
+- **Contrarian Edge**: A lone dissent (1/6) with strong evidence warrants consideration
+
+### Phase 4: CIO Decision
+
+- Weighs all analyst perspectives and debate outcomes
+- Notes any conceded points that weakened positions
 - Assesses conviction level (High/Medium/Low)
 - Outputs position trading plan with entry zones, targets, and holding period
 
@@ -171,7 +333,7 @@ Analysts discuss and challenge views, focusing on:
 
 ---
 
-## Investment Model (1y+): 3-Phase Workflow
+## Investment Model (1y+): 4-Phase Workflow
 
 **Agents:** 5 personas (4 analysts + 1 CIO)
 
@@ -184,17 +346,59 @@ Each analyst provides comprehensive evaluation (250-300 words):
 3. **Risk Manager** - Competitive threats, regulatory risks, business model
 4. **Macro Strategist** - Secular tailwinds/headwinds, industry disruption
 
-### Phase 2: Thesis Validation
+### Phase 2: Structured Challenge-Response Debate
 
-Analysts debate and stress-test the investment thesis:
-- Moat durability
-- Growth sustainability
-- Valuation justification
-- Long-term risk scenarios
+**Iteration Cap: Maximum 5 rounds**
 
-### Phase 3: CIO Investment Decision
+**Step 2.1: Initial Challenges**
 
-- Synthesizes fundamental view
+Each persona X reviews all 4 analyst answers and identifies the answer they **disagree with most**, issuing a formal challenge stating:
+1. What they disagree with (specific claim or conclusion)
+2. Why they disagree (counter-evidence or logic)
+3. What evidence would change their mind
+
+**Step 2.2: Response and Justification**
+
+The challenged persona Y must respond with:
+- **Justification**: Evidence or reasoning supporting their original position
+- **OR Concession**: Explicit concession if they cannot justify
+
+**Step 2.3: Iteration (max 5 rounds)**
+
+The debate continues in rounds until:
+- **No new challenges remain**, OR
+- **5 rounds completed**, OR
+- **2 consecutive rounds with no new challenges**
+
+**Step 2.4: Debate Convergence**
+
+The phase ends when all outstanding challenges are addressed and remaining disagreements are documented as "unresolved disputes."
+
+**Debate Rules:**
+- **Must challenge**: Each persona must challenge at least one other answer
+- **Must respond**: Challenged personas must always respond (justify or concede)
+- **Specific challenges**: Challenges must be specific, not generic
+- **Evidence-based**: All challenges and justifications must reference the analytics data
+- **Good faith**: Personas concede when they cannot justify
+
+### Phase 3: Holistic Confidence Vote
+
+After the challenge-response debate, each analyst **holistically evaluates** the entire debate transcript (original answers, challenges, responses, concessions, unresolved disputes) and scores 1-10:
+- 1-3 = Avoid
+- 4-6 = Neutral/Watch
+- 7-8 = Buy (Speculative)
+- 9-10 = Strong Buy (High Conviction)
+
+**Voting Guidance:**
+- Vote for the **most well-defended** position, not necessarily your original stance
+- Penalize positions that conceded key points
+- Reward positions that successfully defended against challenges
+- Consider the quality of evidence and reasoning
+
+### Phase 4: CIO Investment Decision
+
+- Synthesizes fundamental view and debate outcomes
+- Notes any conceded points that weakened positions
 - Validates investment thesis
 - Outputs investment recommendation with thesis, entry zone, and holding period
 
@@ -202,3 +406,26 @@ Analysts debate and stress-test the investment thesis:
 - **High Conviction (4/4)**: Full position (1-5%)
 - **Medium Conviction (3/4)**: Reduced position (1-3%)
 - **Avoid (<3/4)**: No investment
+
+---
+
+## Monitoring Metrics
+
+Track these metrics across debates to identify biases and improve quality:
+
+| Metric | Description | Target Range |
+|--------|-------------|--------------|
+| Concession Rate | % of challenges resulting in concession | 15-30% |
+| Challenge Success Rate | % of challenges that weakened target position | 40-60% |
+| Rounds to Convergence | Average rounds before debate ends | 2-4 |
+| Unresolved Disputes | Average unresolved disputes per debate | 0-2 |
+| Contrarian Edge Wins | % of lone dissents later proven correct | Track separately |
+| Veto Trigger Rate | % of debates stopped by veto | 10-20% |
+
+**Quality Indicators:**
+- Concession rate <10%: Personas may be too stubborn
+- Concession rate >40%: Challenges may be too weak
+- Rounds always hitting max: Early convergence not working
+- Veto rate <5%: Risk Manager not engaged enough
+
+**Track debates in:** `trading-debates/[TICKER]/` with metadata section for metrics

@@ -87,6 +87,18 @@ User: "/trade NVDA 1d"
 
 ## Prerequisites
 
+**Macro Check:**
+```bash
+# Check current macro stance before any trading decision
+ls -lt macro/theses/ | head -5
+```
+
+**Read latest macro thesis:** `macro/theses/macro_thesis_YYYY_MM.md`
+
+- **HIGH macro risk** (recession, geopolitical crisis, systemic stress): Reduce position sizes, increase stops, delay entries
+- **MEDIUM macro risk** (uncertainty, moderate volatility): Standard parameters
+- **LOW macro risk** (stable growth, clear policy): Normal trading
+
 **Data Freshness Check:**
 ```bash
 ls -lh analytics/[TICKER]/
@@ -103,6 +115,17 @@ If missing or stale → Execute `/analyze [TICKER]` first.
 See [Data Gap Detection Workflow](references/data-gap-detection.md) for the complete process.
 
 **Priority gaps for trading-plan:** Benchmark Gate questions (Q1-Q6), missing analytics.
+
+### 0.5. Macro Risk Assessment
+
+**Read latest macro thesis:** `macro/theses/macro_thesis_YYYY_MM.md`
+
+**Assess macro risk level:**
+- **HIGH** (Recession, war, systemic crisis): Reduce position size 50%, widen stops, consider delaying entry
+- **MEDIUM** (Policy uncertainty, moderate volatility): Standard parameters
+- **LOW** (Stable conditions): Normal trading
+
+**Sector-specific macro check:** Review `macro/` folder for sector headwinds/tailwinds affecting the ticker.
 
 ---
 
