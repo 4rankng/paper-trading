@@ -11,12 +11,20 @@ from pathlib import Path
 
 
 def get_project_root() -> Path:
-    """Get the project root directory."""
-    current_path = Path(__file__).resolve()
-    if "skills" in current_path.parts:
-        skills_idx = current_path.parts.index("skills")
-        return Path(*current_path.parts[:skills_idx - 1])
-    return Path(__file__).parent.parent.parent.parent
+    """Get project root directory using marker files."""
+    p = Path(__file__).resolve()
+
+    markers = ['prices/', '.git/', 'watchlist.json']
+
+    for parent in [p, *p.parents]:
+        if any((parent / m).exists() for m in markers):
+            return parent
+
+    if ".claude" in p.parts:
+        idx = p.parts.index(".claude")
+        return Path(*p.parts[:idx])
+
+    raise RuntimeError("Project root not found")
 
 
 def list_price_files() -> dict:

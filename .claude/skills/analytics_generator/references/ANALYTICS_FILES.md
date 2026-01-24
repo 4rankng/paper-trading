@@ -1,18 +1,71 @@
 # Analytics Files Reference
 
-Complete section structures for the three analytics markdown files created by the LLM during `/analyze` command execution.
+Complete section structures for the analytics markdown files created during `/analyze` command execution.
 
 ## Overview
 
-When invoked by `/analyze` command, LLM creates these 3 markdown files in `analytics/{TICKER}/`:
+When invoked by `/analyze` command, the following files are created in `analytics/{TICKER}/`:
 
-1. **{TICKER}_technical_analysis.md** - Price action, indicators, trends
-2. **{TICKER}_fundamental_analysis.md** - Financials, business, risks
-3. **{TICKER}_investment_thesis.md** - Thesis, catalysts, scenarios
+**Auto-Generated (Script-Created):**
+1. **{TICKER}_signal_summary.md** - Technical Health Score, regime detection, signal aggregation
+
+**LLM-Created:**
+2. **{TICKER}_technical_analysis.md** - Price action, indicators, trends
+3. **{TICKER}_fundamental_analysis.md** - Financials, business, risks
+4. **{TICKER}_investment_thesis.md** - Thesis, catalysts, scenarios
 
 ---
 
-## 1. Technical Analysis
+## 0. Signal Summary (Auto-Generated)
+
+**File:** `analytics/{TICKER}/{TICKER}_signal_summary.md`
+
+**Focus:** Unified technical scoring from 40+ indicators (created by `aggregate_signals.py` script)
+
+**Data Source:** Automatic calculation from price data
+
+**Creation:** Script-generated, NOT created by LLM
+
+### Sections (Auto-Generated)
+
+1. **Market Regime**
+   - Current regime: Trending Up/Down, Ranging, or Volatile
+   - Regime confidence %
+   - Supporting indicators (ADX, ATR%, Volatility Score, Trend Direction)
+
+2. **Overall Technical Health Score**
+   - Overall score (0-100) with classification
+   - Category scores table:
+     - Momentum (weight, score, classification)
+     - Trend (weight, score, classification)
+     - Volatility (weight, score, classification)
+     - Volume (weight, score, classification)
+     - OB/OS (weight, score, classification)
+   - Signal convergence %
+   - Confidence level (High/Medium/Low)
+
+3. **Cross-Confirmation Analysis**
+   - Bullish signals count and %
+   - Bearish signals count and %
+   - Neutral/Weak signals count
+   - Divergence warnings (signals conflicting with overall trend)
+
+4. **Key Signals**
+   - Top 10 strongest signals by magnitude
+   - Shows category, signal name, score, and classification
+
+5. **Signal Dashboard** (Detailed by Category)
+   - Momentum Signals table (all 14+ signals)
+   - Trend Signals table (all 15+ signals)
+   - Volatility Signals table (all 5 signals)
+   - Volume Signals table (all 6 signals)
+   - Overbought/Oversold Signals table (all 4 signals)
+
+**Purpose for LLM:** Read this file FIRST to get quick technical overview. Use the Technical Health Score and confidence level to calibrate analysis. Refer to specific category scores when deep-diving into technical setup.
+
+---
+
+## 1. Technical Analysis (LLM-Created)
 
 **File:** `analytics/{TICKER}/{TICKER}_technical_analysis.md`
 

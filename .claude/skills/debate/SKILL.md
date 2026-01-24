@@ -1,6 +1,6 @@
 ---
 name: debate
-description: Multi-agent debate framework for current affairs and macroeconomic analysis. Auto-selects personas by topic: Geopolitics (6 agents), Economics (8 agents), Policy (7 agents), Markets (5 agents). Use for: "debate tariffs", "analyze fed policy", "geopolitical analysis", "macro outlook".
+description: Multi-agent truth-seeking debate for macroeconomic, geopolitical, and policy analysis. Uses adversarial reasoning to uncover causal mechanisms and predict outcomes. Use for: "Will Fed cut rates?", "Will trade war escalate?", "Policy impact analysis", "Election outcomes", "Geopolitical forecasting".
 allowed-tools:
   - Read
   - Bash(python:*)
@@ -13,87 +13,105 @@ context: fork
 agent: general-purpose
 ---
 
-# Debate Skill
+# Truth-Seeking Macro Debate
 
-Multi-agent adversarial analysis for current affairs, macroeconomics, and policy decisions. Auto-configures agent structure by topic.
+Multi-agent adversarial reasoning engine designed to uncover truth, understand causal mechanisms, and predict real-world outcomes.
 
-## Quick Reference
+## Philosophy
 
-| Topic | Model | Agents | Reference |
-|-------|-------|--------|-----------|
-| Geopolitics | Diplomacy/Security (6 agents) | [personas.md](references/personas.md#geopolitics-model) | [workflows.md](references/workflows.md) |
-| Economics | Macro Analysis (8 agents) | [personas.md](references/personas.md#economics-model) | [workflows.md](references/workflows.md) |
-| Policy | Domestic/International (7 agents) | [personas.md](references/personas.md#policy-model) | [workflows.md](references/workflows.md) |
-| Markets | Macro Market View (5 agents) | [personas.md](references/personas.md#markets-model) | [workflows.md](references/workflows.md) |
+**The goal is truth, not consensus.**
 
-## Prerequisites
+This skill uses structured adversarial debate to:
+1. **Challenge assumptions** through diverse analytical lenses
+2. **Expose weak reasoning** through systematic critique
+3. **Converge on truth** by eliminating falsified positions
+4. **Quantify uncertainty** where truth cannot be determined
 
-**Macro Check:**
-```bash
-# Check current macro stance before any debate
-ls -lt macro/theses/ | head -5
+## Quick Start
+
+```
+/debate [QUESTION]
 ```
 
-**Read latest macro thesis:** `macro/theses/macro_thesis_YYYY_MM.md`
+**Examples of good questions:**
+- `/debate Will the Fed cut rates by 25bp in January 2026?`
+- `/debate Will US-China trade relations deteriorate further in 2026?`
+- `/debate What is the probability of a US recession in 2026?`
+- `/debate Will AI regulation pass Congress this year?`
 
-**Data Gathering (for time-sensitive topics):**
-```bash
-# Use WebSearch for latest news on the topic
-# Use WebReader to read detailed articles
-# Use Reddit to gauge public sentiment
-```
-
-## Reference Files
-
-| File | Contains |
-|------|----------|
-| [personas.md](references/personas.md) | Persona definitions, perspectives, biases |
-| [workflows.md](references/workflows.md) | Execution flows, iteration limits, synthesis |
-| [constraints.md](references/constraints.md) | Factual accuracy requirements, source standards |
+**Note:** Questions should be about *what will happen* and *why*, not *what should we do*.
 
 ## When to Use
 
-**Use for:**
-- Geopolitical events (wars, trade disputes, diplomatic tensions)
-- Macroeconomic analysis (Fed policy, inflation, GDP, employment)
-- Policy decisions (elections, legislation, regulations)
-- Current affairs with market implications
+| Purpose | Use This | NOT This |
+|---------|----------|----------|
+| **Understand causality** | `debate` | - |
+| **Predict outcomes** | `debate` | - |
+| **Analyze policy impact** | `debate` | - |
+| **Geopolitical forecasting** | `debate` | - |
+| **Trading decisions** | `trading-debate` | `debate` |
+| **Portfolio management** | `portfolio_manager` | `debate` |
 
-**NOT for:** Trading decisions (use `trading-debate`), portfolio management (use `portfolio_manager`)
+## Debate vs. Trading Debate
 
-## Output
+| Aspect | Macro Debate | Trading Debate |
+|--------|-------------|----------------|
+| **Goal** | Uncover truth, predict outcomes | Generate alpha, decide trades |
+| **Output** | Probability-weighted scenarios | Buy/sell/hold signals |
+| **Timeframe** | Months to years | Days to weeks |
+| **Focus** | Causal mechanisms, structural factors | Price action, market timing |
+| **Personas** | Domain experts, policymakers | Market analysts, traders |
 
-**Save debate results to:** `debates/[TOPIC]/[TOPIC]_YYYY_MM_DD.md`
+## Reference Files
 
-Examples:
-- `debates/us_eu_tariffs/us_eu_tariffs_2026_01_20.md`
-- `debates/fed_rate_decision/fed_rate_decision_2026_01_20.md`
+All execution details are in the `references/` folder:
 
-## Usage
+| File | Purpose |
+|------|---------|
+| `personas.md` | 18 expert personas with analytical frameworks |
+| `workflows.md` | 8-step truth-seeking workflow |
+| `constraints.md` | Position structure, challenge protocols, falsifiability |
+| `quality-gates.md` | Question validation, prediction quality standards |
+| `synthesis-format.md` | Prediction output template |
 
+## Truth-Seeking Workflow
+
+1. **Define Question** → Falsifiable, time-bounded, outcome-focused
+2. **Select Personas** → Diverse analytical frameworks, adversarial positions
+3. **Gather Evidence** → Shared facts, multiple perspectives
+4. **Position Generation** → Each with causal mechanism and falsification criteria
+5. **Challenge Rounds** → Attack assumptions, evidence, and logic
+6. **Track Convergence** → Eliminate falsified positions, identify consensus
+7. **Synthesize** → Probability-weighted prediction with scenarios
+8. **Calibrate** → Track accuracy over time
+
+## Key Principles
+
+1. **Falsifiability First** - Every position must specify what would prove it wrong
+2. **Causal Depth** - Understand *why* something will happen, not just *what*
+3. **Adversarial Diversity** - Include opposing analytical frameworks
+4. **Convergence as Signal** - High consensus on a claim increases confidence
+5. **Embrace Uncertainty** - Low-confidence truth is better than false confidence
+6. **Calibration Over Confidence** - Track prediction accuracy, not just being "right"
+
+## Expected Outcome
+
+A debate succeeds when it produces:
+- **Clear prediction** with probability assessment
+- **Causal mechanism** explaining *why* the outcome is likely
+- **Alternative scenarios** with triggering conditions
+- **Monitoring framework** to track leading indicators
+- **Critical uncertainties** that would change the conclusion
+
+## Prerequisites
+
+Before debating, check current macro stance:
+```bash
+ls -lt macro/theses/ | head -5
 ```
-/debate [TOPIC]
-```
 
-Examples:
-- `/debate Should the Fed cut rates in January?`
-- `/debate Will US-EU trade war escalate?`
-- `/debate Impact of AI on employment`
+## Output Format
 
-## Troubleshooting
-
-| Issue | Solution |
-|-------|----------|
-| Insufficient current data | Use WebSearch/WebReader to gather latest info |
-| Low confidence | Add to macro/ overview for later review |
-| Conflicting sources | Document all sources with credibility assessment |
-
-## Persona Clusters
-
-| Cluster | Purpose |
-|---------|---------|
-| Historical Context | Past precedents, pattern recognition |
-| Economic Analysis | Data-driven impact assessment |
-| Strategic Foresight | Scenario planning, probability analysis |
-| Social Impact | Public sentiment, political feasibility |
-| Synthesis | Final recommendation with confidence level |
+Use **role titles only**, never persona names:
+- Correct: "Realist International Relations Scholar", "Central Banker"
+- Incorrect: "DR. JOHN SMITH - Realist International Relations Scholar"

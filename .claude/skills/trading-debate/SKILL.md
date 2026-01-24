@@ -60,7 +60,7 @@ Parse: `python .claude/skills/trading-debate/scripts/parse_timeframe.py 6m`
 |------|----------|
 | [personas.md](references/personas.md) | Persona definitions, interactions |
 | [workflows.md](references/workflows.md) | Execution flows, iteration limits, monitoring |
-| [constraints.md](references/constraints.md) | Veto triggers, conviction tiers, limits |
+| [constraints.md](references/constraints.md) | Conviction tiers, position sizing, limits |
 | [data-gap-detection.md](references/data-gap-detection.md) | Data validation workflow |
 
 ## When to Use
@@ -90,6 +90,5 @@ Examples: `/debate NVDA 2w` | `/debate AAPL 1y` | `/debate TSLA 3d`
 | Issue | Solution |
 |-------|----------|
 | Analytics missing/stale | `/analyze TICKER` |
-| Veto triggered | See [constraints.md](references/constraints.md) |
 | Low conviction | Add to watchlist |
 | Wrong model | Check timeframe suffix (d/w/m/y) |

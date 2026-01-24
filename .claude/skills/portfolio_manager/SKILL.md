@@ -86,9 +86,65 @@ python .claude/skills/portfolio_manager/scripts/get_trade_log.py --ticker NVDA
 
 **Trade Log**: `trade_log.csv` - complete trade history with reasoning
 
-## Thesis Status
+## Portfolio Management Principles
 
-Track validation progress: PENDING → VALIDATING → VALIDATED (or FAILED/TRANSFORMING/INVALIDATED)
+### Position Sizing Framework
+
+Position size is determined by **expected return probability** and **risk/reward ratio**, not arbitrary percentage rules.
+
+**Core principle:**
+```
+Position Size = f(Expected Return %, Probability %, Risk:Reward Ratio, Context)
+
+Higher Expected Return → Larger Position
+Higher Probability → Larger Position
+Higher R:R Ratio → Larger Position
+Lower R:R Ratio → Smaller Position
+```
+
+**Dynamic decision factors (no hardcoded thresholds):**
+- Expected return magnitude and time horizon
+- Win probability and confidence level
+- Risk/reward ratio
+- Cash available and opportunity cost
+- Thesis quality and catalyst density
+- Market conditions and volatility
+- Correlation with existing holdings
+- Personal risk tolerance
+
+**The LLM agent should evaluate each opportunity holistically and size positions dynamically based on all relevant factors, not rigid formulas.**
+
+### Selling Existing Holdings
+
+**Only sell to free cash if:**
+1. The new opportunity has **higher expected return** AND
+2. The holding being sold has **lower return potential** going forward
+
+**Never sell just for "diversification"** - concentration is acceptable if thesis is strong and expected return is high.
+
+### Thesis Status Classification
+
+**For evaluating whether to SELL existing positions:**
+- **PENDING** - Early stage, validation required
+- **VALIDATING** - Catalysts progressing, evidence accumulating
+- **STRONGER** - Thesis strengthening with new evidence
+- **WARNING** - Thesis at risk, monitor closely
+- **DANGER** - Thesis failing or invalidated → **SELL**
+
+**Invalidation Signals (sell triggers):**
+- Partnership cancellations or failed deployments
+- Regulatory setbacks that block core business
+- Competitive breakthrough that negates differentiation
+- Management misconduct or accounting irregularities
+- Product launch failures or technological obsolescence
+- Major catalysts delayed or cancelled without explanation
+
+**NOT Invalidation (hold through):**
+- Technical weakness (price below moving averages)
+- Insider selling (early investors taking profits)
+- Analyst downgrades (timeline extensions, not thesis breaks)
+- Portfolio concentration (mechanical metric)
+- Short-term volatility or sentiment swings
 
 ## Calculations
 

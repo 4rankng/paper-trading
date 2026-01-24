@@ -105,7 +105,35 @@ python .claude/skills/analytics_generator/scripts/generate_technical.py TICKER1 
 
 This script outputs structured technical data (not loaded into context).
 
-### Step 5: Generate Fundamental Data
+### Step 5: Generate Signal Summary (NEW - Aggregates 40+ Technical Indicators)
+
+```bash
+# Single ticker - generates {TICKER}_signal_summary.md in analytics folder
+python .claude/skills/analytics_generator/scripts/aggregate_signals.py --ticker TICKER
+
+# Multiple tickers
+python .claude/skills/analytics_generator/scripts/aggregate_signals.py --tickers TICKER1,TICKER2,TICKER3
+
+# Compact format for quick overview
+python .claude/skills/analytics_generator/scripts/aggregate_signals.py --ticker TICKER --format compact
+
+# JSON format for programmatic access
+python .claude/skills/analytics_generator/scripts/aggregate_signals.py --ticker TICKER --format json
+```
+
+**Signal Summary provides:**
+- **Market Regime Detection**: Trending Up/Down, Ranging, or Volatile with confidence
+- **Overall Technical Health Score**: 0-100 scale with classification (Strongly Bullish to Strongly Bearish)
+- **Category Scores**: Momentum, Trend, Volatility, Volume, OB/OS with regime-based weighting
+- **Signal Convergence**: % of signals aligned in one direction
+- **Cross-Confirmation Analysis**: Bullish vs Bearish signal counts with divergence warnings
+- **Key Signals**: Top 10 strongest signals by magnitude
+
+**Output file:** `analytics/{TICKER}/{TICKER}_signal_summary.md`
+
+This summary is created alongside traditional technical analysis and provides LLM agents with a unified scoring system for faster analysis.
+
+### Step 6: Generate Fundamental Data
 
 ```bash
 python .claude/skills/analytics_generator/scripts/get_fundamental.py --ticker TICKER
@@ -147,7 +175,7 @@ If `critical_fields_present: false` or `completeness_pct < 50`:
 
 Extract available fundamentals from web results and note data limitations in analysis.
 
-### Step 6: Data Gap Analysis (MANDATORY GATE)
+### Step 7: Data Gap Analysis (MANDATORY GATE)
 
 **Before creating any analytics files, the LLM MUST actively identify data gaps:**
 
@@ -160,6 +188,12 @@ Extract available fundamentals from web results and note data limitations in ana
    - **Fundamental gaps**: Missing metrics, incomplete financials, unclear business model
    - **Technical gaps**: Insufficient price history, unclear patterns, missing indicators
    - **Catalyst gaps**: No upcoming events, unclear timeline, missing earnings dates
+   - **Sector Catalyst gaps** (CRITICAL for momentum stocks): No check for sector-wide drivers like:
+     - Mega-IPOs in sector (e.g., SpaceX IPO affecting satellite stocks)
+     - Peer group movement (are sector peers moving together?)
+     - ETF flows and rebalancing
+     - Regulatory/policy shifts affecting entire sector
+     - M&A activity or consolidation rumors
    - **Sentiment gaps**: No recent news, unclear institutional flow, missing social sentiment
    - **Benchmark gaps**: No sector context, no relative strength comparison
 
@@ -179,15 +213,17 @@ Extract available fundamentals from web results and note data limitations in ana
 
 **CRITICAL: Only produce final analytics after this gate is passed.** If new questions emerge during analysis, stop and use `/ask` before continuing.
 
-### Step 7: Create Analytics Files (LLM)
+### Step 8: Create Analytics Files (LLM)
 
-Read the structured outputs from Steps 4-5 and create three markdown files:
+Read the structured outputs from Steps 4-6 and create four markdown files:
 
-1. `analytics/{TICKER}/{TICKER}_technical_analysis.md` - from `generate_technical.py`
-2. `analytics/{TICKER}/{TICKER}_fundamental_analysis.md` - from `get_fundamental.py`
-3. `analytics/{TICKER}/{TICKER}_investment_thesis.md` - synthesis of all data
+1. `analytics/{TICKER}/{TICKER}_signal_summary.md` - from `aggregate_signals.py` (auto-generated, no LLM input needed)
+2. `analytics/{TICKER}/{TICKER}_technical_analysis.md` - from `generate_technical.py`
+3. `analytics/{TICKER}/{TICKER}_fundamental_analysis.md` - from `get_fundamental.py`
+4. `analytics/{TICKER}/{TICKER}_investment_thesis.md` - synthesis of all data
 
-**All three files MUST incorporate insights from:**
+**All three LLM-created files MUST incorporate insights from:**
+- Signal summary (from `aggregate_signals.py`)
 - Technical data (from `generate_technical.py`)
 - Fundamental data (from `get_fundamental.py`)
 - News articles (from `news/{TICKER}/`)
@@ -203,9 +239,11 @@ The `/analyze [TICKER]` command orchestrates all skills:
 2. **Price data fetching** via `fetch_prices.py`
 3. **News fetching** via `news_fetcher` skill (if needed)
 4. **Technical data generation** via `generate_technical.py`
-5. **Fundamental data generation** via `get_fundamental.py`
-6. **Data gap analysis** via `ask` skill (MANDATORY GATE)
-7. **LLM analytics creation** (incorporates price, fundamental, news, and user-provided answers)
+5. **Signal summary generation** via `aggregate_signals.py` (NEW - aggregates 40+ indicators)
+6. **Fundamental data generation** via `get_fundamental.py`
+7. **Sector catalyst check** (NEW - for momentum stocks): Search for sector-wide drivers (IPOs, M&A, policy shifts)
+8. **Data gap analysis** via `ask` skill (MANDATORY GATE)
+9. **LLM analytics creation** (incorporates signal summary, technical, fundamental, news, sector catalysts, and user-provided answers)
 
 ## File Structure
 
@@ -237,6 +275,13 @@ The `/analyze [TICKER]` command orchestrates all skills:
 **Technical Analysis:**
 - `generate_technical.py` - Generate structured technical data (execute, don't read). Supports batch: `generate_technical.py NVDA AAPL MSFT`
 - `technical_indicators.py` - Utility module (imported by generate_technical.py)
+
+**Signal Aggregation (NEW):**
+- `aggregate_signals.py` - Aggregates 40+ technical indicators into unified scores. Supports batch: `aggregate_signals.py --tickers NVDA,AAPL,MSFT`
+- `regime_classifier.py` - Detects market regime (trending/ranging/volatile)
+- `signal_scorer.py` - Maps individual indicators to -1 to +1 scale
+- `score_aggregator.py` - Combines signals into category and overall scores
+- `signal_weights.yaml` - Configuration for regime-based weights
 
 **Scripts are EXECUTED, not READ.** Run them via Bash tool and consume output only.
 

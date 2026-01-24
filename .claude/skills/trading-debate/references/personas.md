@@ -1,18 +1,8 @@
 # Trading Debate Personas Reference
 
-Detailed descriptions of the 10 trading personas organized into 4 clusters: Environment, Strategy, Evidence, and Defense.
-
-## Framework Architecture
-
-**Cluster 1: The Environment (The "Weather")** - Context setting
-**Cluster 2: The Strategists (The "Thesis")** - Directional bias
-**Cluster 3: The Logic Check (The "Evidence")** - Validation
-**Cluster 4: The Defense (The "Guardians")** - Capital preservation
-**Decision Maker: CIO** - Final synthesis
+Detailed descriptions of the 10 trading personas.
 
 ---
-
-## Cluster 1: The Environment (The "Weather")
 
 ### 1. Macro Strategist
 
@@ -39,15 +29,6 @@ Detailed descriptions of the 10 trading personas organized into 4 clusters: Envi
 - Bearish in risk-off regimes (rates rising, inflation hot, VIX elevated)
 - Prefers tailwinds over headwinds
 - Avoids fighting the macro tide
-
-**VETO POWER (Contextual):**
-- Can CAP conviction at "Low" for long positions if Macro is "Risk-Off"
-- If SPY/QQQ below MA-200 AND VIX >30 → Long positions rejected
-- If major event imminent (Fed decision, CPI print) → New positions capped
-
-**When Veto is Triggered:**
-- "Market in risk-off regime. SPY below MA-200, VIX elevated. Long positions capped at Low Conviction maximum."
-- "Fed decision tomorrow. New entries prohibited until after data."
 
 ---
 
@@ -93,8 +74,6 @@ Detailed descriptions of the 10 trading personas organized into 4 clusters: Envi
 - Infers positioning from price action + volume + news themes
 
 ---
-
-## Cluster 2: The Strategists (The "Thesis")
 
 ### 3. Trend Architect
 
@@ -189,8 +168,6 @@ Detailed descriptions of the 10 trading personas organized into 4 clusters: Envi
 
 ---
 
-## Cluster 3: The Logic Check (The "Evidence")
-
 ### 6. Statistical Quant
 
 **Focus:** Standard Deviations, Volatility, Probability Distributions
@@ -263,8 +240,6 @@ Detailed descriptions of the 10 trading personas organized into 4 clusters: Envi
 
 ---
 
-## Cluster 4: The Defense (The "Guardians")
-
 ### 8. Short-Seller (Adversary)
 
 **Focus:** Red-Teaming, Structural Flaws, Bear Case
@@ -329,16 +304,10 @@ Detailed descriptions of the 10 trading personas organized into 4 clusters: Envi
 - Avoids wide stops (requires smaller position)
 - Rejects trades with R:R < 3:1
 
-**VETO POWER (Line-Item - Absolute):**
-- Can VETO any trade if R:R < 3:1, regardless of other personas' views
-- Can VETO if stop distance requires position size <0.25% (too small to matter)
-- Can VETO if portfolio correlation >60% (over-concentration risk)
-- **Veto is ABSOLUTE** - CIO cannot override Risk Manager's veto
-
-**When Veto is Triggered:**
-- "R:R is 2.2:1, below 3:1 minimum. **VETO**. Trade rejected."
-- "Stop distance 8%, position size only 0.18%, below 0.25% minimum. **VETO**. Too small."
-- "Already 3 tech positions, correlation 75%. **VETO**. Concentration risk too high."
+**Key Concerns:**
+- R:R below 3:1 minimum threshold
+- Stop distance requires position size <0.25% (too small to matter)
+- Portfolio correlation >60% (over-concentration risk)
 
 **Non-Negotiable:**
 - "The first rule of trading is don't lose money. The second rule is don't forget the first rule."
@@ -351,67 +320,22 @@ Detailed descriptions of the 10 trading personas organized into 4 clusters: Envi
 
 **Focus:** Synthesis, Final Grade, Execution Decision
 
-**Role:** Weighs all inputs, checks vetoes, makes final call.
+**Role:** Weighs all inputs and makes final call.
 
 **Methodology:**
 - Receives input from all 9 analyst personas
-- Checks for veto triggers FIRST (non-negotiable)
-- Identifies consensus vs disagreement across clusters
-- Makes final execution decision (if no veto triggered)
+- Identifies consensus vs disagreement across personas
+- Weighs concerns from Risk Manager and Macro Strategist
+- Makes final execution decision
 - Provides conviction level and actionable trading plan
 
 **Biases:**
-- **Veto authority is ABSOLUTE** - Risk Manager and Macro Strategist vetoes cannot be overridden
 - Weighs Short-Seller's warnings heavily (red-team findings)
 - Requires Tape Reader validation (volume confirmation)
 - Uses Statistical Quant's analysis to avoid outliers
-- **Veto check happens BEFORE vote counting** (non-negotiable)
+- Considers Risk Manager's concerns on R:R, position sizing, and correlation
+- Factors Macro Strategist's regime assessment into conviction level
 
-**See [constraints.md](constraints.md) for veto triggers and conviction tiers.**
+**See [constraints.md](constraints.md) for conviction tiers.**
 
 **See [workflows.md](workflows.md) for detailed execution flows.**
-
----
-
-## Persona Interaction Dynamics
-
-This section covers persona-specific interactions: how clusters work together, where conflicts arise, and how to resolve them.
-
-### **Cluster Synergies:**
-
-**Environment + Strategy = Contextual Thesis:**
-- Macro Strategist + Trend Architect = Trend-following with tailwinds
-- Sentiment & Flow + Mean-Reversion = Contrarian reversion plays
-
-**Strategy + Evidence = Validated Setup:**
-- Trend Architect + Tape Reader = Momentum with volume confirmation
-- Fundamental Catalyst + Statistical Quant = Catalyst-driven within statistical norms
-
-**Evidence + Defense = Safe Entry:**
-- Tape Reader + Risk Manager = Volume-confirmed with proper R:R
-- Statistical Quant + Short-Seller = Outlier detection with red-team scrutiny
-
----
-
-### **Cluster Conflicts (Challenge Targets):**
-
-**Strategy Conflict (Internal):**
-- Trend Architect vs Mean-Reversion (trend vs fade)
-- **Challenge focus**: Is the trend strong enough to follow, or is mean reversion more likely?
-- **Resolution**: Tape Reader validates with volume; Statistical Quant provides probability assessment
-
-**Environment vs Strategy:**
-- Macro Strategist (bearish) vs Trend Architect (bullish)
-- **Challenge focus**: Does the macro headwind outweigh the technical tailwind?
-- **Resolution**: CIO caps conviction at Low if macro is risk-off
-
-**Evidence vs Defense:**
-- Tape Reader (validates) vs Short-Seller (finds flaws)
-- **Challenge focus**: Is volume confirming the move, or is it a bull trap?
-- **Resolution**: CIO weighs red-team findings, may reduce position size
-
----
-
-**See [constraints.md](constraints.md) for veto hierarchy and triggers.**
-
-**See [workflows.md](workflows.md) for resolution protocol and execution phases.**

@@ -1,6 +1,6 @@
 # Trading Debate Constraints Reference
 
-Detailed constraints, veto powers, and decision thresholds for each trading model.
+Detailed constraints and decision thresholds for each trading model.
 
 ---
 
@@ -8,7 +8,7 @@ Detailed constraints, veto powers, and decision thresholds for each trading mode
 
 **Position Sizing:**
 - Maximum: 0.25-0.5% of portfolio
-- Minimum: 0.25% (Risk Manager veto if below)
+- Minimum: 0.25%
 
 **Hold Period:**
 - Target: 1-7 days
@@ -35,13 +35,6 @@ Detailed constraints, veto powers, and decision thresholds for each trading mode
 | 3/5 | Low | 0.25% |
 | <3/5 | Avoid | 0% |
 
-### Veto Triggers (Non-negotiable)
-
-**Risk Manager (Line-Item Veto):**
-- R:R < 2:1
-- Position size < 0.25%
-- Portfolio correlation > 60%
-
 ---
 
 ## Swing Trading Constraints (1w - 4w)
@@ -60,7 +53,7 @@ Detailed constraints, veto powers, and decision thresholds for each trading mode
 - No trailing stops for swing trades
 
 **Risk/Reward:**
-- Minimum: 3:1 (enforced by Risk Manager veto)
+- Minimum: 3:1
 - Target: 5-10% moves
 
 **Earnings:**
@@ -74,17 +67,6 @@ Detailed constraints, veto powers, and decision thresholds for each trading mode
 | 6-7/9 | Speculative | 0.25-0.5% |
 | 5/9 | Watch/Neutral | 0% (add to watchlist) |
 | <5/9 | Avoid | 0% |
-
-### Veto Triggers (Non-negotiable)
-
-**Risk Manager (Line-Item Veto):**
-- R:R < 3:1
-- Position size < 0.25%
-- Portfolio correlation > 60%
-
-**Macro Strategist (Contextual Veto):**
-- SPY below MA-200 AND VIX > 30 → Long positions rejected
-- Major event imminent (Fed, CPI) → New positions capped
 
 ---
 
@@ -144,54 +126,6 @@ Detailed constraints, veto powers, and decision thresholds for each trading mode
 
 ---
 
-## Veto Hierarchy (Non-negotiable)
-
-### Priority 1: Risk Manager (Line-Item Veto)
-
-**Triggers:**
-- R:R below threshold (2:1 for day, 3:1 for swing)
-- Position size below 0.25%
-- Portfolio correlation > 60%
-
-**Effect:** Trade is DEAD. Cannot be overridden.
-
-### Priority 2: Macro Strategist (Contextual Veto)
-
-**Triggers:**
-- SPY below MA-200 AND VIX > 30 (bear market)
-- Major macro event imminent (Fed decision, CPI print)
-
-**Effect:** Long positions rejected OR conviction capped at Low.
-
-### Priority 3: CIO (Cannot Override Vetoes)
-
-The CIO must check for veto triggers BEFORE any synthesis or vote counting.
-
----
-
-## Veto Check Process (MANDATORY - First Step)
-
-```python
-# Pseudo-code for veto check process
-def check_vetoes(trade_params, portfolio):
-    # Risk Manager Veto (Line-Item)
-    if trade_params['rr_ratio'] < MIN_RR:
-        return "AVOID - Risk Manager veto: R:R below minimum"
-    if trade_params['position_size'] < MIN_POSITION:
-        return "AVOID - Risk Manager veto: Position too small"
-    if portfolio['correlation'] > MAX_CORRELATION:
-        return "AVOID - Risk Manager veto: Correlation too high"
-
-    # Macro Strategist Veto (Contextual)
-    if market_regime == 'RISK_OFF':
-        return "AVOID - Macro veto: Market in risk-off regime"
-
-    # No veto triggered - proceed to analysis
-    return None
-```
-
----
-
 ## Correlation Limits
 
 **Definition:** Correlation measures how closely the new position moves with existing positions.
@@ -200,7 +134,7 @@ def check_vetoes(trade_params, portfolio):
 |-------------------|--------|
 | < 30% | No restriction |
 | 30-60% | CIO considers concentration |
-| > 60% | Risk Manager veto |
+| > 60% | CIO reduces position size or avoids |
 
 ---
 

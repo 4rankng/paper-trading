@@ -14,6 +14,49 @@ allowed-tools:
 
 Fetch and manage macroeconomic analysis that influences equity market decisions.
 
+**MANDATORY UPDATE RULE:** Any LLM agent that discovers new macroeconomic information, geopolitical developments, central bank policy changes, or market-relevant analysis MUST immediately update the appropriate file in the `macro/` folder. This is not optional - if you find it, you document it.
+
+## Content Categories
+
+**1. Global Economic Overview**
+- GDP growth rates by major economies (US, China, EU, Japan, Emerging Markets)
+- Inflation trends (CPI, PPI) and central bank policy stance
+- Interest rate environment and yield curve dynamics
+- Employment and labor market conditions
+
+**2. Geopolitical Tensions**
+- Trade wars, tariffs, and economic sanctions
+- Regional conflicts affecting supply chains/commodities
+- Diplomatic relations between major powers (US-China, Russia-Europe, etc.)
+- Election outcomes and policy implications
+
+**3. Market Structure Issues**
+- Liquidity conditions and credit spreads
+- Currency fluctuations (USD strength/weakness)
+- Commodity price shocks (oil, metals, agriculture)
+- Systemic risks (banking stress, real estate bubbles)
+
+**4. Sector-Specific Macro Trends**
+- Regulatory changes affecting specific industries
+- Technological disruptions with macro implications
+- ESG policy shifts and climate-related regulations
+
+## Usage in Investment Decisions
+
+When evaluating any investment:
+1. **Check current macro stance** by reading `macro/theses/macro_thesis_YYYY_MM.md`
+2. **Consider sector-specific headwinds/tailwinds** from macro events
+3. **Factor macro conditions into:**
+   - Position sizing (reduce exposure in high macro risk periods)
+   - Entry timing (delay entries during elevated macro uncertainty)
+   - Thesis validation (macro shifts can invalidate sector theses)
+
+## Maintenance
+
+- **Weekly**: Update macro folder with key economic developments
+- **Monthly**: Comprehensive macro thesis update
+- **Event-driven**: Immediate updates for major geopolitical or policy events
+
 ## Quick Start
 
 ```bash

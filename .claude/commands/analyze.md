@@ -13,7 +13,9 @@ Use `Skill` tool to invoke these skills in sequence:
 1. **`analytics_generator`** skill - Main analysis driver
    - Fetches price data
    - Generates technical indicators
-   - Creates 3 markdown files:
+   - Aggregates 40+ signals into unified scores (NEW)
+   - Creates 4 markdown files:
+     - `analytics/[TICKER]/[TICKER]_signal_summary.md` (auto-generated technical scoring)
      - `analytics/[TICKER]/[TICKER]_technical_analysis.md`
      - `analytics/[TICKER]/[TICKER]_fundamental_analysis.md`
      - `analytics/[TICKER]/[TICKER]_investment_thesis.md`
@@ -38,9 +40,14 @@ After skill execution, output summary:
 ## Analysis Complete: [TICKER]
 
 **Files Created:**
+- analytics/[TICKER]/[TICKER]_signal_summary.md (auto-generated scoring)
 - analytics/[TICKER]/[TICKER]_technical_analysis.md
 - analytics/[TICKER]/[TICKER]_fundamental_analysis.md
 - analytics/[TICKER]/[TICKER]_investment_thesis.md
+
+**Technical Health Score:** XX/100 - [Classification]
+**Market Regime:** [Trending/Ranging/Volatile]
+**Signal Convergence:** XX% ([High/Medium/Low] confidence)
 
 **Context:**
 - Portfolio: [Existing holding / New analysis]

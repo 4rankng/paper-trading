@@ -1,529 +1,225 @@
-# Debate Workflows Reference
+# Truth-Seeking Debate Workflow
 
-Detailed execution workflows for each debate model.
-
----
-
-## Iteration Limits (Efficiency Control)
-
-| Model | Agents | Max Rounds | Early Stop Condition |
-|-------|--------|------------|----------------------|
-| Geopolitics | 6 analysts | 4 rounds | Convergence OR no new challenges |
-| Economics | 8 analysts | 5 rounds | Convergence OR no new challenges |
-| Policy | 7 analysts | 5 rounds | Convergence OR no new challenges |
-| Markets | 5 analysts | 4 rounds | Convergence OR no new challenges |
-
-**Early convergence**: If 2 consecutive rounds produce no new challenges, debate ends immediately.
+Multi-agent adversarial reasoning designed to converge on truth through elimination of falsified positions.
 
 ---
 
-# Geopolitics Model Workflow
+## Quick Reference: Persona Selection by Topic
 
-**Agents:** 6 personas → Chief Analyst synthesis
+| Topic Type | Persona Numbers |
+|------------|----------------|
+| Geopolitics | 1, 2, 3, 4, 12 |
+| Monetary Policy | 5, 7, 10, 12 |
+| Fiscal/Trade Policy | 5, 6, 8, 13 |
+| Climate/Energy | 4, 6, 9, 12 |
+| Emerging Markets | 6, 10, 11, 3 |
+| Financial Crisis | 5, 10, 7, 12 |
+| Technology Policy | 4, 8, 9, 13 |
+| Education Policy | 5, 6, 14, 13, 7 |
+| Healthcare Policy | 5, 6, 14, 13, 9 |
+| Urban/Housing Policy | 6, 10, 15, 13, 3 |
+| Social/Cultural Issues | 14, 16, 17, 12, 6 |
+| Technology & Society | 4, 18, 16, 17, 13 |
 
-## Phase 1: Topic Definition & Context Gathering
-
-**Step 1.1: Define the Debate Question**
-
-Ensure question is specific and debatable:
-- Bad: "Will there be war?"
-- Good: "What is the probability of military conflict between US and Iran escalating in the next 6 months?"
-
-**Step 1.2: Gather Current Information**
-
-Use tools to gather latest data:
-- WebSearch for recent news on the topic
-- WebReader for detailed analysis pieces
-- Reddit for public sentiment (r/geopolitics, r/worldnews)
-- Read existing macro files for context
-
-**Step 1.3: Identify Key Facts**
-
-Document undisputed facts as shared context:
-- Current status of situation
-- Key actors and their positions
-- Timeline of recent events
-- Economic/military data points
+**Persona key:** 1=Realist IR, 2=Regional Security, 3=Geoeconomic, 4=Tech & Econ Power, 5=Central Banker, 6=Development Economist, 7=Labor Market, 8=Trade Policy, 9=Climate-Economy, 10=Financial Stability, 11=EM Investor, 12=Historian, 13=Policy Implementation, 14=Public Policy, 15=Urban Development, 16=Sociologist, 17=Legal Scholar, 18=Tech Ethics
 
 ---
 
-## Phase 2: Analyst Positions
+## Truth-Seeking Workflow (8 Steps)
 
-Each persona provides their analysis (200-250 words):
+### Step 1: Define a Falsifiable Question
 
-**Diplomatic Historian:**
-- Historical parallels and precedents
-- What past situations suggest
-- Red flags from history
+The question determines the quality of the debate.
 
-**Regional Specialist:**
-- Local context and dynamics
-- Cultural factors at play
-- Regional power structures
+**Question Requirements:**
 
-**Geoeconomic Strategist:**
-- Economic interdependencies
-- Sanctions/leverage options
-- Economic pain tolerance
+| Requirement | Example | Non-Example |
+|-------------|---------|-------------|
+| Falsifiable | "Will Fed cut rates by 25bp in January?" | "What should the Fed do?" |
+| Time-bounded | "in Q1 2026" | "eventually" |
+| Outcome-focused | "What is the probability of X?" | "Is X good or bad?" |
+| Specific | "Will tariff levels exceed 25%?" | "Will trade war continue?" |
 
-**Security Analyst:**
-- Military balance assessment
-- Escalation pathways
-- Red lines and tripwires
-
-**Game Theorist:**
-- Strategic incentives
-- Credibility assessment
-- Rational actor analysis
-
-**Public Opinion Analyst:**
-- Domestic political constraints
-- Public sentiment in key countries
-- Coalition dynamics
+**Quality Gate:** Can you specify what evidence would prove each possible answer wrong? If no, reframe.
 
 ---
 
-## Phase 3: Structured Challenge-Response Debate
+### Step 2: Select Adversarial Personas
 
-**Iteration Cap: Maximum 4 rounds**
+See `quality-gates.md` for the Enhanced Persona Selection Matrix.
 
-**Step 3.1: Initial Challenges**
+**Selection Criteria:**
+- 5-7 personas with 3+ different analytical frameworks
+- Always include Historian (12) OR Policy Implementation (13) for grounding
+- Ensure genuine adversarial diversity (at least 2 with opposing priors)
+- Each persona must have domain expertise relevant to the causal mechanisms
 
-Each persona reviews all positions and identifies the answer they **disagree with most**, issuing a formal challenge:
-1. What they disagree with (specific claim)
-2. Why they disagree (counter-evidence)
-3. What evidence would change their mind
-
-**Step 3.2: Response and Justification**
-
-Challenged persona responds with:
-- **Justification**: Evidence supporting original position
-- **OR Concession**: Explicit concession if cannot justify
-
-**Step 3.3: Iteration**
-
-Continue in rounds until:
-- No new challenges remain, OR
-- 4 rounds completed, OR
-- 2 consecutive rounds with no new challenges
-
-**Step 3.4: Document Convergence**
-
-- Address all outstanding challenges
-- Document "unresolved disputes"
-- Note conceded positions
+**Conflict Validation:**
+1. Who will disagree with whom and on what?
+2. Are there genuine cruxes of disagreement?
+3. Can available evidence resolve these disputes?
 
 ---
 
-## Phase 4: Chief Analyst Synthesis
+### Step 3: Gather Evidence (Shared Context)
 
-**Step 4.1: Evidence Assessment**
+**3-Round Parallel Search:**
 
-- Quality of sources (high/medium/low credibility)
-- Recency of data
-- Diversity of perspectives
+#### Round 1: Baseline Facts
+```bash
+mcp__web-search-prime__webSearchPrime("[topic] latest developments")
+mcp__web-search-prime__webSearchPrime("[topic] historical precedents")
+mcp__web-search-prime__webSearchPrime("[topic] expert consensus")
+```
 
-**Step 4.2: Scenario Analysis**
+#### Round 2: Depth & Contrarian Views
+```bash
+mcp__web-search-prime__webSearchPrime("[topic] quantitative data metrics")
+mcp__web-search-prime__webSearchPrime("[topic] official statements policy")
+mcp__web-search-prime__webSearchPrime("[topic] contrarian views critique")
+```
 
-Present probability-weighted scenarios:
-- **Base Case** (most likely, 50-60%)
-- **Bull Case** (positive outcome, 20-30%)
-- **Bear Case** (negative outcome, 15-25%)
+#### Round 3: Validation
+- Cross-reference key claims
+- Assess source credibility
+- Identify data gaps
 
-**Step 4.3: Confidence Assessment**
-
-- **High (80%+)**: Strong consensus, robust evidence
-- **Medium (60-80%)**: Clear direction with some uncertainty
-- **Low (40-60%)**: Mixed signals, limited consensus
-- **Research Needed (<40%)**: Insufficient information
-
-**Step 4.4: Output Format**
-
+**Output: Shared Context Document**
 ```markdown
-# Debate: [Topic]
+## Shared Context Document
 
-**Date:** YYYY-MM-DD
-**Model:** Geopolitics
-**Confidence:** High/Medium/Low
+### Established Facts
+- [Claim] - Sources: [A, B] - Confidence: High/Medium/Low
 
-## Executive Summary
-[3-4 sentence summary]
+### Disputed Claims
+- [Claim A] - Source X argues Y
+- [Counter-claim B] - Source Z argues W
 
-## Points of Agreement
-- [Key consensus points]
-
-## Points of Disagreement
-- [Key areas of debate]
-- [Unresolved disputes]
-
-## Scenarios
-
-### Base Case (XX% probability)
-[Description]
-
-### Bull Case (XX% probability)
-[Description]
-
-### Bear Case (XX% probability)
-[Description]
-
-## Key Indicators to Monitor
-- [Events/data to track]
-
-## Sources
-- [List sources with credibility assessment]
+### Data Gaps
+- [Missing information that would resolve key questions]
 ```
 
 ---
 
-# Economics Model Workflow
+### Step 4: Generate Initial Positions
 
-**Agents:** 8 personas → Chief Analyst synthesis
+Each persona presents a position focused on **causal mechanism** and **falsifiability**.
 
-## Phase 1: Data Gathering
+**See `constraints.md` for the complete Position Structure template.**
 
-**Gather latest economic data:**
-- WebSearch for recent economic releases
-- Read macro/theses/macro_thesis_YYYY_MM.md
-- Check central bank calendar
-- Review latest employment, inflation, GDP data
+**Key requirements:**
+- Core Thesis with probability
+- Causal Mechanism (WHY this will happen)
+- Key Evidence (3+ datapoints)
+- Conditional Logic (IF/THEN statements)
+- Acknowledged Weaknesses
+- Falsification Criteria (what would prove this wrong)
 
-**Document Key Variables:**
-- GDP growth rate
-- Inflation (CPI, PCE)
-- Unemployment rate
-- Interest rates
-- Consumer sentiment
-- Business investment
+**Quality Gate:** Every position must have falsification criteria. Positions without are invalid.
 
 ---
 
-## Phase 2: Analyst Positions
+### Step 5: Adversarial Challenge Rounds
 
-Each persona provides analysis (200-250 words):
+**Goal:** Eliminate false positions through systematic critique.
 
-**Economic Historian:**
-- Historical parallels
-- Cycle position assessment
-- Policy precedent analysis
+#### Round 1: Foundational Challenges
 
-**Keynesian Economist:**
-- Demand-side assessment
-- Output gap analysis
-- Stimulus/necessity evaluation
+Each persona challenges the **weakest causal link** in another position.
 
-**Monetarist Economist:**
-- Inflation risk assessment
-- Monetary policy stance
-- Money supply analysis
+**See `constraints.md` for complete Challenge Format and Response Options.**
 
-**Labor Market Analyst:**
-- Employment trends
-- Wage pressure analysis
-- Participation factors
+**Summary:**
+- **Challenge Type:** [Causal / Empirical / Logical]
+- **The Flaw:** Specific weakness in causal mechanism or evidence
+- **Counter-Evidence:** Data that contradicts
+- **Response Options:** Full Defense / Partial Concession / Full Concession
 
-**International Economist:**
-- Global linkages
-- Trade/capital flows
-- Exchange rate assessment
+#### Rounds 2+: Adaptive Challenges
 
-**Financial Stability Analyst:**
-- Leverage/debt concerns
-- Systemic risk indicators
-- Bubble risk assessment
+- Target the weakest-defended positions
+- Build on previous concessions
+- Introduce new evidence if available
 
-**Sector Analyst:**
-- Industry-specific trends
-- Supply chain health
-- Innovation/disruption impacts
+**Target Concession Rate:** 15-30% of challenges result in concessions.
 
-**Political Economist:**
-- Policy feasibility
-- Distributional effects
-- Institutional constraints
+Below 15% suggests groupthink or insufficient rigor. Above 30% suggests weak initial positions.
+
+#### Stop Conditions
+
+**See `quality-gates.md` for Stop Conditions.**
+
+Summary: Debate stops at 80% convergence, plateau, crux-identified disagreements, or 5 rounds.
 
 ---
 
-## Phase 3: Structured Debate
+### Step 6: Track Convergence
 
-**Same structure as Geopolitics model, max 5 rounds**
+**See `quality-gates.md` for the complete Convergence Map template.**
+
+After each round, document:
+- Positions Eliminated (Falsified)
+- Positions Strengthened (Withstood Challenges)
+- Emerging Consensus
+- Persistent Disagreements (Cruxes)
+- Convergence Score
+
+**Convergence = Truth Signal**
+
+| Convergence | Interpretation |
+|-------------|----------------|
+| 80%+ | High confidence - surviving position likely true |
+| 60-80% | Medium confidence - direction clear, uncertainty remains |
+| 40-60% | Low confidence - multiple viable scenarios |
+| <40% | Insufficient evidence - research needed |
 
 ---
 
-## Phase 4: Synthesis
+### Step 7: Synthesize Prediction
 
-**Economic Outlook Output:**
+See `synthesis-format.md` for the complete output template.
+
+**Required Output:**
+1. **Executive Summary** - Prediction with probability and key reasoning
+2. **Analysis Quality Metrics** - Source credibility, perspective diversity, convergence
+3. **Consensus Findings** - What personas agree/disagree on
+4. **Causal Mechanism** - Why the predicted outcome will occur
+5. **Critical Uncertainties** - What could change the prediction
+6. **Scenario Analysis** - Alternative outcomes with triggers
+7. **Monitoring Framework** - Leading indicators to track
+8. **Confidence Assessment** - Probability with justification
+
+---
+
+### Step 8: Calibrate
+
+After outcomes are known, return and assess:
 
 ```markdown
-# Economic Debate: [Topic]
+## Prediction Calibration
 
-**Date:** YYYY-MM-DD
-**Model:** Economics
-**Confidence:** High/Medium/Low
+**Original Prediction:** [What we said would happen]
+**Actual Outcome:** [What actually happened]
+**Calibration:** [Was our confidence appropriate?]
 
-## Executive Summary
-[3-4 sentence economic outlook]
-
-## Economic Assessment
-
-### Growth Outlook
-[Bearish/Neutral/Bullish with reasoning]
-
-### Inflation Outlook
-[Disinflationary/Sticky/Accelerating with reasoning]
-
-### Policy Implications
-[Recommended policy stance]
-
-## Sector Implications
-| Sector | Outlook | Key Drivers |
-|--------|---------|-------------|
-| [Sector] | [Tailwind/Headwind] | [Drivers] |
-
-## Risks to Outlook
-- [Key downside risks]
-- [Key upside risks]
-
-## Data to Monitor
-- [Key releases to watch]
-
-## Sources
+**Learning:**
+- Which analytical frameworks proved most accurate?
+- Which evidence was most predictive?
+- What did we miss?
 ```
 
----
-
-# Policy Model Workflow
-
-**Agents:** 7 personas → Chief Analyst synthesis
-
-## Phase 1: Policy Context
-
-**Gather policy information:**
-- WebSearch for latest policy news
-- Read bill text or policy proposals
-- Analyze stakeholder positions
-- Review polling data
-
-**Document Policy Framework:**
-- Proposed policy content
-- Proponents/opponents
-- Timeline/path to enactment
-- Implementation requirements
+**Track calibration over time** to improve prediction quality.
 
 ---
 
-## Phase 2: Analyst Positions
+## Requirements Summary
 
-Each persona (200-250 words):
-
-**Policy Historian:**
-- Historical precedents
-- Past implementation attempts
-- Lessons learned
-
-**Public Finance Economist:**
-- Fiscal impact
-- Cost-benefit analysis
-- Distributional effects
-
-**Regulatory Analyst:**
-- Market impact
-- Unintended consequences
-- Incentive structures
-
-**Implementation Specialist:**
-- Administrative capacity
-- Timeline feasibility
-- Execution challenges
-
-**Legal Analyst:**
-- Constitutionality
-- Legal challenges
-- Regulatory authority
-
-**Public Opinion Specialist:**
-- Public support levels
-- Messaging assessment
-- Coalition potential
-
-**Stakeholder Analyst:**
-- Interest group positions
-- Veto player analysis
-- Compensation strategies
-
----
-
-## Phase 3: Structured Debate
-
-**Max 5 rounds**
-
----
-
-## Phase 4: Synthesis
-
-```markdown
-# Policy Debate: [Policy]
-
-**Date:** YYYY-MM-DD
-**Model:** Policy
-**Confidence:** High/Medium/Low
-
-## Executive Summary
-[3-4 sentence policy assessment]
-
-## Policy Analysis
-
-### Likely Impact
-[What happens if enacted]
-
-### Feasibility Assessment
-| Factor | Assessment |
-|--------|------------|
-| Political Feasibility | [High/Medium/Low] |
-| Implementation Capacity | [High/Medium/Low] |
-| Legal Risk | [High/Medium/Low] |
-| Public Support | [High/Medium/Low] |
-
-### Unintended Consequences
-- [Potential negative side effects]
-
-## Stakeholder Analysis
-| Group | Position | Influence |
-|-------|----------|-----------|
-| [Group] | [Support/Oppose] | [High/Med/Low] |
-
-## Recommendation
-[Pass/Modify/Reject with reasoning]
-
-## Key Milestones
-- [Dates to watch]
-```
-
----
-
-# Markets Model Workflow
-
-**Agents:** 5 personas → Chief Market Strategist synthesis
-
-## Phase 1: Market Context
-
-**Gather market data:**
-- Read macro/theses/macro_thesis_YYYY_MM.md
-- WebSearch for latest market commentary
-- Review sector performance
-- Check latest economic releases
-
----
-
-## Phase 2: Analyst Positions
-
-Each persona (200-250 words):
-
-**Macro Strategist:**
-- Economic regime assessment
-- Growth/inflation outlook
-- Sector implications
-
-**Cross-Asset Strategist:**
-- Asset class relationships
-- Relative value opportunities
-- Risk-on/off assessment
-
-**Market Historian:**
-- Historical parallels
-- Valuation comparisons
-- Cycle position
-
-**Sentiment Analyst:**
-- Positioning extremes
-- Crowded trades
-- Contrarian signals
-
----
-
-## Phase 3: Structured Debate
-
-**Max 4 rounds**
-
----
-
-## Phase 4: Synthesis
-
-```markdown
-# Market Debate: [Topic]
-
-**Date:** YYYY-MM-DD
-**Model:** Markets
-**Confidence:** High/Medium/Low
-
-## Executive Summary
-[3-4 sentence market outlook]
-
-## Market Regime Assessment
-
-### Current Regime
-[Risk-On / Risk-Off / Transition]
-
-### Key Drivers
-- [Primary market drivers]
-
-## Asset Class Views
-
-| Asset | View (3M) | View (12M) | Rationale |
-|-------|-----------|------------|-----------|
-| Equities | [Bull/Neutral/Bear] | [Bull/Neutral/Bear] | [Why] |
-| Bonds | [Bull/Neutral/Bear] | [Bull/Neutral/Bear] | [Why] |
-| Commodities | [Bull/Neutral/Bear] | [Bull/Neutral/Bear] | [Why] |
-| USD | [Bull/Neutral/Bear] | [Bull/Neutral/Bear] | [Why] |
-
-## Sector Views
-
-| Sector | Rating | Key Drivers |
-|--------|--------|-------------|
-| [Sector] | [Overweight/Equal/Underweight] | [Drivers] |
-
-## Key Risks
-- [Primary risks to outlook]
-
-## Tactical Recommendations
-- [Specific actionable views]
-```
-
----
-
-# Quality Standards
-
-## Debate Quality Indicators
-
-| Metric | Target Range |
-|--------|--------------|
-| Concession Rate | 15-30% |
-| Challenge Success Rate | 40-60% |
-| Rounds to Convergence | 2-4 |
-| Unresolved Disputes | 0-3 |
-| Source Diversity | 5+ sources minimum |
-
-## Source Credibility Standards
-
-| Tier | Sources |
-|------|---------|
-| High | Central banks, government agencies, major news wires, academic papers |
-| Medium | Think tanks, industry publications, established commentators |
-| Low | Social media, anonymous sources, partisan outlets |
-
-## Red Flags to Avoid
-
-- **Anchoring bias**: Overweighting first information
-- **Confirmation bias**: Seeking only supporting evidence
-- **Recency bias**: Overweighting latest data
-- **Authority bias**: Deferring to "experts" without scrutiny
-- **This time is different**: Ignoring historical precedents
-
-## When to Declare "Insufficient Data"
-
-- <3 credible sources on topic
-- Major events pending (Fed decision, election)
-- Data stale (>7 days old for fast-moving topics)
-- Conflicting sources with no resolution path
-
-**Output:** "Research Needed - Insufficient reliable data to form conclusion. Recommend gathering [specific missing information]."
+| Requirement | Specification | Source |
+|-------------|---------------|--------|
+| Minimum sources | 5+ credible sources | `quality-gates.md` |
+| Concession rate | 15-30% of challenges | `constraints.md` |
+| Target convergence | 60-80% for usable prediction | `quality-gates.md` |
+| Source credibility | High/Medium tier only | `constraints.md` |
+| Falsifiability | Every position must specify | `constraints.md` |
+| Position structure | Causal mechanism + evidence | `constraints.md` |
+| Output format | Prediction template | `synthesis-format.md` |

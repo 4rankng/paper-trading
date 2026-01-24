@@ -41,7 +41,7 @@ python scripts/add_holding.py \
 - `--ticker`: Stock ticker symbol (required)
 - `--shares`: Number of shares (required)
 - `--price`: Purchase price per share (required)
-- `--thesis-status`: Thesis validation status (options: PENDING, VALIDATING, VALIDATED, FAILED)
+- `--thesis-status`: Thesis validation status (options: PENDING, VALIDATING, STRONGER, WARNING, DANGER)
 
 ### Behavior
 
@@ -184,7 +184,7 @@ Array of trade objects with:
       "gain_loss": 1025.00,
       "gain_loss_pct": 6.83,
       "portfolio_pct": 15.2,
-      "thesis_status": "VALIDATING"
+      "thesis_status": "VALIDATING"  # PENDING, VALIDATING, STRONGER, WARNING, or DANGER
     }
   ],
   "cash": {
@@ -230,12 +230,16 @@ CSV with columns:
 
 ## Thesis Status Tracking
 
-- **PENDING**: New position, thesis not yet researched
-- **VALIDATING**: Active research, initial progress made
-- **VALIDATED**: Thesis confirmed with evidence
-- **FAILED**: Thesis proven invalid
-- **TRANSFORMING**: Thesis evolving, new narrative emerging
-- **INVALIDATED**: Original thesis no longer valid
+See **Portfolio Management Principles** section in SKILL.md for full classification and sell rules.
+
+Valid thesis_status values:
+- **PENDING**: Early stage, validation required
+- **VALIDATING**: Catalysts progressing, evidence accumulating
+- **STRONGER**: Thesis strengthening with new evidence
+- **WARNING**: Thesis at risk, monitor closely
+- **DANGER**: Thesis failing or invalidated → SELL
+
+Legacy values (VALIDATED, FAILED, TRANSFORMING, INVALIDATED) are deprecated; map to above values.
 
 ## File Locking
 
