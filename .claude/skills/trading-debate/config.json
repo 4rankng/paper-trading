@@ -1,0 +1,64 @@
+{
+  "challenge": {
+    "success_threshold": 0.3,
+    "mute_threshold": 0.30,
+    "min_challenges_before_mute": 3
+  },
+  "bayesian": {
+    "confidence_threshold": 0.90,
+    "min_rounds": {
+      "scalping": 2,
+      "swing": 3,
+      "position": 3,
+      "investment": 3
+    }
+  },
+  "voting": {
+    "min_debates_for_weighting": 10,
+    "influence_factor": 1.0
+  },
+  "modes": {
+    "scalping_fast_threshold_days": 3,
+    "default_mode": "parallel"
+  },
+  "personas": {
+    "all": [
+      "Macro Strategist",
+      "Sentiment & Flow Analyst",
+      "Trend Architect",
+      "Mean-Reversion Specialist",
+      "Fundamental Catalyst",
+      "Statistical Quant",
+      "Tape Reader / Volume Profile",
+      "Short-Seller",
+      "Risk Manager"
+    ],
+    "scalping": [
+      "Trend Architect",
+      "Tape Reader / Volume Profile",
+      "Mean-Reversion Specialist",
+      "Risk Manager",
+      "Sentiment & Flow Analyst"
+    ],
+    "fast": [
+      "Trend Architect",
+      "Tape Reader / Volume Profile",
+      "Risk Manager"
+    ],
+    "swing": "all",
+    "position": [
+      "Trend Architect",
+      "Fundamental Catalyst",
+      "Sector Analyst",
+      "Risk Manager",
+      "Short-Seller",
+      "Macro Strategist"
+    ],
+    "investment": [
+      "Fundamental Analyst",
+      "Growth Strategist",
+      "Risk Manager",
+      "Macro Strategist"
+    ]
+  }
+}

@@ -1,20 +1,28 @@
 #!/usr/bin/env python3
 """
-Portfolio & Trade Log Updater for LLM Agents
+Portfolio & Trade Log Updater for LLM Agents (v3.0 Minimal)
 
-Automatically updates portfolio.json and trade_log.csv when trades occur.
+Automatically updates portfolios.json and trade_log.csv when trades occur.
 LLM agents should call this script instead of manually editing files.
+
+IMPORTANT (v3.0): portfolios.json only stores MINIMAL data:
+  - ticker, shares, avg_cost, current_price, status
+  - All analysis data goes in analytics/[TICKER]/ folder
 
 Usage:
     python scripts/update_portfolio_and_log.py \
         --ticker TCOM --action BUY --shares 84 --price 61.09 \
-        --thesis-status PENDING \
+        --reasoning "Antitrust oversold condition"
+
+    python scripts/update_portfolio_and_log.py \
+        --ticker TCOM --action BUY --shares 84 --price 61.09 \
+        --portfolio CORE \
         --reasoning "Antitrust oversold condition"
 
     # From Python:
     from scripts.update_portfolio_and_log import execute_trade
     execute_trade(ticker="TCOM", action="BUY", shares=84, price=61.09,
-                  thesis_status="PENDING", reasoning="Antitrust oversold")
+                  portfolio_name="CORE", reasoning="Antitrust oversold")
 """
 
 import argparse
@@ -24,85 +32,58 @@ from datetime import datetime
 from pathlib import Path
 from typing import Optional, List
 
-# Platform-specific file locking
-try:
-    import fcntl
-    HAS_FCNTL = True
-except ImportError:
-    # Windows doesn't have fcntl
-    HAS_FCNTL = False
-
-try:
-    import msvcrt
-    HAS_MSVCRT = True
-except ImportError:
-    HAS_MSVCRT = False
-
-
-def lock_file(file_handle):
-    """
-    Lock a file handle for exclusive access (cross-platform).
-
-    Args:
-        file_handle: Open file handle to lock
-    """
-    if HAS_FCNTL:
-        # Unix/Linux/macOS
-        fcntl.flock(file_handle.fileno(), fcntl.LOCK_EX)
-    elif HAS_MSVCRT:
-        # Windows
-        file_handle.seek(0)
-        msvcrt.locking(file_handle.fileno(), msvcrt.LK_LOCK, 1)
-
-
-def unlock_file(file_handle):
-    """
-    Unlock a file handle (cross-platform).
-
-    Args:
-        file_handle: Open file handle to unlock
-    """
-    if HAS_FCNTL:
-        fcntl.flock(file_handle.fileno(), fcntl.LOCK_UN)
-    elif HAS_MSVCRT:
-        file_handle.seek(0)
-        msvcrt.locking(file_handle.fileno(), msvcrt.LK_UNLOCK, 1)
-
 
 def execute_trade(
     ticker: str,
     action: str,
     shares: int,
     price: float,
-    thesis_status: str,
     reasoning: str,
     evidence_files: Optional[List[str]] = None,
     timestamp: Optional[str] = None,
-    portfolio_path: Optional[str] = None
+    portfolio_name: Optional[str] = None,
+    portfolios_path: Optional[str] = None
 ) -> dict:
     """
-    Execute a trade: updates both portfolio.json and trade_log.csv
+    Execute a trade: updates both portfolios.json and trade_log.csv
 
     Args:
         ticker: Stock ticker (uppercase)
         action: BUY, SELL, or TRIM
         shares: Number of shares
         price: Execution price per share
-        thesis_status: PENDING, VALIDATING, VALIDATED, FAILED
         reasoning: Trade rationale
         evidence_files: List of supporting file paths
         timestamp: ISO 8601 timestamp (auto-generated if None)
-        portfolio_path: Path to portfolio.json (default: project root)
+        portfolio_name: Portfolio name (e.g., "CORE", "AI_PICKS"). Default if None.
+        portfolios_path: Path to portfolios.json (default: project root)
 
     Returns:
         dict with updated portfolio state and trade details
+
+    Raises:
+        FileNotFoundError: If portfolios.json doesn't exist
+        ValueError: For invalid inputs (ticker, action, shares, price, etc.)
+
+    Note (v3.0): Analysis data should be stored in analytics/[TICKER]/ folder,
+                  not in portfolios.json.
     """
-    # Import shared agent_helpers from data-fetching skill
+    # Import local common module
     import sys
     from pathlib import Path
-    sys.path.insert(0, str(Path(__file__).parent.parent.parent.parent / 'skills' / 'data-fetching' / 'scripts'))
-    from agent_helpers.trade_log_manager import TradeLogManager
-    from agent_helpers.common import get_project_root
+    sys.path.insert(0, str(Path(__file__).parent))
+    from common import (
+        get_project_root,
+        get_portfolio,
+        get_shared_cash,
+        update_shared_cash,
+        update_portfolio,
+        recalculate_portfolio_totals,
+        load_portfolios,
+        save_portfolios,
+        log_trade,
+        list_portfolios,
+    )
 
     # Validate inputs
     ticker = ticker.upper().strip()
@@ -133,30 +114,34 @@ def execute_trade(
     if price == 0:
         raise ValueError(f"Price cannot be zero")
 
-    # Validate thesis_status
-    valid_statuses = ['PENDING', 'VALIDATING', 'VALIDATED', 'FAILED', 'TRANSFORMING', 'INVALIDATED']
-    thesis_status = thesis_status.upper().strip()
-    if thesis_status not in valid_statuses:
-        raise ValueError(f"Invalid thesis_status: {thesis_status}. Must be one of: {', '.join(valid_statuses)}")
+    # Note (v3.0): thesis_status removed - use analytics/[TICKER]/_investment_thesis.md instead
 
     # Validate reasoning
     if not reasoning or not reasoning.strip():
         raise ValueError("Reasoning cannot be empty")
 
-    # Load portfolio with file locking
-    if portfolio_path is None:
-        portfolio_path = get_project_root() / 'portfolio.json'
+    # Determine path to portfolios.json
+    if portfolios_path is None:
+        root = get_project_root()
+        portfolios_path = root / 'portfolios.json'
     else:
-        portfolio_path = Path(portfolio_path)
+        portfolios_path = Path(portfolios_path)
 
-    # Open file with exclusive lock for reading
-    file_handle = open(portfolio_path, 'r')
-    try:
-        lock_file(file_handle)
-        portfolio = json.load(file_handle)
-    finally:
-        unlock_file(file_handle)
-        file_handle.close()
+    # Check if portfolios.json exists
+    if not portfolios_path.exists():
+        raise FileNotFoundError(f"Portfolios file not found: {portfolios_path}")
+
+    # Load portfolio and shared cash
+    portfolio = get_portfolio(portfolio_name, portfolios_path, include_cash=True)
+    shared_cash_data = get_shared_cash(portfolios_path)
+    shared_cash_amount = shared_cash_data.get('amount', 0)
+
+    # Get actual portfolio name (in case None was passed)
+    if portfolio_name is None:
+        all_portfolios = load_portfolios(portfolios_path)
+        actual_portfolio_name = all_portfolios.get("metadata", {}).get("default_portfolio", "CORE")
+    else:
+        actual_portfolio_name = portfolio_name
 
     # Find or create holding
     holding = None
@@ -165,32 +150,18 @@ def execute_trade(
             holding = h
             break
 
+    # Determine which summary key to use
+    summary_key = "summary" if "summary" in portfolio else "portfolio_summary"
+
     if action == 'BUY':
         if holding is None:
-            # Create new holding
+            # Create new holding (v3.0 minimal schema only)
             holding = {
                 'ticker': ticker,
                 'shares': shares,
-                'avg_cost': price,
-                'current_price': price,
-                'market_value': shares * price,
-                'gain_loss': 0.0,
-                'gain_loss_pct': 0.0,
-                'pct_portfolio': 0.0,  # Will recalculate
-                'status': 'active',
-                'thesis_status': thesis_status,
-                'thesis_validation_confidence': 'MEDIUM',
-                'time_horizon': 'swing',
-                'contracts_validated': False,
-                'sell_signal_triggered': False,
-                'name': ticker,  # Placeholder
-                'sector': 'Unknown',
-                'industry': 'Unknown',
-                'invalidation_level': 'TBD',
-                'technical_alignment': 'TBD',
-                'thesis': reasoning,
-                'major_partnerships': [],
-                'last_news_update': datetime.utcnow().isoformat() + 'Z'
+                'avg_cost': round(price, 2),
+                'current_price': round(price, 2),
+                'status': 'active'
             }
             portfolio['holdings'].append(holding)
         else:
@@ -207,13 +178,19 @@ def execute_trade(
             holding['gain_loss'] = round(holding['market_value'] - (total_shares * holding['avg_cost']), 2)
             holding['gain_loss_pct'] = round((holding['gain_loss'] / (total_shares * holding['avg_cost'])) * 100, 2)
 
-        # Update cash
+        # Update shared cash
         cost = shares * price
-        portfolio['cash']['amount'] = round(portfolio['cash']['amount'] - cost, 2)
+        shared_cash_amount = round(shared_cash_amount - cost, 2)
 
     elif action in ['SELL', 'TRIM']:
         if holding is None:
-            raise ValueError(f"Cannot sell {ticker}: position not found in portfolio")
+            # Show available portfolios to help user
+            available = list_portfolios(portfolios_path)
+            port_list = [p['name'] for p in available.get('portfolios', [])]
+            raise ValueError(
+                f"Cannot sell {ticker}: position not found in portfolio '{actual_portfolio_name}'. "
+                f"Available portfolios: {port_list}"
+            )
 
         if shares > holding['shares']:
             raise ValueError(f"Cannot sell {shares} shares of {ticker}: only {holding['shares']} available")
@@ -223,22 +200,23 @@ def execute_trade(
         pl_pct = ((price - cost_basis) / cost_basis * 100) if cost_basis > 0 else 0.0
 
         # Calculate portfolio % before selling
-        total_value = portfolio['portfolio_summary']['total_value']
-        portfolio_pct = (holding['market_value'] / total_value) * 100
+        holdings_value = sum(h['market_value'] for h in portfolio['holdings'])
+        total_value = holdings_value + shared_cash_amount
+        portfolio_pct = (holding['market_value'] / total_value) * 100 if total_value > 0 else 0
 
         # Log to trade_log FIRST (before modifying holding)
-        tlm = TradeLogManager()
-        trade = tlm.log_trade(
+        trade = log_trade(
             ticker=ticker,
             action=action,
             shares=shares,
             price=price,
             cost_basis=cost_basis,
             portfolio_pct=round(portfolio_pct, 2),
-            thesis_status=thesis_status,
+            thesis_status="",  # v3.0: removed - use analytics/ folder
             reasoning=reasoning,
             evidence_files=evidence_files or [],
-            timestamp=timestamp
+            timestamp=timestamp,
+            portfolio_name=actual_portfolio_name
         )
 
         # Update holding
@@ -252,89 +230,87 @@ def execute_trade(
             holding['gain_loss'] = round(holding['market_value'] - (holding['shares'] * holding['avg_cost']), 2)
             holding['gain_loss_pct'] = round((holding['gain_loss'] / (holding['shares'] * holding['avg_cost'])) * 100, 2)
 
-        # Update cash
+        # Update shared cash
         proceeds = shares * price
-        portfolio['cash']['amount'] = round(portfolio['cash']['amount'] + proceeds, 2)
+        shared_cash_amount = round(shared_cash_amount + proceeds, 2)
 
-    # Recalculate portfolio totals
-    total_holdings_value = sum(h['market_value'] for h in portfolio['holdings'])
-    total_value = total_holdings_value + portfolio['cash']['amount']
-    total_cost = sum(h['shares'] * h['avg_cost'] for h in portfolio['holdings'])
-    total_gl = sum(h['gain_loss'] for h in portfolio['holdings'])
+    # Recalculate portfolio totals with shared cash
+    portfolio = recalculate_portfolio_totals(portfolio, shared_cash_amount)
 
-    portfolio['portfolio_summary']['total_value'] = round(total_value, 2)
-    portfolio['portfolio_summary']['cash_amount'] = portfolio['cash']['amount']
-    portfolio['portfolio_summary']['cash_pct'] = round((portfolio['cash']['amount'] / total_value) * 100, 2)
-    portfolio['portfolio_summary']['total_cost_basis'] = round(total_cost, 2)
-    portfolio['portfolio_summary']['total_gain_loss'] = round(total_gl, 2)
-    portfolio['portfolio_summary']['total_gain_loss_pct'] = round((total_gl / total_cost) * 100, 2) if total_cost > 0 else 0
-
-    # Update position percentages
-    for h in portfolio['holdings']:
-        h['pct_portfolio'] = round((h['market_value'] / total_value) * 100, 2)
+    # Get calculated values for output
+    total_holdings_value = portfolio[summary_key].get('holdings_value', sum(h['market_value'] for h in portfolio['holdings']))
+    total_value = total_holdings_value + shared_cash_amount
+    cash_amount = shared_cash_amount
 
     # Update metadata
+    if 'metadata' not in portfolio:
+        portfolio['metadata'] = {}
     portfolio['metadata']['last_updated'] = datetime.utcnow().isoformat() + 'Z'
 
-    # Save portfolio with file locking
-    file_handle = open(portfolio_path, 'w')
-    try:
-        lock_file(file_handle)
-        json.dump(portfolio, file_handle, indent=2)
-        file_handle.flush()  # Ensure data is written before unlocking
-    finally:
-        unlock_file(file_handle)
-        file_handle.close()
+    # Save portfolio and shared cash
+    update_shared_cash(shared_cash_amount, portfolios_path)
+    update_portfolio(actual_portfolio_name, portfolio, portfolios_path, shared_cash_amount)
 
     # Log BUY trades to trade_log (SELL/TRIM already logged above)
     if action == 'BUY':
-        tlm = TradeLogManager()
-        total_value = portfolio['portfolio_summary']['total_value']
         # Find the holding to get its portfolio %
-        holding = next(h for h in portfolio['holdings'] if h['ticker'] == ticker)
-        portfolio_pct = holding['pct_portfolio']
+        holding = next((h for h in portfolio['holdings'] if h['ticker'] == ticker), None)
+        if holding:
+            portfolio_pct = holding['pct_portfolio']
+        else:
+            portfolio_pct = 0.0
 
-        trade = tlm.log_trade(
+        trade = log_trade(
             ticker=ticker,
             action=action,
             shares=shares,
             price=price,
             cost_basis=0.0,  # New position
             portfolio_pct=portfolio_pct,
-            thesis_status=thesis_status,
+            thesis_status="",  # v3.0: removed - use analytics/ folder
             reasoning=reasoning,
             evidence_files=evidence_files or [],
-            timestamp=timestamp
+            timestamp=timestamp,
+            portfolio_name=actual_portfolio_name
         )
 
+    cash_pct = round((cash_amount / total_value) * 100, 2) if total_value > 0 else 0
     print(f"✓ Trade executed: {action} {shares} {ticker} @ ${price:.2f}")
-    print(f"  Portfolio updated: ${total_value:,.2f}")
-    print(f"  Cash: ${portfolio['cash']['amount']:,.2f} ({portfolio['portfolio_summary']['cash_pct']:.2f}%)")
+    print(f"  Portfolio: {actual_portfolio_name}")
+    print(f"  Shared Cash: ${cash_amount:,.2f} ({cash_pct:.2f}%)")
+    print(f"  Total Value: ${total_value:,.2f}")
 
     return {
         'trade': trade,
         'portfolio': portfolio,
         'holding': holding,
-        'cash': portfolio['cash']['amount'],
-        'total_value': total_value
+        'cash': cash_amount,
+        'total_value': total_value,
+        'portfolio_name': actual_portfolio_name
     }
 
 
 def main():
     """CLI interface for trade execution"""
     parser = argparse.ArgumentParser(
-        description='Execute trade and update portfolio.json + trade_log.csv',
+        description='Execute trade and update portfolios.json + trade_log.csv (v3.0 Minimal)',
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
 Examples:
-  # Buy shares
-  python scripts/update_portfolio_and_log.py --ticker TCOM --action BUY --shares 84 --price 61.09 --thesis-status PENDING --reasoning "Antitrust oversold"
+  # Buy shares (uses default portfolio)
+  python scripts/update_portfolio_and_log.py --ticker TCOM --action BUY --shares 84 --price 61.09 --reasoning "Antitrust oversold"
+
+  # Buy shares in specific portfolio
+  python scripts/update_portfolio_and_log.py --ticker TCOM --action BUY --shares 84 --price 61.09 --portfolio CORE --reasoning "Antitrust oversold"
 
   # Sell shares
-  python scripts/update_portfolio_and_log.py --ticker LAES --action SELL --shares 5000 --price 4.50 --thesis-status VALIDATING --reasoning "Trimming position"
+  python scripts/update_portfolio_and_log.py --ticker LAES --action SELL --shares 5000 --price 4.50 --portfolio CORE --reasoning "Trimming position"
 
   # Trim position
-  python scripts/update_portfolio_and_log.py --ticker PONY --action TRIM --shares 92 --price 16.56 --thesis-status VALIDATING --reasoning "Reduce concentration"
+  python scripts/update_portfolio_and_log.py --ticker PONY --action TRIM --shares 92 --price 16.56 --portfolio CORE --reasoning "Reduce concentration"
+
+Note (v3.0): Analysis data should be stored in analytics/[TICKER]/ folder,
+              not in portfolios.json. Use analytics_generator skill to create analysis files.
         """
     )
 
@@ -342,11 +318,10 @@ Examples:
     parser.add_argument('--action', required=True, choices=['BUY', 'SELL', 'TRIM'], help='Trade action')
     parser.add_argument('--shares', required=True, type=int, help='Number of shares')
     parser.add_argument('--price', required=True, type=float, help='Execution price per share')
-    parser.add_argument('--thesis-status', required=True, choices=['PENDING', 'VALIDATING', 'VALIDATED', 'FAILED', 'TRANSFORMING', 'INVALIDATED'], help='Thesis status')
     parser.add_argument('--reasoning', required=True, help='Trade rationale')
     parser.add_argument('--evidence', nargs='*', default=[], help='Evidence file paths')
     parser.add_argument('--timestamp', help='ISO 8601 timestamp (default: now)')
-    parser.add_argument('--portfolio', help='Path to portfolio.json (default: project root)')
+    parser.add_argument('--portfolio', help='Portfolio name (e.g., CORE, AI_PICKS). Default: metadata.default_portfolio')
 
     args = parser.parse_args()
 
@@ -356,11 +331,10 @@ Examples:
             action=args.action,
             shares=args.shares,
             price=args.price,
-            thesis_status=args.thesis_status,
             reasoning=args.reasoning,
             evidence_files=args.evidence,
             timestamp=args.timestamp,
-            portfolio_path=args.portfolio
+            portfolio_name=args.portfolio
         )
         print(json.dumps({
             'status': 'success',
@@ -372,6 +346,7 @@ Examples:
                 'portfolio_pct': result['trade']['portfolio_pct']
             },
             'portfolio': {
+                'name': result.get('portfolio_name', 'UNKNOWN'),
                 'total_value': result['total_value'],
                 'cash': result['cash']
             }

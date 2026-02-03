@@ -145,12 +145,10 @@ def generate_dashboard(
     score_result: Dict,
     aggregation_result: Dict
 ) -> str:
-    """Generate markdown dashboard output."""
+    """Generate markdown dashboard output for appending to technical_analysis.md."""
     lines = []
 
-    # Header
-    lines.append(f"# Technical Signal Summary: {ticker}")
-    lines.append("")
+    # Note: No main header since this is appended as a section
     lines.append(f"**Analysis Date:** {price_data['end_date']}")
     lines.append(f"**Current Price:** ${price_data['latest_price']}")
     lines.append(f"**Data Points:** {price_data['data_points']} days")
@@ -358,19 +356,35 @@ def classify_single_score(score: float) -> str:
         return "Strongly Bearish"
 
 
-def save_signal_summary(ticker: str, dashboard: str) -> Optional[Path]:
-    """Save signal summary to analytics folder."""
+def save_trading_volume_summary(ticker: str, dashboard: str) -> Optional[Path]:
+    """Append signal dashboard to technical_analysis.md file."""
     project_root = get_project_root()
     analytics_dir = project_root / 'analytics' / ticker.upper()
 
     # Create directory if it doesn't exist
     analytics_dir.mkdir(parents=True, exist_ok=True)
 
-    output_path = analytics_dir / f"{ticker.upper()}_signal_summary.md"
+    output_path = analytics_dir / f"{ticker.upper()}_technical_analysis.md"
 
     try:
+        # Read existing technical analysis if it exists
+        existing_content = ""
+        if output_path.exists():
+            existing_content = output_path.read_text()
+
+        # Append signal dashboard to the file
         with open(output_path, 'w') as f:
+            # Write existing content first
+            if existing_content:
+                f.write(existing_content)
+                # Add separator if file doesn't end with one
+                if not existing_content.rstrip().endswith("---"):
+                    f.write("\n\n---\n\n")
+
+            # Write signal dashboard section
+            f.write("## Technical Signal Dashboard\n\n")
             f.write(dashboard)
+
         return output_path
     except Exception as e:
         print(f"Error saving signal summary: {e}")
@@ -429,7 +443,7 @@ def process_ticker(ticker: str, config: Dict, save_output: bool = True) -> Dict:
     # Save output
     output_path = None
     if save_output:
-        output_path = save_signal_summary(ticker, dashboard)
+        output_path = save_trading_volume_summary(ticker, dashboard)
 
     return {
         'ticker': ticker.upper(),
@@ -492,13 +506,19 @@ Examples:
         json_output = []
         for r in results:
             if r['status'] == 'success':
+                # Extract category scores from weighted_scores
+                category_scores = {}
+                for cat, data in r['scores'].get('weighted_scores', {}).items():
+                    category_scores[cat] = data.get('score', 50)
+
                 json_output.append({
                     'ticker': r['ticker'],
                     'regime': r['regime']['regime'],
                     'overall_score': r['scores']['overall_score'],
                     'classification': r['scores']['classification'],
                     'convergence': r['scores']['convergence'],
-                    'confidence': r['scores']['confidence_level']
+                    'confidence': r['scores']['confidence_level'],
+                    'category_scores': category_scores
                 })
             else:
                 json_output.append({

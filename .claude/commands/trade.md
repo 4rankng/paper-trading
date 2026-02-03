@@ -1,7 +1,16 @@
 ---
-allowed-tools: Bash, Skill, Read, Write
-description: Generate concise trading plan with entry/exit/stop and confidence level
+name: trade
+description: Generate concise trading plan with entry/exit/stop and confidence level. Optimized for scalping/day-trading (1d-5d) with technicals (80%) and sentiment (15%) as primary factors.
 argument-hint: [ticker] [timeframe] [capital]
+disable-model-invocation: true
+allowed-tools:
+  - Bash(python:*)
+  - Read
+  - Write
+  - Skill(trading-debate)
+  - Skill(analytics_generator)
+  - Skill(portfolio_manager)
+  - Skill(signal-formatter)
 ---
 
 Generate concise trading plan for [TICKER] with [TIMEFRAME] investment horizon.
@@ -25,6 +34,17 @@ Generate concise trading plan for [TICKER] with [TIMEFRAME] investment horizon.
 - `/trade NVDA 3m 100000` - 3 month plan with $100K capital for dollar sizing
 
 ## Workflow
+
+**CRITICAL: Data-First Decision Making**
+
+Before ANY trading plan, follow the 3-step checklist:
+- Read existing analytics: `analytics/{TICKER}/`
+- Web search for fresh data (last 24-48h): news, earnings, catalysts
+- Check Fear & Greed Index: https://edition.cnn.com/markets/fear-and-greed
+
+See: `.claude/skills/references/data-first-decision-making.md`
+
+---
 
 This command triggers the `trading-plan` skill which:
 

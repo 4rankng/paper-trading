@@ -5,6 +5,7 @@ allowed-tools:
   - Read
   - Bash(python:*)
   - Bash(ls:*)
+  - WebSearch
 context: fork
 agent: general-purpose
 ---
@@ -34,19 +35,42 @@ ls -lt macro/theses/ | head -5
 
 Macro factors are integrated as contextual variables in all debate models.
 
-**CRITICAL:** FRESH analytics files required (<24 hours old):
-```
-analytics/[TICKER]/[TICKER]_technical_analysis.md
-analytics/[TICKER]/[TICKER]_fundamental_analysis.md
-analytics/[TICKER]/[TICKER]_investment_thesis.md
-```
+## CRITICAL: Data-First Decision Making
 
-**Validate:**
+Before ANY trading debate, you MUST follow this 4-step checklist:
+
+### 1. Check Analytics Freshness
 ```bash
-python .claude/skills/trading-debate/scripts/validate_analytics.py TICKER
+ls -lt analytics/{TICKER}/ | head -5
 ```
 
-If missing/stale: run `/analyze [TICKER]`
+### 2. Web Search for Fresh Data (Last 24-48h)
+Use `WebSearch` for:
+- `{TICKER} stock news today` - Latest headlines, breaking news
+- `{TICKER} earnings guidance` - Recent guidance changes
+- `{TICKER} analyst upgrade downgrade` - Street sentiment shifts
+- `{TICKER} sector news` - Industry developments
+- `{TICKER} insider trading` - Recent Form 4 activity
+
+### 3. Check Market Sentiment
+- CNN Fear & Greed Index: https://edition.cnn.com/markets/fear-and-greed
+
+### 4. Feed Fresh Data to Debate
+Include web search results as "Fresh Data" section in the debate context.
+
+**WARNING: Agents MUST have fresh data. Obsolete data leads to wrong conclusions.**
+
+### Data Freshness Rules
+
+| Condition | Action |
+|-----------|--------|
+| Analytics missing | Run `/analyze {TICKER}` first |
+| Analytics >24h old | Run `/analyze {TICKER}` OR proceed with web search |
+| Analytics <24h old | Proceed with web search for fresh context |
+
+**DO NOT make recommendations based on stale analytics (>24 hours old) without web search.**
+
+See: [Data-First Decision Making](references/data-first-decision-making.md)
 
 ## Timeframe Format
 
@@ -90,5 +114,6 @@ Examples: `/debate NVDA 2w` | `/debate AAPL 1y` | `/debate TSLA 3d`
 | Issue | Solution |
 |-------|----------|
 | Analytics missing/stale | `/analyze TICKER` |
+| Agents using obsolete data | Run web search for fresh data first |
 | Low conviction | Add to watchlist |
 | Wrong model | Check timeframe suffix (d/w/m/y) |

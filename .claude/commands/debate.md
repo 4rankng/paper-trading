@@ -1,7 +1,14 @@
 ---
-allowed-tools: Bash, Glob, Skill, Read
-description: Multi-agent debate - trading analysis (ticker + timeframe) OR current affairs/macroeconomics (general topic)
+name: debate
+description: Multi-agent debate for trading decisions or macroeconomic analysis. Auto-selects model: Scalping (6 agents), Swing (10 agents), Position (7 agents), Investment (5 agents).
 argument-hint: [ticker] [timeframe] OR [general topic]
+disable-model-invocation: true
+allowed-tools:
+  - Bash(python:*)
+  - Read
+  - Write
+  - Skill(trading-debate)
+  - Skill(debate)
 ---
 
 Execute multi-agent debate. Routes to appropriate skill based on input:
@@ -33,6 +40,17 @@ Execute multi-agent debate. Routes to appropriate skill based on input:
 - `/debate Is a recession coming in 2026?`
 
 ## Routing Logic
+
+**CRITICAL: Data-First Decision Making (Trading Debate only)**
+
+Before ANY trading debate, follow the 3-step checklist:
+- Read existing analytics: `analytics/{TICKER}/`
+- Web search for fresh data (last 24-48h): news, earnings, catalysts
+- Check Fear & Greed Index: https://edition.cnn.com/markets/fear-and-greed
+
+See: `.claude/skills/references/data-first-decision-making.md`
+
+---
 
 **Step 1:** Detect input type
 - If argument 1 is a ticker (1-5 letters, all caps) AND argument 2 exists with timeframe suffix → **Trading Debate**

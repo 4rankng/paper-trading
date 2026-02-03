@@ -6,6 +6,8 @@ Uses BeautifulSoup to parse article content from HTML.
 
 import json
 import re
+import subprocess
+import sys
 import time
 from pathlib import Path
 from urllib.parse import urlparse
@@ -15,13 +17,17 @@ try:
     from bs4 import BeautifulSoup
 except ImportError:
     print("Installing required packages...")
-    import subprocess
     subprocess.run([sys.executable, "-m", "pip", "install", "requests", "beautifulsoup4", "lxml"], check=True)
     import requests
     from bs4 import BeautifulSoup
 
+# Get script directory and project root
+SCRIPT_DIR = Path(__file__).parent
+PROJECT_ROOT = SCRIPT_DIR.parent.parent.parent.parent
+DATA_FILE = SCRIPT_DIR / "news_to_update.json"
+
 # Read the JSON file
-with open('.claude/scripts/news_to_update.json', 'r') as f:
+with open(DATA_FILE, 'r') as f:
     files_needing_content = json.load(f)
 
 print(f"Processing {len(files_needing_content)} files...")
@@ -78,6 +84,9 @@ def extract_article_content(html_content, url):
 
 def update_news_file(file_path, url, article_content):
     """Update a news file with fetched content."""
+    # Handle relative paths from JSON
+    file_path = PROJECT_ROOT / file_path
+
     with open(file_path, 'r', encoding='utf-8') as f:
         current_content = f.read()
 

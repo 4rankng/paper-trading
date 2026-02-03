@@ -44,9 +44,15 @@ Fetch and manage macroeconomic analysis that influences equity market decisions.
 ## Usage in Investment Decisions
 
 When evaluating any investment:
-1. **Check current macro stance** by reading `macro/theses/macro_thesis_YYYY_MM.md`
-2. **Consider sector-specific headwinds/tailwinds** from macro events
-3. **Factor macro conditions into:**
+1. **Check CNN Fear & Greed Index** - https://edition.cnn.com/markets/fear-and-greed
+   - 0-20 Extreme Fear: Capitulation - BUY opportunity
+   - 21-40 Fear: Oversold - Consider buying
+   - 41-55 Neutral: Balanced approach
+   - 56-75 Greed: Caution - trim if extended
+   - 76-100 Extreme Greed: Euphoria - reduce risk, take profits
+2. **Check current macro stance** by reading `macro/theses/macro_thesis_YYYY_MM.md`
+3. **Consider sector-specific headwinds/tailwinds** from macro events
+4. **Factor macro conditions into:**
    - Position sizing (reduce exposure in high macro risk periods)
    - Entry timing (delay entries during elevated macro uncertainty)
    - Thesis validation (macro shifts can invalidate sector theses)

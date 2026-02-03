@@ -176,6 +176,11 @@ class WatchlistManager:
                 if filters["strategy"].lower() != stock.get("strategy", "").lower():
                     match = False
 
+            # Investment type filter
+            if "investment_type" in filters:
+                if filters["investment_type"].lower() != stock.get("investment_type", "").lower():
+                    match = False
+
             # Holding period filter
             if "holding_period" in filters:
                 if filters["holding_period"].lower() not in stock.get("hold", "").lower():
@@ -244,11 +249,12 @@ class WatchlistManager:
         if self.find_by_ticker(ticker):
             raise ValueError(f"Ticker {ticker} already exists")
 
-        # Create lean entry (LLM agent provides strategy/hold/fit from analytics)
+        # Create lean entry (LLM agent provides investment_type, strategy/hold/fit from analytics)
         new_stock = {
             "ticker": ticker,
             "name": stock_data["name"],
             "sector": stock_data["sector"],
+            "investment_type": stock_data.get("investment_type"),  # "compounder" or "moonshot"
             "strategy": stock_data.get("strategy"),
             "hold": stock_data.get("hold"),
             "action": stock_data.get("action", "WATCH").upper(),
@@ -339,6 +345,7 @@ class WatchlistManager:
             "by_sector": {},
             "by_action": {},
             "by_strategy": {},
+            "by_investment_type": {},
             "by_hold": {},
             "avg_fit": 0,
             "classified_count": 0
@@ -353,6 +360,13 @@ class WatchlistManager:
 
             action = stock.get("action", "Unknown")
             summary["by_action"][action] = summary["by_action"].get(action, 0) + 1
+
+            # Investment type breakdown
+            inv_type = stock.get("investment_type")
+            if inv_type:
+                summary["by_investment_type"][inv_type] = summary["by_investment_type"].get(inv_type, 0) + 1
+            else:
+                summary["by_investment_type"]["unclassified"] = summary["by_investment_type"].get("unclassified", 0) + 1
 
             strategy = stock.get("strategy")
             if strategy:
@@ -388,22 +402,23 @@ def format_compact(results: List[Dict]) -> str:
 
     output = [f"# Watchlist ({len(results)} stocks)"]
     output.append("")
-    output.append(f"{'Ticker':<6} {'Strategy':<16} {'Hold':<8} {'Fit':<4} {'Action':<8} {'Price':<10} {'Updated':<10}")
+    output.append(f"{'Ticker':<6} {'Type':<10} {'Strategy':<14} {'Hold':<8} {'Fit':<4} {'Action':<8} {'Price':<10}")
     output.append("-" * 80)
 
     for stock in results:
         ticker = stock.get("ticker", "N/A")
+        inv_type = stock.get("investment_type", "?")
+        type_icon = "📈" if inv_type == "compounder" else "🚀" if inv_type == "moonshot" else "❓"
         strategy = stock.get("strategy") or "-"
         hold = stock.get("hold") or "-"
         fit = stock.get("fit")
         action = stock.get("action", "N/A")
         price = stock.get("price")
-        updated = stock.get("updated_at", "N/A")
 
         fit_str = f"{fit}" if fit is not None else "-"
         price_str = f"${price:.2f}" if price else "N/A"
 
-        output.append(f"{ticker:<6} {strategy:<16} {hold:<8} {fit_str:<4} {action:<8} {price_str:<10} {updated:<10}")
+        output.append(f"{ticker:<6} {type_icon} {inv_type[:8]:<8} {strategy:<14} {hold:<8} {fit_str:<4} {action:<8} {price_str:<10}")
 
     return "\n".join(output)
 
@@ -412,6 +427,11 @@ def format_summary_human(summary: Dict) -> str:
     """Format summary as human-readable text."""
     output = ["Watchlist Summary", "=" * 40]
     output.append(f"Total: {summary['total_stocks']} | Avg Fit: {summary.get('avg_fit', 0)}")
+
+    output.append("\nBy Investment Type:")
+    for inv_type, count in sorted(summary['by_investment_type'].items(), key=lambda x: x[1], reverse=True):
+        icon = "📈" if inv_type == "compounder" else "🚀" if inv_type == "moonshot" else "❓"
+        output.append(f"  {icon} {inv_type}: {count}")
 
     output.append("\nBy Sector:")
     for sector, count in sorted(summary['by_sector'].items(), key=lambda x: x[1], reverse=True):
@@ -501,6 +521,7 @@ def main():
     parser.add_argument('--sector', help='Filter by sector')
     parser.add_argument('--action', help='Filter by action')
     parser.add_argument('--filter-strategy', dest='filter_strategy', help='Filter by strategy')
+    parser.add_argument('--filter-type', dest='investment_type_filter', choices=['compounder', 'moonshot'], help='Filter by investment type')
     parser.add_argument('--holding-period', dest='holding_period', help='Filter by holding period')
     parser.add_argument('--min-fit', type=int, help='Minimum fit score')
     parser.add_argument('--min-price', type=float, help='Minimum price')
@@ -511,6 +532,7 @@ def main():
 
     # Add/Update fields
     parser.add_argument('--name', help='Stock name (required for --add)')
+    parser.add_argument('--inv-type', dest='inv_type', choices=['compounder', 'moonshot'], help='Investment type (compounder or moonshot)')
     parser.add_argument('--strategy', help='Strategy classification (determined by LLM from analytics)')
     parser.add_argument('--hold', help='Holding period (1-10d, 2w-3m, 3-6m, 1y+)')
     parser.add_argument('--fit', type=int, help='Strategy fit score (0-100, determined by LLM)')
@@ -553,6 +575,7 @@ def main():
             "ticker": args.ticker,
             "name": args.name,
             "sector": args.sector,
+            "investment_type": args.inv_type,
             "strategy": _parse_nullable(args.strategy),
             "hold": _parse_nullable(args.hold),
             "fit": args.fit,
@@ -621,6 +644,8 @@ def main():
         filters["action"] = args.action
     if args.filter_strategy:
         filters["strategy"] = args.filter_strategy
+    if args.investment_type_filter:
+        filters["investment_type"] = args.investment_type_filter
     if args.holding_period:
         filters["holding_period"] = args.holding_period
     if args.min_fit:

@@ -1,7 +1,11 @@
 ---
-allowed-tools: Glob, Read
-description: Provide LLM agent insights from existing analytics data
+name: insights
+description: Provide LLM agent insights from existing analytics data. Use after running /analyze to get synthesized takeaways.
 argument-hint: [TICKER]
+disable-model-invocation: true
+allowed-tools:
+  - Glob
+  - Read
 ---
 
 Provide investment insights for [TICKER] based on existing analytics files.

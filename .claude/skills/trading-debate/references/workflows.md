@@ -1,6 +1,18 @@
 # Trading Debate Workflows Reference
 
-Detailed execution workflows for each trading model.
+Detailed execution workflows for each trading model with game-theoretic optimizations.
+
+---
+
+## Debate Modes
+
+| Mode | Description | Timeframe | Agents | Rounds | When to Use |
+|------|-------------|-----------|--------|--------|-------------|
+| **Fast** | 3 agents, 1 round, CIO direct verdict | 1d-3d | 3 | 1 | Quick scalps, intraday decisions |
+| **Parallel** | Simultaneous challenges, O(n) efficiency | 1d-1y+ | 5-10 | 2-5 | Default for all timeframes |
+| **Sequential** | Traditional back-and-forth | 1d-1y+ | 5-10 | 2-5 | Fallback for complex cases |
+
+**Default:** Parallel mode (auto-selected by timeframe)
 
 ---
 
@@ -8,301 +20,333 @@ Detailed execution workflows for each trading model.
 
 | Model | Max Rounds | Early Stop Condition |
 |-------|------------|---------------------|
-| Scalping/Day | 3 rounds | All challenges addressed OR no new evidence |
-| Swing | 5 rounds | Convergence pattern detected |
-| Position | 5 rounds | Convergence pattern detected |
-| Investment | 5 rounds | Convergence pattern detected |
+| Fast (1d-3d) | 1 round | N/A (single pass) |
+| Scalping/Day (4d-7d) | 3 rounds | Confidence >90% OR no new evidence |
+| Swing (1w-4w) | 5 rounds | Confidence >90% OR convergence |
+| Position (1m-6m) | 5 rounds | Confidence >90% OR convergence |
+| Investment (1y+) | 5 rounds | Confidence >90% OR convergence |
 
-**Early convergence**: If 2 consecutive rounds produce no new challenges, debate ends immediately.
+**Bayesian Early Convergence:**
+- Stop when confidence interval <10% (P(buy) >90% or <10%)
+- Minimum rounds apply (2 for scalping, 3 for others)
+- Confidence stagnation (<5% change) also triggers stop
+
+---
+
+## Game-Theoretic Optimizations
+
+### 1. Challenge Quality Scoring
+
+| Outcome | Quality Score | Success | Description |
+|---------|---------------|---------|-------------|
+| Conceded | 1.0 | Yes | Target admits the point |
+| Weak Defense | 0.5 | Yes | Target lacks evidence |
+| Strong Defense | 0.0 | No | Target provides evidence |
+| Irrelevant | -1.0 | No | Challenge ignored/off-topic |
+
+**Persona Score:** `(successful_challenges × 2) - (concessions × 1) - (failed_challenges × 0.5)`
+
+### 2. Auto-Muting
+
+| Condition | Action |
+|-----------|--------|
+| Challenge success rate <30% | Persona muted for remaining rounds |
+| Minimum 3 challenges issued | Before mute evaluation applies |
+| Muted persona | Still votes in final phase |
+
+### 3. Confidence Weighting
+
+| Persona History | Vote Weight |
+|-----------------|-------------|
+| New (<10 debates) | 0.5 (baseline) |
+| 75% accuracy | 0.75 |
+| 40% accuracy | 0.40 |
+| Perfect track record | 1.0 |
+
+**Formula:** `weight = 0.5 + (accuracy - 0.5) × influence_factor`
+
+### 4. Bayesian Confidence Tracker
+
+After each round:
+```
+P(buy) = weighted_votes_for_buy / total_weighted_votes
+confidence = |P(buy) - 0.5| × 2  # 0-1 scale
+```
+
+**Stop when:** `confidence > 0.90` AND `rounds >= minimum`
 
 ---
 
 ## Shared Components
 
-These components are common to all trading models and are referenced by model-specific workflows.
+These components are common to all trading models.
 
-### Challenge-Response Debate Steps (All Models)
+### Parallel Challenge-Response Mode (NEW)
+
+#### Phase 2A: Simultaneous Challenge Issuing
+
+Each persona X reviews all analyst answers and issues **ONE challenge** to the persona they disagree with most.
+
+**Challenge Format:**
+```
+CHALLENGE_TO: [Persona Name]
+WHAT_I_DISAGREE_WITH: [Specific claim]
+COUNTER_EVIDENCE: [Your reasoning]
+```
+
+All challenges are issued **simultaneously** - no waiting for others.
+
+#### Phase 2B: Batched Responses
+
+Challenges are **grouped by target persona**:
+
+```
+## Challenges to Trend Architect
+
+**Short-Seller challenges:** The EMA stack is weakening...
+**Risk Manager challenges:** Stop distance too wide...
+
+[Respond to all challenges above]
+```
+
+Each persona responds to **all their challenges at once** (150 words max).
+
+#### Phase 2C: Scoring and Muting
+
+1. Each challenge is scored (see [Challenge Quality Scoring](#1-challenge-quality-scoring))
+2. Persona challenge success rates updated
+3. Personas below 30% threshold are **muted**
+4. Muted personas sit out remaining rounds (still vote in Phase 3)
+
+#### Phase 2D: Iteration
+
+Repeat rounds until:
+- **Confidence >90%** (Bayesian convergence), OR
+- **Max rounds completed**, OR
+- **Confidence stagnates** (<5% change over 2 rounds)
+
+### Legacy Sequential Mode (Fallback)
+
+If parallel mode is disabled (`--sequential` flag), use traditional back-and-forth:
 
 #### Step 2.1: Initial Challenges
-
-Each persona X reviews all analyst answers and identifies:
-- The answer they **disagree with most**
-- The specific point(s) of disagreement
-
-X then issues a **formal challenge** to that persona Y, stating:
-1. What they disagree with (specific claim or conclusion)
-2. Why they disagree (counter-evidence or logic)
-3. What evidence would change their mind
+Each persona challenges one other sequentially.
 
 #### Step 2.2: Response and Justification
-
-The challenged persona Y must respond to X's challenge with:
-1. **Justification**: Evidence or reasoning supporting their original position
-2. **OR Concession**: If they cannot justify, they explicitly concede the point
-
-A valid justification must include:
-- Concrete data points from the analytics
-- Logical reasoning that addresses the challenge
-- Acknowledgment of any weaknesses in their position
+Challenged persona responds with justification or concession.
 
 #### Step 2.3: Iteration
-
-The debate continues in rounds until:
-- **No new challenges remain**, OR
-- **Max rounds completed** (see [Iteration Limits](#iteration-limits-efficiency-control)), OR
-- **2 consecutive rounds with no new challenges**
-
-Any persona may issue new challenges based on responses. Once a persona concedes on a point, they retract that specific claim.
-
-#### Step 2.4: Debate Convergence
-
-The phase ends when:
-- All outstanding challenges have been addressed
-- All conceded points have been retracted
-- Remaining disagreements are explicitly documented as "unresolved disputes"
+Continue rounds until convergence or max rounds.
 
 ### Shared Debate Rules
 
-- **Must challenge**: Each persona must challenge at least one other answer
-- **Must respond**: Challenged personas must always respond (justify or concede)
-- **Specific challenges**: Challenges must be specific, not generic
-- **Evidence-based**: All challenges and justifications must reference the analytics data
-- **Good faith**: Personas concede when they cannot justify
+- **Must challenge**: Each persona must challenge at least one other
+- **Must respond**: Challenged personas must always respond
+- **Specific challenges**: Generic challenges penalized
+- **Evidence-based**: Reference analytics data
+- **Good faith**: Concede when cannot justify
 
 ### Phase 3: Holistic Confidence Vote (All Models)
 
-After the challenge-response debate concludes, each analyst **holistically evaluates**:
+After debate concludes, each analyst evaluates:
+
 - All original analyst answers
-- All challenges issued
-- All responses and justifications
+- All challenges and responses
 - All conceded points
 - Remaining unresolved disputes
 
-**Scoring 1-10 based on the entire debate transcript:**
+**Scoring 1-10:**
 - 1-3 = Avoid
 - 4-6 = Neutral/Watch
 - 7-8 = Buy (Speculative)
 - 9-10 = Strong Buy (High Conviction)
 
+**Weighted Voting:**
+- Votes weighted by historical accuracy (see [Confidence Weighting](#3-confidence-weighting))
+- New personas: equal weight (0.5)
+- Track record personas: weighted 0.1-1.0
+
 **Voting Guidance:**
-- Vote for the **most well-defended** position, not necessarily your original stance
-- Penalize positions that conceded key points
-- Reward positions that successfully defended against challenges
-- Consider the quality of evidence and reasoning, not just the conclusion
-- **Contrarian Edge**: A lone dissent with strong evidence warrants "Watch" status, not automatic rejection
+- Vote for **most well-defended** position
+- Penalize positions that conceded
+- Reward successful defenses
+- **Contrarian Edge**: Lone dissent with strong evidence = "Watch", not "Avoid"
 
 ---
 
-## Scalping/Day Trading Model (1d - 7d): 4-Phase Workflow
+## Fast Mode Workflow (1d - 3d Scalping)
+
+**Agents:** 3 personas (no voting phase, CIO direct verdict)
+- Trend Architect
+- Tape Reader / Volume Profile
+- Risk Manager
+
+### Phase 1: Rapid Analysis (100 words each)
+
+**Trend Architect:**
+- EMA stack alignment (20/50/200)
+- Higher highs/lows or lower highs/lows
+- Momentum direction
+
+**Tape Reader:**
+- Volume vs average
+- Entry timing
+- Liquidity check
+
+**Risk Manager:**
+- ATR stop distance
+- R:R ratio (min 3:1)
+- Position size (0.25-0.5% max)
+
+### Phase 2: Challenge Round
+
+Each agent challenges ONE other (100 words max):
+```
+CHALLENGE_TO: [Agent]
+DISAGREEMENT: [What you disagree with]
+COUNTER_EVIDENCE: [Your reasoning]
+```
+
+### Phase 3: Response Round
+
+Each agent responds (150 words max):
+- If conceding: "I concede on [point] because..."
+- If defending: "The evidence shows..."
+
+### Phase 4: CIO Verdict (No Voting)
+
+**Action:** BUY/SELL/SKIP
+**Conviction:** HIGH/MEDIUM/LOW
+**Entry:** [price zone]
+**Target:** [price level]
+**Stop:** [price level]
+**Position Size:** [% of equity, max 0.5%]
+
+**Output includes:**
+- Entry zone (market or limit near support)
+- Target (1-2% moves for scalps)
+- Stop-loss (1-1.5x ATR)
+- Duration: Same day to 3 days
+- Time stop: Exit EOD if no movement
+
+---
+
+## Scalping/Day Trading Model (4d - 7d): 4-Phase Workflow
 
 **Agents:** 6 personas (5 analysts + 1 CIO)
+**Mode:** Parallel (default)
 
 ### Phase 1: Rapid Analysis
 
-Each analyst persona (1-5) provides concise evaluation (100-150 words):
+Each analyst (100-150 words):
+- Trend Architect: EMA stack, momentum
+- Tape Reader: Volume profile, timing
+- Mean-Reversion: RSI, exhaustion gaps
+- Risk Manager: ATR stop, position size
+- Sentiment & Flow: Fear/greed, options flow
 
-**Trend Architect:**
-- Intraday trend structure (higher highs/lows or lower highs/lows)
-- EMA alignment (20/50/200 stack)
-- Momentum direction and sustainability
+### Phase 2: Parallel Challenge-Response
 
-**Tape Reader:**
-- Volume profile (accumulation/distribution/churn)
-- Entry/exit timing (smart money detection)
-- **Spread analysis** (liquidity check)
-- Average daily volume >1M shares preferred
+**Iteration Cap:** 3 rounds
+**Confidence Threshold:** 90%
 
-**Mean-Reversion Specialist:**
-- Overbought/oversold conditions (RSI, Stochastics)
-- Quick scalp opportunities (exhaustion gaps)
-- Distance from mean (standard deviations)
-
-**Risk Manager:**
-- Stop distance based on ATR (1-1.5x)
-- Position size calculation (0.25-0.5% max)
-- Quick loss cut strategy
-- **Liquidity check**: Minimum 20-day avg volume >500k shares
-
-**Sentiment & Flow:**
-- Intraday sentiment (fear/greed extremes)
-- Options flow (calls/puts, gamma exposure)
-- Hype detection (social volume spikes)
-
-### Phase 2: Structured Challenge-Response Debate
-
-**Iteration Cap: Maximum 3 rounds** (scalping requires speed)
-
-See [Challenge-Response Debate Steps](#challenge-response-debate-steps-all-models) for detailed process.
-
-**Debate Rules:** See [Shared Debate Rules](#shared-debate-rules).
+See [Parallel Challenge-Response Mode](#parallel-challenge-response-mode-new).
 
 ### Phase 3: Holistic Confidence Vote
 
-See [Phase 3: Holistic Confidence Vote](#phase-3-holistic-confidence-vote-all-models).
+Weighted voting with Bayesian confidence tracking.
 
 ### Phase 4: CIO Decision
 
-**Weighs 5 analyst inputs and debate outcomes, assesses conviction:**
-- **High Conviction (5/5)**: All analysts aligned, no concessions
-- **Medium Conviction (4/5)**: Minor disagreement, defended positions
-- **Low Conviction (3/5)**: Weak consensus, some concessions
-- **Avoid (<3/5)**: No edge
+**Conviction Levels:**
+- High (5/5): All aligned, no concessions
+- Medium (4/5): Minor disagreement
+- Low (3/5): Weak consensus
+- Avoid (<3/5): No edge
 
-**Outputs day trading plan with:**
-- Entry zone (often at market or limit near support)
-- Target (quick profit, often 1-2% moves)
-- Stop-loss (tight, 1-1.5x ATR)
-- Duration: Same day to 7 days
-- Time stop: Exit EOD if no movement
-- Position size: 0.25-0.5%
-
-**Liquidity Check (Scalping only):**
-- Minimum average daily volume: 500k shares
-- Maximum position size: <1% of daily volume
-- Wide spreads (>2%) trigger reduction or skip
-
-**Conviction Tiers:** See [constraints.md](constraints.md#scalpingday-trading-constraints-1d---7d).
+**Outputs:** Entry, target, stop (1-1.5x ATR), duration (7 days max), size (0.25-0.5%)
 
 ---
 
 ## Swing Trading Model (1w - 4w): 5-Phase Workflow
 
 **Agents:** 10 personas (9 analysts + 1 CIO)
+**Mode:** Parallel (default)
 
 ### Phase 1: Deep Analysis
 
-Each analyst persona (1-9) provides concise evaluation (150-200 words):
+Each analyst (150-200 words):
 
-**Environment - Context Setting:**
-1. Macro Strategist: Market regime, tailwinds/headwinds
-2. Sentiment & Flow: Crowd positioning, contrarian signals
+**Environment:**
+1. Macro Strategist
+2. Sentiment & Flow
 
-**Strategists - Directional Bias:**
-3. Trend Architect: Trend structure, momentum alignment
-4. Mean-Reversion Specialist: Overbought/oversold extremes
-5. Fundamental Catalyst: Earnings, guidance, events
+**Directional:**
+3. Trend Architect
+4. Mean-Reversion Specialist
+5. Fundamental Catalyst
 
-**Evidence - Validation:**
-6. Statistical Quant: Z-scores, volatility, probability
-7. Tape Reader: Volume confirmation, divergence detection
+**Evidence:**
+6. Statistical Quant
+7. Tape Reader
 
-**Defense - Capital Preservation:**
-8. Short-Seller: Red-teaming, structural flaws
-9. Risk Manager: R:R, position sizing, correlation
+**Defense:**
+8. Short-Seller
+9. Risk Manager
 
-### Phase 2: Structured Challenge-Response Debate
+### Phase 2: Parallel Challenge-Response
 
-**Iteration Cap: Maximum 5 rounds**
-
-See [Challenge-Response Debate Steps](#challenge-response-debate-steps-all-models) for detailed process.
-
-**Debate Rules:** See [Shared Debate Rules](#shared-debate-rules).
+**Iteration Cap:** 5 rounds
+**Confidence Threshold:** 90%
 
 ### Phase 3: Holistic Confidence Vote
 
-See [Phase 3: Holistic Confidence Vote](#phase-3-holistic-confidence-vote-all-models).
+Weighted voting with accuracy-based weights.
 
 ### Phase 4: CIO Synthesis
 
-- Count votes from 9 analysts
-- Identify consensus vs disagreement across personas
-- Note any conceded points that weakened positions
-- **Check for contrarian edge**: If 1-2 analysts dissent with strong evidence, flag for "Watch" rather than "Avoid"
-- Assess conviction level and outputs trading plan
-
-**Conviction Tiers:** See [constraints.md](constraints.md#swing-trading-constraints-1w---4w).
+Count weighted votes, check contrarian edge, assess conviction.
 
 ---
 
 ## Position Trading Model (1m - 6m): 4-Phase Workflow
 
-**Agents:** 7 personas (6 analysts + 1 CIO)
+**Agents:** 7 personas
+**Mode:** Parallel (default)
 
-### Phase 1: Analyst Deep Dive
-
-Each analyst provides evaluation (200-250 words):
-
-1. **Trend Architect** - Medium-term trend structure and sustainability
-2. **Fundamental Catalyst** - Catalyst timeline and probability
-3. **Sector Analyst** - Industry position, competitive moat
-4. **Risk Manager** - Risk factors, position sizing
-5. **Short-Seller** - Bear case, structural concerns
-6. **Macro Strategist** - Macro environment, sector rotation
-
-### Phase 2: Structured Challenge-Response Debate
-
-**Iteration Cap: Maximum 5 rounds**
-
-See [Challenge-Response Debate Steps](#challenge-response-debate-steps-all-models) for detailed process.
-
-**Debate Rules:** See [Shared Debate Rules](#shared-debate-rules).
-
-### Phase 3: Holistic Confidence Vote
-
-See [Phase 3: Holistic Confidence Vote](#phase-3-holistic-confidence-vote-all-models).
-
-### Phase 4: CIO Decision
-
-- Weighs all analyst perspectives and debate outcomes
-- Notes any conceded points that weakened positions
-- Assesses conviction level (High/Medium/Low)
-- Outputs position trading plan with entry zones, targets, and holding period
-
-**Conviction Tiers:** See [constraints.md](constraints.md#position-trading-constraints-1m---6m).
+Same workflow as Swing with extended fundamental analysis.
 
 ---
 
 ## Investment Model (1y+): 4-Phase Workflow
 
-**Agents:** 5 personas (4 analysts + 1 CIO)
+**Agents:** 5 personas
+**Mode:** Parallel (default)
 
-### Phase 1: Fundamental Deep Dive
-
-Each analyst provides comprehensive evaluation (250-300 words):
-
-1. **Fundamental Analyst** - Business quality, moat, financial strength, valuation
-2. **Growth Strategist** - Revenue trajectory, TAM, margin expansion
-3. **Risk Manager** - Competitive threats, regulatory risks, business model
-4. **Macro Strategist** - Secular tailwinds/headwinds, industry disruption
-
-### Phase 2: Structured Challenge-Response Debate
-
-**Iteration Cap: Maximum 5 rounds**
-
-See [Challenge-Response Debate Steps](#challenge-response-debate-steps-all-models) for detailed process.
-
-**Debate Rules:** See [Shared Debate Rules](#shared-debate-rules).
-
-### Phase 3: Holistic Confidence Vote
-
-See [Phase 3: Holistic Confidence Vote](#phase-3-holistic-confidence-vote-all-models).
-
-### Phase 4: CIO Investment Decision
-
-- Synthesizes fundamental view and debate outcomes
-- Notes any conceded points that weakened positions
-- Validates investment thesis
-- Outputs investment recommendation with thesis, entry zone, and holding period
-
-**Conviction Tiers:** See [constraints.md](constraints.md#investment-model-constraints-1y).
+Focus on fundamentals, moat analysis, secular trends.
 
 ---
 
 ## Monitoring Metrics
 
-Track these metrics across debates to identify biases and improve quality:
+Track these metrics to ensure game-theoretic health:
 
 | Metric | Description | Target Range |
 |--------|-------------|--------------|
-| Concession Rate | % of challenges resulting in concession | 15-30% |
-| Challenge Success Rate | % of challenges that weakened target position | 40-60% |
-| Rounds to Convergence | Average rounds before debate ends | 2-4 |
-| Unresolved Disputes | Average unresolved disputes per debate | 0-2 |
-| Contrarian Edge Wins | % of lone dissents later proven correct | Track separately |
+| Concession Rate | % challenges resulting in concession | 15-30% |
+| Challenge Success Rate | % challenges that weakened target | 40-60% |
+| Rounds to Convergence | Avg rounds before debate ends | 2-4 |
+| Confidence at Convergence | Final Bayesian confidence | >85% |
+| Persona Mute Rate | % debates with muted personas | <10% |
+| Weighted Vote Accuracy | % weighted votes matching outcome | Track |
 
 **Quality Indicators:**
-- Concession rate <10%: Personas may be too stubborn
-- Concession rate >40%: Challenges may be too weak
-- Rounds always hitting max: Early convergence not working
+- Concession rate <10%: Personas too stubborn
+- Concession rate >40%: Challenges too weak
+- Rounds always at max: Convergence failing
+- Mute rate >20%: Threshold too aggressive
 
-**Track debates in:** `trading-debates/[TICKER]/` with metadata section for metrics
+**View stats:**
+```bash
+python .claude/skills/trading-debate/scripts/persona_tracker.py --stats
+```

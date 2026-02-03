@@ -1,7 +1,16 @@
 ---
-allowed-tools: Bash, Skill, Read, Write
-description: Comprehensive stock analysis - orchestrates skills to create technical, fundamental, and thesis files
+name: analyze
+description: Comprehensive stock analysis - orchestrates skills to create technical, fundamental, and thesis files with data-driven insights.
 argument-hint: [ticker]
+disable-model-invocation: true
+allowed-tools:
+  - Bash(python:*)
+  - Read
+  - Write
+  - Skill(analytics_generator)
+  - Skill(portfolio_manager)
+  - Skill(watchlist_manager)
+  - Skill(news_fetcher)
 ---
 
 Execute comprehensive analysis on [TICKER] by orchestrating skills.
@@ -15,7 +24,7 @@ Use `Skill` tool to invoke these skills in sequence:
    - Generates technical indicators
    - Aggregates 40+ signals into unified scores (NEW)
    - Creates 4 markdown files:
-     - `analytics/[TICKER]/[TICKER]_signal_summary.md` (auto-generated technical scoring)
+     - `analytics/[TICKER]/[TICKER]_trading_volume.md` (auto-generated technical scoring)
      - `analytics/[TICKER]/[TICKER]_technical_analysis.md`
      - `analytics/[TICKER]/[TICKER]_fundamental_analysis.md`
      - `analytics/[TICKER]/[TICKER]_investment_thesis.md`
@@ -40,7 +49,7 @@ After skill execution, output summary:
 ## Analysis Complete: [TICKER]
 
 **Files Created:**
-- analytics/[TICKER]/[TICKER]_signal_summary.md (auto-generated scoring)
+- analytics/[TICKER]/[TICKER]_trading_volume.md (auto-generated scoring)
 - analytics/[TICKER]/[TICKER]_technical_analysis.md
 - analytics/[TICKER]/[TICKER]_fundamental_analysis.md
 - analytics/[TICKER]/[TICKER]_investment_thesis.md

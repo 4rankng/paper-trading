@@ -9,307 +9,141 @@ allowed-tools:
   - Skill(ask)
 ---
 
-# Analytics Generator - Price Data, Fundamentals & Analytics Management
+# Analytics Generator - Quick Reference
 
-Fetch price data and fundamental metrics, create data-driven analytics files for stock analysis. Analytics files provide INSIGHTS only, not trading recommendations.
+Fetch price data and fundamental metrics, create data-driven analytics files for stock analysis.
+
+**Key Principle:** Analytics = INSIGHTS, not RECOMMENDATIONS. Trading recommendations go in `trading-plans/` folder (use `/trade`).
+
+---
 
 ## Quick Start
 
 ```bash
-# Fetch prices (2 years initial, then incremental updates)
+# Fetch prices
 python .claude/skills/analytics_generator/scripts/fetch_prices.py --ticker NVDA
-python .claude/skills/analytics_generator/scripts/fetch_prices.py NVDA AAPL MSFT
-python .claude/skills/analytics_generator/scripts/fetch_prices.py --tickers NVDA,AAPL,MSFT
 
-# Get current price (single or multiple)
+# Get current price
 python .claude/skills/analytics_generator/scripts/get_price.py --ticker NVDA
-python .claude/skills/analytics_generator/scripts/get_price.py NVDA AAPL MSFT
 
-# Get fundamental metrics (JSON output)
+# Get fundamentals (JSON output)
 python .claude/skills/analytics_generator/scripts/get_fundamental.py --ticker NVDA
-
-# Get historical prices (1M, 3M, 6M, 1Y, 2Y)
-python .claude/skills/analytics_generator/scripts/get_prices.py --ticker TCOM --period 6M
 
 # List available price files
 python .claude/skills/analytics_generator/scripts/list_prices.py
 ```
 
+---
+
 ## When to Use
 
-**Use for:**
-- Price data fetching and updates
-- Historical price queries
-- Current price checks
-- Fundamental metrics (market cap, P/E ratios, margins, growth rates, balance sheet)
-- Creating data-driven analytics files (technical, fundamental, thesis)
+| Use | Don't Use |
+|-----|-----------|
+| Price data fetching/updating | Trading recommendations |
+| Fundamental metrics | Watchlist screening |
+| Creating analytics files | Portfolio operations |
 
-**NOT for:**
-- Trading recommendations (use `/trade` command)
-- Watchlist screening (use `watchlist_manager` skill)
-- Portfolio operations (use `portfolio_manager` skill)
+**For trading recommendations:** Use `/trade` command
+**For watchlist:** Use `watchlist_manager` skill
+**For portfolio:** Use `portfolio_manager` skill
 
-## Mandatory Workflow
+---
 
-**CRITICAL: Analytics generation requires BOTH price data AND current news.**
+## Workflow Summary
 
-### Step 1: Check News Freshness (MANDATORY)
+### For New Stock Analysis
 
-```bash
-# List existing news articles
-python .claude/skills/news_fetcher/scripts/list_news.py --ticker TICKER
-```
+1. **Check news freshness** → `python .claude/skills/news_fetcher/scripts/list_news.py --ticker TICKER`
+2. **Fetch price data** → `python .claude/skills/analytics_generator/scripts/fetch_prices.py --ticker TICKER`
+3. **Generate technical** → `python .claude/skills/analytics_generator/scripts/generate_technical.py --ticker TICKER`
+4. **Aggregate signals** → `python .claude/skills/analytics_generator/scripts/aggregate_signals.py --ticker TICKER`
+5. **Get fundamentals** → `python .claude/skills/analytics_generator/scripts/get_fundamental.py --ticker TICKER`
+6. **LLM creates analytics** → 3 markdown files in `analytics/{TICKER}/`
 
-**Review output:**
-- **No articles** → News directory missing/empty → proceed to Step 2
-- **Articles exist** → Check most recent `published_date`:
-  - Older than 3 days → stale → proceed to Step 2
-  - Within 3 days → fresh → skip to Step 3
-
-### Step 2: Web Search (if news is stale/missing)
-
-If news is stale or missing, perform web search:
-```
-Search for: "{TICKER} stock news latest"
-```
-
-Identify significant articles (earnings, guidance, product launches, management changes, regulatory news).
-
-**Add important articles via news_fetcher:**
-```bash
-python .claude/skills/news_fetcher/scripts/add_news.py \
-  --ticker TICKER --title "Title" --source "Source" \
-  --url "https://..." --content "Content..."
-```
-
-### Step 3: Fetch Price Data
+### Or Use /analyze Command
 
 ```bash
-# Single ticker
-python .claude/skills/analytics_generator/scripts/fetch_prices.py --ticker TICKER
-
-# Batch tickers (space-separated or comma-separated)
-python .claude/skills/analytics_generator/scripts/fetch_prices.py TICKER1 TICKER2 TICKER3
-python .claude/skills/analytics_generator/scripts/fetch_prices.py --tickers TICKER1,TICKER2,TICKER3
+/analyze TICKER
 ```
 
-### Step 4: Generate Technical Data
+Orchestrates all steps automatically: news check, price fetch, technical/fundamental data, signal dashboard, and LLM analytics creation.
 
-```bash
-# Single ticker
-python .claude/skills/analytics_generator/scripts/generate_technical.py --ticker TICKER
-
-# Multiple tickers
-python .claude/skills/analytics_generator/scripts/generate_technical.py TICKER1 TICKER2 TICKER3
-```
-
-This script outputs structured technical data (not loaded into context).
-
-### Step 5: Generate Signal Summary (NEW - Aggregates 40+ Technical Indicators)
-
-```bash
-# Single ticker - generates {TICKER}_signal_summary.md in analytics folder
-python .claude/skills/analytics_generator/scripts/aggregate_signals.py --ticker TICKER
-
-# Multiple tickers
-python .claude/skills/analytics_generator/scripts/aggregate_signals.py --tickers TICKER1,TICKER2,TICKER3
-
-# Compact format for quick overview
-python .claude/skills/analytics_generator/scripts/aggregate_signals.py --ticker TICKER --format compact
-
-# JSON format for programmatic access
-python .claude/skills/analytics_generator/scripts/aggregate_signals.py --ticker TICKER --format json
-```
-
-**Signal Summary provides:**
-- **Market Regime Detection**: Trending Up/Down, Ranging, or Volatile with confidence
-- **Overall Technical Health Score**: 0-100 scale with classification (Strongly Bullish to Strongly Bearish)
-- **Category Scores**: Momentum, Trend, Volatility, Volume, OB/OS with regime-based weighting
-- **Signal Convergence**: % of signals aligned in one direction
-- **Cross-Confirmation Analysis**: Bullish vs Bearish signal counts with divergence warnings
-- **Key Signals**: Top 10 strongest signals by magnitude
-
-**Output file:** `analytics/{TICKER}/{TICKER}_signal_summary.md`
-
-This summary is created alongside traditional technical analysis and provides LLM agents with a unified scoring system for faster analysis.
-
-### Step 6: Generate Fundamental Data
-
-```bash
-python .claude/skills/analytics_generator/scripts/get_fundamental.py --ticker TICKER
-```
-
-This script outputs structured fundamental data as JSON (market cap, P/E ratios, margins, growth, balance sheet).
-
-**CRITICAL: Always check `data_quality` field before analysis:**
-
-```json
-{
-  "ticker": "NVDA",
-  "data_quality": {
-    "completeness_pct": 90,
-    "critical_fields_present": true,
-    "warnings": [],
-    "missing_critical": [],
-    "missing_optional": ["fifty_two_week_change"]
-  },
-  "market_cap": 4534141714432,
-  ...
-}
-```
-
-**Validation Rules:**
-- `critical_fields_present: false` → DO NOT proceed with analysis - use web search fallback
-- `completeness_pct < 50` → Data unreliable - warn user and consider web search fallback
-- Exit code 1 = critical fields missing (check stderr for warnings)
-
-**Critical Fields:** market_cap, current_price, sector, industry
-
-**Fallback to Web Search (when validation fails):**
-
-If `critical_fields_present: false` or `completeness_pct < 50`:
-
-1. Search for: "{TICKER} fundamental analysis market cap PE ratio"
-2. Search for: "{TICKER} sector industry financial metrics"
-3. Search for: "{TICKER} key statistics revenue margins debt"
-
-Extract available fundamentals from web results and note data limitations in analysis.
-
-### Step 7: Data Gap Analysis (MANDATORY GATE)
-
-**Before creating any analytics files, the LLM MUST actively identify data gaps:**
-
-1. **Review all collected data:**
-   - Technical data output from `generate_technical.py`
-   - Fundamental data JSON from `get_fundamental.py` (check `data_quality` field)
-   - News articles from `news/{TICKER}/`
-
-2. **Identify gaps** across these dimensions:
-   - **Fundamental gaps**: Missing metrics, incomplete financials, unclear business model
-   - **Technical gaps**: Insufficient price history, unclear patterns, missing indicators
-   - **Catalyst gaps**: No upcoming events, unclear timeline, missing earnings dates
-   - **Sector Catalyst gaps** (CRITICAL for momentum stocks): No check for sector-wide drivers like:
-     - Mega-IPOs in sector (e.g., SpaceX IPO affecting satellite stocks)
-     - Peer group movement (are sector peers moving together?)
-     - ETF flows and rebalancing
-     - Regulatory/policy shifts affecting entire sector
-     - M&A activity or consolidation rumors
-   - **Sentiment gaps**: No recent news, unclear institutional flow, missing social sentiment
-   - **Benchmark gaps**: No sector context, no relative strength comparison
-
-3. **Use the `ask` skill for unresolved gaps:**
-   ```bash
-   /ask TICKER
-   ```
-   - The skill auto-filters self-answerable questions
-   - Only asks questions requiring user input (private context, qualitative judgments)
-   - Tracks history to avoid duplicate questions
-
-4. **GATE CHECK - Do NOT proceed until:**
-   - All critical data gaps are identified
-   - `ask` skill is invoked for gaps requiring user input
-   - User provides answers OR data is confirmed unavailable
-   - Analysis can proceed with available information
-
-**CRITICAL: Only produce final analytics after this gate is passed.** If new questions emerge during analysis, stop and use `/ask` before continuing.
-
-### Step 8: Create Analytics Files (LLM)
-
-Read the structured outputs from Steps 4-6 and create four markdown files:
-
-1. `analytics/{TICKER}/{TICKER}_signal_summary.md` - from `aggregate_signals.py` (auto-generated, no LLM input needed)
-2. `analytics/{TICKER}/{TICKER}_technical_analysis.md` - from `generate_technical.py`
-3. `analytics/{TICKER}/{TICKER}_fundamental_analysis.md` - from `get_fundamental.py`
-4. `analytics/{TICKER}/{TICKER}_investment_thesis.md` - synthesis of all data
-
-**All three LLM-created files MUST incorporate insights from:**
-- Signal summary (from `aggregate_signals.py`)
-- Technical data (from `generate_technical.py`)
-- Fundamental data (from `get_fundamental.py`)
-- News articles (from `news/{TICKER}/`)
-- User-provided answers from `ask` skill (if any)
-
-For detailed section structures, see [Analytics Files Reference](references/ANALYTICS_FILES.md).
-
-## Comprehensive Analysis with /analyze
-
-The `/analyze [TICKER]` command orchestrates all skills:
-
-1. **News freshness check** (MANDATORY)
-2. **Price data fetching** via `fetch_prices.py`
-3. **News fetching** via `news_fetcher` skill (if needed)
-4. **Technical data generation** via `generate_technical.py`
-5. **Signal summary generation** via `aggregate_signals.py` (NEW - aggregates 40+ indicators)
-6. **Fundamental data generation** via `get_fundamental.py`
-7. **Sector catalyst check** (NEW - for momentum stocks): Search for sector-wide drivers (IPOs, M&A, policy shifts)
-8. **Data gap analysis** via `ask` skill (MANDATORY GATE)
-9. **LLM analytics creation** (incorporates signal summary, technical, fundamental, news, sector catalysts, and user-provided answers)
+---
 
 ## File Structure
 
-**Price Data:** `prices/{TICKER}.csv`
-- CSV: Date, Open, High, Low, Close, Volume, Dividends, Stock Splits
-- Managed by yfinance API
-- **Never edit manually** - use scripts only
+| Location | Contents |
+|----------|----------|
+| `prices/{TICKER}.csv` | OHLCV data from yfinance (never edit manually) |
+| `analytics/{TICKER}/` | 3 LLM-created markdown files |
+| `news/{TICKER}/{YEAR}/{MONTH}/` | News articles with YAML frontmatter |
 
-**Analytics:** `analytics/{TICKER}/`
-- Data-driven insights only (NO trading recommendations)
-- LLM-created markdown files
-- Max 1000 lines per file (compress if exceeded)
-
-**News:** `news/{TICKER}/{YEAR}/{MONTH}/{SLUG}.md`
-- YAML frontmatter with metadata
-- Content for fundamental and thesis analysis
+---
 
 ## Available Scripts
 
-**Price Data Operations:**
-- `fetch_prices.py` - Fetch/update price data from yfinance (2 years initial, then incremental). Supports batch tickers: `fetch_prices.py NVDA AAPL MSFT`
-- `get_price.py` - Get current price with basic info. Supports batch: `get_price.py NVDA AAPL MSFT`
-- `get_prices.py` - Get historical prices by period (1M, 3M, 6M, 1Y, 2Y)
-- `list_prices.py` - List all available price files with metadata
+**Price Data:**
+- `fetch_prices.py` - Fetch/update price data (batch: `NVDA AAPL MSFT`)
+- `get_price.py` - Current price (batch supported)
+- `get_prices.py` - Historical by period (1M, 3M, 6M, 1Y, 2Y)
+- `list_prices.py` - List all price files
 
-**Fundamental Data:**
-- `get_fundamental.py` - Get fundamental metrics as JSON (market cap, P/E, margins, growth, debt, ratios)
+**Fundamentals:**
+- `get_fundamental.py` - Fundamental metrics as JSON
 
-**Technical Analysis:**
-- `generate_technical.py` - Generate structured technical data (execute, don't read). Supports batch: `generate_technical.py NVDA AAPL MSFT`
-- `technical_indicators.py` - Utility module (imported by generate_technical.py)
+**Technical:**
+- `generate_technical.py` - Structured technical data (batch supported)
+- `aggregate_signals.py` - Signal dashboard (appends to technical_analysis.md)
 
-**Signal Aggregation (NEW):**
-- `aggregate_signals.py` - Aggregates 40+ technical indicators into unified scores. Supports batch: `aggregate_signals.py --tickers NVDA,AAPL,MSFT`
-- `regime_classifier.py` - Detects market regime (trending/ranging/volatile)
-- `signal_scorer.py` - Maps individual indicators to -1 to +1 scale
-- `score_aggregator.py` - Combines signals into category and overall scores
-- `signal_weights.yaml` - Configuration for regime-based weights
+**Scoring (DUAL SYSTEM):**
+- `quality_compound_scorer.py` - For proven businesses (15-30% CAGR)
+- `multibagger_hunter_scorer.py` - For speculative stocks (5-10x potential)
+- `llm_scorer.py` - Legacy general scorer
 
-**Scripts are EXECUTED, not READ.** Run them via Bash tool and consume output only.
+**See:** [Scripts Reference](references/scripts.md) for detailed documentation
+
+---
+
+## Scoring Systems
+
+**IMPORTANT:** Use the correct scorer based on investment type.
+
+| Stock Type | Use Scorer | Script |
+|------------|------------|--------|
+| Proven, profitable, compounding | Quality Compound Scorer | `quality_compound_scorer.py --ticker TICKER` |
+| Speculative, early-stage, unprofitable | Multi-Bagger Hunter | `multibagger_hunter_scorer.py --ticker TICKER` |
+| Mixed/unsure | Legacy LLM Scorer | `llm_scorer.py --ticker TICKER` |
+
+**See:** [Scoring Systems Guide](references/scoring_systems_guide.md) for complete methodology
+
+---
+
+## Analytics Files (LLM-Created)
+
+After running scripts, LLM creates 3 files in `analytics/{TICKER}/`:
+
+1. **{TICKER}_technical_analysis.md** - Price action, indicators, trends + signal dashboard
+2. **{TICKER}_fundamental_analysis.md** - Financials, business, risks
+3. **{TICKER}_investment_thesis.md** - Thesis, catalysts, scenarios
+
+**See:** [Analytics Files Reference](references/ANALYTICS_FILES.md) for complete structures
+
+---
 
 ## Constraints
 
-**File Management:**
 - **Never manually edit:** prices/*.csv, portfolio.json, watchlist.json, trade_log.csv
 - **Max 1000 lines** per analytics markdown file
-- Scripts provide data, LLM creates markdown files
+- **Analytics = INSIGHTS** - NO buy/sell/hold recommendations in analytics/
+- **Trading recommendations** → `trading-plans/` folder (use `/trade`)
 
-**Analytics Purpose:**
-- Analytics = INSIGHTS, not RECOMMENDATIONS
-- NO buy/sell/hold in analytics/
-- NO position sizing in analytics/
-- Trading recommendations → `trading-plans/` folder (use `/trade`)
-- Signals → `signals/` folder (use `signal-formatter`)
-
-**Investment Logic:**
-- Existing holdings → Inertia Principle (VALID unless proven DEAD)
-- New analysis → Benchmark Gate (must outperform S&P 500)
-- Position sizing → Max 0.25% for new buys failing Benchmark Gate
-
-**Probability Calibration:**
-- Scenarios use ranges (X-Y%), not fixed percentages
-- Calibrate by: phenomenon type, confidence, data quality, market conditions
+---
 
 ## Reference Material
 
-- **[Analytics Files Reference](references/ANALYTICS_FILES.md)** - Complete markdown file structures (technical, fundamental, thesis)
-- **[Analysis Framework](references/analysis_framework.md)** - 11-section framework definitions
-- **[Scripts Reference](references/scripts.md)** - All parameters and usage examples
+| File | Purpose |
+|------|---------|
+| [Analytics Files Reference](references/ANALYTICS_FILES.md) | Complete markdown file structures |
+| [Analysis Framework](references/analysis_framework.md) | 11-section framework definitions |
+| [Scripts Reference](references/scripts.md) | All parameters and usage examples |
+| [Scoring Systems Guide](references/scoring_systems_guide.md) | Quality Compound vs Multi-Bagger scoring |

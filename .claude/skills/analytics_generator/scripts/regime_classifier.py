@@ -295,14 +295,12 @@ def get_regime_weights(regime: str, config: Dict) -> Dict[str, float]:
 if __name__ == '__main__':
     # Test the regime classifier
     import sys
-    sys.path.insert(0, '/Users/dev/Documents/my-stock-advisor/.claude/skills/analytics_generator/scripts')
-    from technical_indicators import TechnicalIndicators
-
-    # Load test data
-    import pandas as pd
     from pathlib import Path
 
-    project_root = Path('/Users/dev/Documents/my-stock-advisor')
+    # Dynamic path resolution
+    script_dir = Path(__file__).resolve().parent
+    sys.path.insert(0, str(script_dir))
+    project_root = script_dir.parents[3]  # Go up 3 levels from scripts/ to project root
     csv_path = project_root / 'prices' / 'AAPL.csv'
 
     if csv_path.exists():

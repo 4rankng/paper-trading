@@ -1,6 +1,6 @@
 ---
 name: portfolio-manager
-description: Manage portfolio holdings, execute trades, and track investment history. ALWAYS use for ANY portfolio-related query or operation. Triggers: "what is my portfolio", "show holdings", "current positions", "portfolio status", "my investments", "buy/trim/sell shares", "add/remove position", "trade history", "trade log", "recent trades", "portfolio value", "cash balance", "gain/loss", "P&L". Never directly read/write portfolio.json or trade_log.csv - use this skill instead.
+description: Manage portfolio holdings, execute trades, and track investment history. ALWAYS use for ANY portfolio-related query or operation. Triggers: "what is my portfolio", "show holdings", "current positions", "portfolio status", "my investments", "buy/trim/sell shares", "add/remove position", "trade history", "trade log", "recent trades", "portfolio value", "cash balance", "gain/loss", "P&L". Never directly read/write portfolios.json or trade_log.csv - use this skill instead.
 allowed-tools:
   - Read
   - Bash(python:*)
@@ -8,111 +8,113 @@ allowed-tools:
 
 # Portfolio Manager Skill
 
-Manage portfolio holdings, execute trades, and track investment history with automatic cash management.
+Manage portfolio holdings, execute trades, and track investment history.
+
+## Multi-Portfolio Architecture (v3.0 Minimal)
+
+**CRITICAL:** `portfolios.json` stores ONLY minimal position data. All analysis data (thesis, sector, machine_type, etc.) MUST be stored in `analytics/[TICKER]/` folder.
+
+**Shared Cash Pool:** All portfolios share a single cash pool at `portfolios.json` root.
+- Portfolios contain only stock positions (holdings)
+- Position % = `position_value / (holdings_value + shared_cash)`
+- Trading from any portfolio affects the shared cash pool
+
+### Minimal portfolios.json Structure
+
+```json
+{
+  "cash": {"amount": 1000.00, "target_buffer_pct": 15},
+  "portfolios": {
+    "CORE": {
+      "name": "Core Holdings",
+      "description": "...",
+      "config": {...},
+      "holdings": [
+        {
+          "ticker": "TICKER",
+          "shares": 100,
+          "avg_cost": 10.50,
+          "current_price": 12.00,
+          "status": "active"
+        }
+      ],
+      "summary": {...}
+    }
+  },
+  "metadata": {"default_portfolio": "CORE", "version": "3.0"}
+}
+```
+
+**Allowed fields in holdings:** `ticker`, `shares`, `avg_cost`, `current_price`, `status`
+**Calculated fields (runtime):** `market_value`, `gain_loss`, `gain_loss_pct`, `pct_portfolio`
+
+**Analysis data lives in:** `analytics/[TICKER]/`
+- `{TICKER}_investment_thesis.md`
+- `{TICKER}_technical_analysis.md`
+- `{TICKER}_fundamental_analysis.md`
+- `price.csv` (historical prices)
 
 ## Quick Start
 
 ```bash
-# Get portfolio status
+# List all portfolios
+python .claude/skills/portfolio_manager/scripts/get_portfolio.py --list
+
+# Get default portfolio status
 python .claude/skills/portfolio_manager/scripts/get_portfolio.py
 
-# Execute trade (updates portfolio + trade log)
+# Get status (minimal data only - use analytics_generator for analysis)
+python .claude/skills/portfolio_manager/scripts/get_portfolio.py
+
+# Get specific portfolio status
+python .claude/skills/portfolio_manager/scripts/get_portfolio.py --portfolio AI_PICKS
+
+# Execute trade in default portfolio
 python .claude/skills/portfolio_manager/scripts/update_portfolio_and_log.py \
   --ticker TCOM --action BUY --shares 84 --price 61.09 \
-  --thesis-status PENDING --reasoning "Strong technical setup"
+  --reasoning "Strong technical setup"
+
+# Execute trade in specific portfolio
+python .claude/skills/portfolio_manager/scripts/update_portfolio_and_log.py \
+  --ticker TCOM --action BUY --shares 84 --price 61.09 --portfolio CORE \
+  --reasoning "Strong technical setup"
 
 # Get trade log
 python .claude/skills/portfolio_manager/scripts/get_trade_log.py --limit 10
 ```
 
-## Trade Execution Workflow
-
-### Complete Trade Process
-
-1. **Pre-trade analysis**: Verify signal, thesis, and risk
-2. **Execute trade**: Use `update_portfolio_and_log.py`
-3. **Verify**: Check portfolio state updated correctly
-
-### Buy Workflow
-```bash
-# Execute buy (adds holding, deducts cash, logs trade)
-python .claude/skills/portfolio_manager/scripts/update_portfolio_and_log.py \
-  --ticker NVDA \
-  --action BUY \
-  --shares 100 \
-  --price 150.25 \
-  --thesis-status PENDING \
-  --reasoning "AI infrastructure leader, technical breakout"
-```
-
-### Sell Workflow
-```bash
-# Execute sell (removes holding, adds cash, logs trade)
-python .claude/skills/portfolio_manager/scripts/update_portfolio_and_log.py \
-  --ticker LAES \
-  --action SELL \
-  --shares 5000 \
-  --price 1.25 \
-  --reasoning "Thesis failed, stop loss hit"
-```
-
-### Trim Workflow
-```bash
-# Execute trim (reduces position, adjusts cost basis)
-python .claude/skills/portfolio_manager/scripts/update_portfolio_and_log.py \
-  --ticker NVDA \
-  --action TRIM \
-  --shares 25 \
-  --price 165.00 \
-  --reasoning "Take partial profits, reduce risk"
-```
-
-## Portfolio Review
-
-```bash
-# Check current state
-python .claude/skills/portfolio_manager/scripts/get_portfolio.py
-
-# Review recent trades
-python .claude/skills/portfolio_manager/scripts/get_trade_log.py --limit 20
-
-# Filter by ticker
-python .claude/skills/portfolio_manager/scripts/get_trade_log.py --ticker NVDA
-```
-
 ## File Structure
 
-**Portfolio**: `portfolio.json` - holdings, cash, P&L, summary
+- **portfolios.json** - Multi-portfolio with shared cash pool (MINIMAL DATA ONLY)
+- **trade_log.csv** - Complete trade history with `portfolio` column
+- **analytics/[TICKER]/** - Analysis files (thesis, technical, fundamental)
 
-**Trade Log**: `trade_log.csv` - complete trade history with reasoning
+## Buy Score Quick Reference
+
+| Score | Action |
+|-------|--------|
+| 75+ | Strong Buy |
+| 60-74 | Buy |
+| 50-59 | Moderate Buy (WATCH) |
+| <50 | Weak/Avoid |
+
+**Formula:** `Buy Score = (Thesis × 0.35) + (Fundamental × 0.25) + (R:R × 0.15) + (Technical × 0.15) + (Volume × 0.10)`
+
+**Detailed methodology:** See [buy_score_guide.md](references/buy_score_guide.md)
 
 ## Portfolio Management Principles
 
-### Position Sizing Framework
+### Position Sizing
 
-Position size is determined by **expected return probability** and **risk/reward ratio**, not arbitrary percentage rules.
-
-**Core principle:**
 ```
 Position Size = f(Expected Return %, Probability %, Risk:Reward Ratio, Context)
 
 Higher Expected Return → Larger Position
 Higher Probability → Larger Position
 Higher R:R Ratio → Larger Position
-Lower R:R Ratio → Smaller Position
 ```
 
-**Dynamic decision factors (no hardcoded thresholds):**
-- Expected return magnitude and time horizon
-- Win probability and confidence level
-- Risk/reward ratio
-- Cash available and opportunity cost
-- Thesis quality and catalyst density
-- Market conditions and volatility
-- Correlation with existing holdings
-- Personal risk tolerance
-
-**The LLM agent should evaluate each opportunity holistically and size positions dynamically based on all relevant factors, not rigid formulas.**
+Evaluate holistically, no hardcoded thresholds.
 
 ### Selling Existing Holdings
 
@@ -120,16 +122,56 @@ Lower R:R Ratio → Smaller Position
 1. The new opportunity has **higher expected return** AND
 2. The holding being sold has **lower return potential** going forward
 
-**Never sell just for "diversification"** - concentration is acceptable if thesis is strong and expected return is high.
+**Never sell just for "diversification"** - concentration is acceptable if thesis is strong.
+
+## Concentration & Conviction
+
+**CRITICAL: Do NOT give cookie-cutter concentration warnings.**
+
+When concentration is JUSTIFIED:
+- Strong thesis with 80%+ conviction
+- Asymmetric upside (3-10x potential vs -50% risk)
+- Catalysts validated (not hypothetical)
+- You've done the work
+
+**Rule: If thesis is STRONG and UPSIDE is ASYMMETRIC, concentration is POWER.**
+
+Concentration risk is only relevant when conviction is low or thesis is weak. High conviction justifies high concentration.
 
 ### Thesis Status Classification
 
-**For evaluating whether to SELL existing positions:**
-- **PENDING** - Early stage, validation required
-- **VALIDATING** - Catalysts progressing, evidence accumulating
-- **STRONGER** - Thesis strengthening with new evidence
-- **WARNING** - Thesis at risk, monitor closely
-- **DANGER** - Thesis failing or invalidated → **SELL**
+| Status | Meaning | Action |
+|--------|---------|--------|
+| PENDING | Early stage, validation required | Monitor |
+| VALIDATING | Catalysts progressing, evidence accumulating | Hold/Add |
+| STRONGER | Thesis strengthening with new evidence | Hold/Add |
+| WARNING | Thesis at risk, monitor closely | Reduce exposure |
+| DANGER | Thesis failing or invalidated | **SELL** |
+| FAILED | Thesis failed, catalyst didn't materialize | **EXIT** |
+| INVALIDATED | Thesis invalidated by events | **EXIT IMMEDIATELY** |
+
+## Phenomenon Classifications
+
+**NEVER use "SPECIAL_SITUATION" as a classification** - it is meaningless. Use precise, descriptive names.
+
+| Phenomenon | When to Use | Example |
+|------------|-------------|---------|
+| **MEAN_REVERSION** | Oversold, -30%+ off highs, contrarian setup | CVLT |
+| **EARNINGS_MACHINE** | Consistent beats, raised guidance, compounding | CPRX |
+| **TURNAROUND** | Business improving from distressed/losing state | COHR |
+| **HYPE_MACHINE** | Momentum, retail enthusiasm, secular trend | MSTR |
+| **LEGISLATIVE_TAILWIND** | Regulatory changes benefiting business | CPRX (OBBBA) |
+| **PRODUCT_LAUNCH** | New product driving growth | |
+| **SECULAR_GROWTH** | Long-term industry tailwind | CACI |
+| **M&A_ACCELERATION** | Acquisition driving growth/strategic shift | CACI (ARKA) |
+| **CYCLICAL_RECOVERY** | Business cycle upturn, temporarily depressed | ALGN |
+| **FALLING_KNIFE_RECOVERY** | Rapid drop attempting recovery at support | |
+| **GEOPOLITICALLY_STRATEGIC** | Sovereign asset, geopolitical importance | LYSDY |
+| **POLICY_DRIVEN** | Government policy driving thesis | MP |
+| **ENERGY_TRANSITION** | Nuclear/renewable energy theme | CEG |
+| **PHYSICAL_INFRASTRUCTURE** | Hard assets powering AI/data centers | TER |
+| **NICHE_IP_PLAY** | Small-cap with specialized intellectual property | AIP |
+| **DEVELOPMENT_BINARY** | Pre-revenue, binary outcome on development | NXE |
 
 **Invalidation Signals (sell triggers):**
 - Partnership cancellations or failed deployments
@@ -146,14 +188,14 @@ Lower R:R Ratio → Smaller Position
 - Portfolio concentration (mechanical metric)
 - Short-term volatility or sentiment swings
 
-## Calculations
+## Scripts Reference
 
-- Market Value: `shares × current_price`
-- Cost Basis: Weighted average (multiple buys)
-- Gain/Loss: `market_value - cost_basis`
-- Portfolio %: `market_value / total_value`
+See [references/scripts.md](references/scripts.md) for complete documentation of all scripts including parameters, calculations, and data structures.
 
-## Advanced
+### Available Scripts
 
-**Complete scripts reference**: See [scripts.md](references/scripts.md) for all parameters, calculations, and data structures.
-
+| Script | Purpose |
+|--------|---------|
+| get_portfolio.py | Display portfolio status and holdings (supports --portfolio, --list) |
+| get_trade_log.py | View trade history with filters |
+| update_portfolio_and_log.py | Execute BUY/SELL/TRIM trades (supports --portfolio) |

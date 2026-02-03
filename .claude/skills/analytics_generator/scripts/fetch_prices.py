@@ -23,6 +23,12 @@ from datetime import datetime, timedelta
 from pathlib import Path
 from typing import Dict, List, Optional
 
+# Add shared module to path
+# fetch_prices.py is at .claude/skills/analytics_generator/scripts/
+# parents[0]=scripts, [1]=analytics_generator, [2]=skills, [3]=.claude
+# Add .claude to sys.path so we can import as "shared.data_access"
+sys.path.insert(0, str(Path(__file__).resolve().parents[3]))
+
 try:
     import yfinance as yf
     import pandas as pd
@@ -31,22 +37,21 @@ except ImportError:
     print('Run: pip install yfinance pandas')
     sys.exit(1)
 
-
-def get_project_root() -> Path:
-    """Get project root directory using marker files."""
-    p = Path(__file__).resolve()
-
-    markers = ['prices/', '.git/', 'watchlist.json']
-
-    for parent in [p, *p.parents]:
-        if any((parent / m).exists() for m in markers):
-            return parent
-
-    if ".claude" in p.parts:
-        idx = p.parts.index(".claude")
-        return Path(*p.parts[:idx])
-
-    raise RuntimeError("Project root not found")
+try:
+    from shared.data_access import get_project_root
+except ImportError:
+    # Fallback for when run from scripts directory directly
+    def get_project_root() -> Path:
+        """Get project root directory using marker files."""
+        p = Path(__file__).resolve()
+        markers = ['prices/', '.git/', 'watchlist.json']
+        for parent in [p, *p.parents]:
+            if any((parent / m).exists() for m in markers):
+                return parent
+        if ".claude" in p.parts:
+            idx = p.parts.index(".claude")
+            return Path(*p.parts[:idx])
+        raise RuntimeError("Project root not found")
 
 
 class PriceFetcher:
@@ -105,6 +110,9 @@ class PriceFetcher:
         If historical data exists, only fetch new days since last update.
         If gap > 30 days or file doesn't exist, fetch full period.
 
+        FIX: Uses look-ahead buffer to catch yfinance data availability delays
+        and timezone mismatches. Always includes today + 1 day in end_date.
+
         Args:
             ticker: Stock ticker symbol
 
@@ -127,20 +135,55 @@ class PriceFetcher:
                 if 0 < days_since <= 30:
                     # Fetch only new data since last date
                     start_date = (last_dt + timedelta(days=1)).strftime('%Y-%m-%d')
-                    end_date = today.strftime('%Y-%m-%d')
+                    # FIX: Add +1 day buffer to end_date to catch timezone/market timing issues
+                    # This ensures we get today's data even if yfinance has a delay
+                    end_date_dt = today + timedelta(days=1)
+                    end_date = end_date_dt.strftime('%Y-%m-%d')
 
                     print(f"  → Incremental update: {start_date} to {end_date} ({days_since} days)")
                     hist = stock.history(start=start_date, end=end_date)
 
                     if hist.empty:
-                        # No new trading days (weekend/holiday)
-                        print(f"  ✓ {ticker} - Already current as of {last_date}")
-                        return None
+                        # FIX: Could be yfinance delay, not "already current"
+                        # Try fallback to last 5 days to catch delayed data
+                        print(f"  ⚠ No data returned (possible yfinance delay)")
+                        print(f"  → Retrying with fallback window (last 5 days)...")
+                        fallback_start = (today - timedelta(days=5)).strftime('%Y-%m-%d')
+                        hist = stock.history(start=fallback_start, end=end_date)
+
+                        if hist.empty or len(hist) == 0:
+                            print(f"  ✓ {ticker} - Already current as of {last_date}")
+                            return None
+
+                        # Filter to only new data
+                        hist.index = hist.index.tz_localize(None)
+                        new_hist = hist[hist.index > last_dt]
+                        if not new_hist.empty:
+                            print(f"✓ {ticker} - Fallback fetched {len(new_hist)} new days")
+                            return new_hist
+                        else:
+                            print(f"  ✓ {ticker} - Already current as of {last_date}")
+                            return None
 
                     print(f"✓ {ticker} - Fetched {len(hist)} new days (incremental)")
                     return hist
                 elif days_since <= 0:
-                    # Data is current
+                    # Data is current, but still do a 1-day look-ahead check
+                    # in case we have same-day data available now
+                    print(f"  ✓ {ticker} - Checking for same-day update...")
+                    end_date_dt = today + timedelta(days=1)
+                    end_date = end_date_dt.strftime('%Y-%m-%d')
+                    start_date = today.strftime('%Y-%m-%d')
+
+                    hist = stock.history(start=start_date, end=end_date)
+                    if not hist.empty:
+                        # Filter to only today's data
+                        hist.index = hist.index.tz_localize(None)
+                        new_hist = hist[hist.index > last_dt]
+                        if not new_hist.empty:
+                            print(f"✓ {ticker} - Found {len(new_hist)} same-day updates")
+                            return new_hist
+
                     print(f"  ✓ {ticker} - Already current as of {last_date}")
                     return None
                 else:

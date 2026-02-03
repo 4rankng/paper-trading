@@ -9,22 +9,27 @@ import json
 import sys
 from pathlib import Path
 
+# Add shared module to path
+# list_prices.py is at .claude/skills/analytics_generator/scripts/
+# parents[0]=scripts, [1]=analytics_generator, [2]=skills, [3]=.claude
+# Add .claude to sys.path so we can import as "shared.data_access"
+sys.path.insert(0, str(Path(__file__).resolve().parents[3]))
 
-def get_project_root() -> Path:
-    """Get project root directory using marker files."""
-    p = Path(__file__).resolve()
-
-    markers = ['prices/', '.git/', 'watchlist.json']
-
-    for parent in [p, *p.parents]:
-        if any((parent / m).exists() for m in markers):
-            return parent
-
-    if ".claude" in p.parts:
-        idx = p.parts.index(".claude")
-        return Path(*p.parts[:idx])
-
-    raise RuntimeError("Project root not found")
+try:
+    from shared.data_access import get_project_root
+except ImportError:
+    # Fallback for when run from scripts directory directly
+    def get_project_root() -> Path:
+        """Get project root directory using marker files."""
+        p = Path(__file__).resolve()
+        markers = ['prices/', '.git/', 'watchlist.json']
+        for parent in [p, *p.parents]:
+            if any((parent / m).exists() for m in markers):
+                return parent
+        if ".claude" in p.parts:
+            idx = p.parts.index(".claude")
+            return Path(*p.parts[:idx])
+        raise RuntimeError("Project root not found")
 
 
 def list_price_files() -> dict:

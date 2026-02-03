@@ -1,6 +1,6 @@
 ---
 name: position-review
-description: Review existing portfolio holdings for exit/hold decisions. Use for: "should I sell [TICKER]", "analyze my [TICKER] position", "review portfolio", "update on [TICKER]", "what about my holdings", "position analysis", "exit decision". DO NOT use for new buy analysis (use investment-workflow skill instead). Applies Inertia Principle: existing positions VALID unless proven DEAD.
+description: Review existing portfolio holdings for exit/hold decisions. Use for: "should I sell [TICKER]", "analyze my [TICKER] position", "review portfolio", "update on [TICKER]", "what about my holdings", "position analysis", "exit decision". DO NOT use for new buy analysis (use investment-workflow skill instead). Applies Inertia Principle: existing positions VALID unless proven DEAD. Supports multi-portfolio: specify --portfolio to target specific portfolio.
 allowed-tools:
   - Read
   - Write
@@ -10,6 +10,20 @@ allowed-tools:
 # Position Review Skill
 
 Review existing holdings using Inertia Principle and machine-specific exit logic.
+
+## Multi-Portfolio Support
+
+When reviewing positions, specify which portfolio to review:
+
+```bash
+# Get holdings from specific portfolio
+python .claude/skills/portfolio_manager/scripts/get_portfolio.py --portfolio CORE
+
+# List all portfolios
+python .claude/skills/portfolio_manager/scripts/get_portfolio.py --list
+```
+
+If no portfolio is specified, the default portfolio from `metadata.default_portfolio` is used.
 
 ## Core Principle: Inertia
 
@@ -22,8 +36,8 @@ Review existing holdings using Inertia Principle and machine-specific exit logic
 ## Quick Start
 
 ```
-User: "Should I sell my AAPL position?"
-→ You: Invoke position-review skill
+User: "Should I sell my AAPL position in CORE portfolio?"
+→ Get holdings from CORE portfolio
 → Follow 3-step process below
 → Output: HOLD/SELL/TRIM decision
 ```
@@ -37,6 +51,11 @@ See [Data Gap Detection Workflow](references/data-gap-detection.md) for the comp
 **Priority gaps for position-review:** Ambiguous machine type, missing entry rationale, unclear thesis status.
 
 **If machine type is unavailable**, default to EARNINGS_MACHINE (conservative for Inertia Principle).
+
+## Fresh Data Check (MANDATORY BEFORE REVIEW)
+
+Before ANY position review, you MUST follow the 3-step checklist:
+**[Data-First Decision Making](references/data-first-decision-making.md)**
 
 ## Macro Risk Check
 

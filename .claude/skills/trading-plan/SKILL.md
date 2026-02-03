@@ -106,6 +106,11 @@ ls -lh analytics/[TICKER]/
 
 If missing or stale → Execute `/analyze [TICKER]` first.
 
+**CRITICAL: Data-First Decision Making**
+
+Before ANY trading plan, you MUST follow the 3-step checklist:
+**[Data-First Decision Making](references/data-first-decision-making.md)**
+
 ## Process
 
 ### 0. Data Gap Detection
