@@ -302,20 +302,69 @@ To create visualizations, use this markdown format:
 
 Keep responses concise and terminal-appropriate. Always cite data sources.`;
 
-// Helper function to execute tool calls
+// Helper function to execute tool calls and return formatted results
 async function executeToolCall(toolName: string, toolInput: any) {
   console.log('[Chat API] Executing tool:', toolName, 'with input:', toolInput);
 
   try {
     switch (toolName) {
-      case 'get_portfolios':
-        return await fetch(`${BASE_URL}/api/portfolio`).then(r => r.json());
+      case 'get_portfolios': {
+        const data = await fetch(`${BASE_URL}/api/portfolio`).then(r => r.json());
+        // Format portfolio data into readable summary
+        let summary = 'PORTFOLIOS:\n\n';
+        for (const [id, portfolio] of Object.entries(data.portfolios || {})) {
+          const p = portfolio as any;
+          summary += `${id}: ${p.name}\n`;
+          summary += `  Holdings: ${p.holdings?.length || 0}\n`;
+          if (p.summary) {
+            summary += `  Value: $${p.summary.holdings_value?.toLocaleString()}\n`;
+            summary += `  P/L: $${p.summary.total_gain_loss?.toLocaleString()} (${p.summary.total_gain_loss_pct?.toFixed(2)}%)\n`;
+          }
+          if (p.holdings && p.holdings.length > 0) {
+            summary += '  Positions:\n';
+            p.holdings.forEach((h: any) => {
+              summary += `    - ${h.ticker}: ${h.shares} shares @ $${h.avg_cost}`;
+              if (h.current_price) {
+                const pl = ((h.current_price - h.avg_cost) * h.shares).toFixed(2);
+                const plPct = (((h.current_price - h.avg_cost) / h.avg_cost) * 100).toFixed(2);
+                summary += ` | P/L: $${pl} (${plPct}%)`;
+              }
+              summary += '\n';
+            });
+          }
+          summary += '\n';
+        }
+        if (data.cash) {
+          summary += `Cash: $${data.cash.amount?.toLocaleString()}\n`;
+        }
+        return { success: true, summary };
+      }
 
-      case 'get_portfolio':
-        return await fetch(`${BASE_URL}/api/portfolio/${toolInput.id}`).then(r => r.json());
+      case 'get_portfolio': {
+        const data = await fetch(`${BASE_URL}/api/portfolio/${toolInput.id}`).then(r => r.json());
+        const p = data;
+        let summary = `${toolInput.id}: ${p.name}\n`;
+        if (p.holdings && p.holdings.length > 0) {
+          summary += 'Holdings:\n';
+          p.holdings.forEach((h: any) => {
+            summary += `  - ${h.ticker}: ${h.shares} shares @ $${h.avg_cost}`;
+            if (h.current_price) {
+              const pl = ((h.current_price - h.avg_cost) * h.shares).toFixed(2);
+              const plPct = (((h.current_price - h.avg_cost) / h.avg_cost) * 100).toFixed(2);
+              summary += ` | Current: $${h.current_price} | P/L: $${pl} (${plPct}%)`;
+            }
+            summary += '\n';
+          });
+        }
+        if (p.summary) {
+          summary += `\nTotal Value: $${p.summary.holdings_value?.toLocaleString()}\n`;
+          summary += `Total P/L: $${p.summary.total_gain_loss?.toLocaleString()} (${p.summary.total_gain_loss_pct?.toFixed(2)}%)\n`;
+        }
+        return { success: true, summary };
+      }
 
-      case 'add_holding':
-        return await fetch(`${BASE_URL}/api/portfolio/${toolInput.portfolio_id}/holdings`, {
+      case 'add_holding': {
+        const result = await fetch(`${BASE_URL}/api/portfolio/${toolInput.portfolio_id}/holdings`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
@@ -325,9 +374,13 @@ async function executeToolCall(toolName: string, toolInput: any) {
             current_price: toolInput.current_price,
           }),
         }).then(r => r.json());
+        return result.success
+          ? { success: true, summary: `Added ${toolInput.ticker} to ${toolInput.portfolio_id}: ${toolInput.shares} shares @ $${toolInput.avg_cost}` }
+          : result;
+      }
 
-      case 'update_holding':
-        return await fetch(
+      case 'update_holding': {
+        const result = await fetch(
           `${BASE_URL}/api/portfolio/${toolInput.portfolio_id}/holdings/${toolInput.ticker}`,
           {
             method: 'PUT',
@@ -335,57 +388,122 @@ async function executeToolCall(toolName: string, toolInput: any) {
             body: JSON.stringify(toolInput),
           }
         ).then(r => r.json());
+        return result.success
+          ? { success: true, summary: `Updated ${toolInput.ticker} in ${toolInput.portfolio_id}` }
+          : result;
+      }
 
-      case 'remove_holding':
-        return await fetch(
+      case 'remove_holding': {
+        const result = await fetch(
           `${BASE_URL}/api/portfolio/${toolInput.portfolio_id}/holdings/${toolInput.ticker}`,
           { method: 'DELETE' }
         ).then(r => r.json());
+        return result.success ? result : { success: true, summary: result.message };
+      }
 
-      case 'get_watchlist':
-        return await fetch(`${BASE_URL}/api/watchlist`).then(r => r.json());
+      case 'get_watchlist': {
+        const data = await fetch(`${BASE_URL}/api/watchlist`).then(r => r.json());
+        if (!data.entries || data.entries.length === 0) {
+          return { success: true, summary: 'Watchlist is empty' };
+        }
+        let summary = `WATCHLIST (${data.entries.length} entries):\n`;
+        data.entries.forEach((e: any) => {
+          summary += `  - ${e.ticker}`;
+          if (e.strategy) summary += ` [${e.strategy}]`;
+          if (e.notes) summary += `: ${e.notes}`;
+          if (e.target_entry) summary += ` | Entry: $${e.target_entry}`;
+          if (e.target_exit) summary += ` | Exit: $${e.target_exit}`;
+          summary += '\n';
+        });
+        return { success: true, summary };
+      }
 
-      case 'add_to_watchlist':
-        return await fetch(`${BASE_URL}/api/watchlist`, {
+      case 'add_to_watchlist': {
+        const result = await fetch(`${BASE_URL}/api/watchlist`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(toolInput),
         }).then(r => r.json());
+        return result.success
+          ? { success: true, summary: `Added ${toolInput.ticker} to watchlist` }
+          : result;
+      }
 
       case 'get_trades': {
         const params = new URLSearchParams();
         if (toolInput.ticker) params.set('ticker', toolInput.ticker);
         if (toolInput.portfolio) params.set('portfolio', toolInput.portfolio);
-        return await fetch(`${BASE_URL}/api/trades?${params}`).then(r => r.json());
+        const data = await fetch(`${BASE_URL}/api/trades?${params}`).then(r => r.json());
+        if (!data.trades || data.trades.length === 0) {
+          return { success: true, summary: 'No trades found' };
+        }
+        let summary = `TRADES (${data.trades.length}):\n`;
+        data.trades.slice(0, 20).forEach((t: any) => {
+          summary += `  ${t.timestamp} | ${t.portfolio} | ${t.action} ${t.ticker} ${t.shares} @ $${t.price}\n`;
+        });
+        if (data.trades.length > 20) {
+          summary += `  ... and ${data.trades.length - 20} more\n`;
+        }
+        return { success: true, summary };
       }
 
-      case 'log_trade':
-        return await fetch(`${BASE_URL}/api/trades`, {
+      case 'log_trade': {
+        const result = await fetch(`${BASE_URL}/api/trades`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(toolInput),
         }).then(r => r.json());
+        return result.success
+          ? { success: true, summary: `Logged ${toolInput.action} ${toolInput.ticker}: ${toolInput.shares} shares @ $${toolInput.price}` }
+          : result;
+      }
 
-      case 'get_analytics':
-        return await fetch(`${BASE_URL}/api/analytics/${toolInput.ticker}`).then(r => r.json());
+      case 'get_analytics': {
+        const data = await fetch(`${BASE_URL}/api/analytics/${toolInput.ticker}`).then(r => r.json());
+        let summary = `${toolInput.ticker} ANALYTICS:\n`;
+        if (data.technical) summary += `\nTechnical:\n${data.technical.substring(0, 300)}...\n`;
+        if (data.fundamental) summary += `\nFundamental:\n${data.fundamental.substring(0, 300)}...\n`;
+        if (data.thesis) summary += `\nThesis:\n${data.thesis.substring(0, 300)}...\n`;
+        return { success: true, summary };
+      }
 
-      case 'update_analytics':
-        return await fetch(`${BASE_URL}/api/analytics/${toolInput.ticker}/${toolInput.type}`, {
+      case 'update_analytics': {
+        const result = await fetch(`${BASE_URL}/api/analytics/${toolInput.ticker}/${toolInput.type}`, {
           method: 'PUT',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ content: toolInput.content }),
         }).then(r => r.json());
+        return result.success
+          ? { success: true, summary: `Updated ${toolInput.ticker} ${toolInput.type} analysis` }
+          : result;
+      }
 
       case 'get_news': {
         const params = new URLSearchParams();
-        if (toolInput.limit) params.set('limit', toolInput.limit.toString());
-        return await fetch(`${BASE_URL}/api/news/${toolInput.ticker}?${params}`).then(r => r.json());
+        if (toolInput.limit) params.set('limit', Math.min(toolInput.limit, 10).toString());
+        const data = await fetch(`${BASE_URL}/api/news/${toolInput.ticker}?${params}`).then(r => r.json());
+        if (!data.articles || data.articles.length === 0) {
+          return { success: true, summary: `No news found for ${toolInput.ticker}` };
+        }
+        let summary = `${toolInput.ticker} NEWS (${data.articles.length} articles):\n`;
+        data.articles.slice(0, 5).forEach((a: any) => {
+          summary += `  - ${a.date}: ${a.title || 'No title'}\n`;
+        });
+        return { success: true, summary };
       }
 
       case 'get_prices': {
         const params = new URLSearchParams();
-        if (toolInput.limit) params.set('limit', toolInput.limit.toString());
-        return await fetch(`${BASE_URL}/api/prices/${toolInput.ticker}?${params}`).then(r => r.json());
+        if (toolInput.limit) params.set('limit', Math.min(toolInput.limit, 5).toString());
+        const data = await fetch(`${BASE_URL}/api/prices/${toolInput.ticker}?${params}`).then(r => r.json());
+        if (!data.prices || data.prices.length === 0) {
+          return { success: true, summary: `No price data for ${toolInput.ticker}` };
+        }
+        let summary = `${toolInput.ticker} PRICES:\n`;
+        data.prices.slice(0, 5).forEach((p: any) => {
+          summary += `  ${p.date}: O:$${p.open} H:$${p.high} L:$${p.low} C:$${p.close}\n`;
+        });
+        return { success: true, summary };
       }
 
       default:
@@ -488,9 +606,21 @@ export async function POST(request: NextRequest) {
 
             for (const toolUse of toolUseBlocks) {
               const result = await executeToolCall(toolUse.name, toolUse.input);
+
+              // Format result content for LLM
+              let content: string;
+              if (result.error) {
+                content = `Error: ${result.error}`;
+              } else if (result.summary) {
+                content = result.summary;
+              } else {
+                content = JSON.stringify(result);
+              }
+
               toolResults.push({
+                type: 'tool_result',
                 tool_use_id: toolUse.id,
-                content: JSON.stringify(result, null, 2),
+                content,
               });
 
               // Send tool use notification to client
@@ -500,6 +630,7 @@ export async function POST(request: NextRequest) {
                     tool_use: {
                       name: toolUse.name,
                       input: toolUse.input,
+                      result: result.success ? 'Success' : result.error || 'Failed',
                     },
                   })}\n\n`
                 )
