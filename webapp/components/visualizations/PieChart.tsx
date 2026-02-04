@@ -9,7 +9,6 @@ import {
   Legend,
   Title,
 } from 'chart.js';
-import { useEffect, useRef } from 'react';
 
 ChartJS.register(ArcElement, Tooltip, Legend, Title);
 
@@ -17,7 +16,7 @@ interface PieChartProps {
   command: PieVizCommand;
 }
 
-// Modern color palette for pie charts
+// One Dark theme colors for pie charts
 const DEFAULT_COLORS = [
   '#5C6AC4', // Blue
   '#BB86FC', // Purple
@@ -26,7 +25,6 @@ const DEFAULT_COLORS = [
   '#DCDCAA', // Yellow
   '#F48771', // Red
   '#75BEFF', // Light Blue
-  '#FF6B9D', // Pink
 ];
 
 export default function PieChart({ command }: PieChartProps) {
@@ -53,27 +51,57 @@ export default function PieChart({ command }: PieChartProps) {
         display: options?.showLegend !== false,
         position: 'right' as const,
         labels: {
-          color: '#E0E0E0',
+          color: '#B3B3B3',
+          font: {
+            family: "'Fira Code', monospace",
+            size: 12,
+          },
           padding: 16,
+          generateLabels: function(chart: any) {
+            const data = chart.data;
+            return data.labels.map((label: string, i: number) => ({
+              text: `${label} (${data.datasets[0].data[i]}%)`,
+              fillStyle: data.datasets[0].backgroundColor[i],
+              hidden: false,
+              index: i,
+            }));
+          },
         },
       },
       title: {
         display: !!options?.title,
         text: options?.title,
         color: '#E0E0E0',
+        font: {
+          family: "'Fira Code', monospace",
+          size: 14,
+        },
       },
       tooltip: {
         backgroundColor: '#252526',
         titleColor: '#E0E0E0',
         bodyColor: '#B3B3B3',
-        borderColor: '#333333',
+        borderColor: '#3E3E42',
         borderWidth: 1,
+        titleFont: {
+          family: "'Fira Code', monospace",
+          size: 12,
+        },
+        bodyFont: {
+          family: "'Fira Code', monospace",
+          size: 11,
+        },
+        callbacks: {
+          label: function(context: any) {
+            return ` ${context.label}: ${context.parsed}%`;
+          },
+        },
       },
     },
   };
 
   return (
-    <div className="w-full h-56 my-4">
+    <div className="h-72">
       <Pie data={chartData} options={chartOptions} />
     </div>
   );

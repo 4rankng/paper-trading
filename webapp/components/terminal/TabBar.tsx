@@ -58,25 +58,21 @@ export default function TabBar({ onNewTab, onTabClose, onTabSwitch }: TabBarProp
   };
 
   return (
-    <div className="h-9 bg-[#1E1E1E] border-b border-[#333333] flex items-end px-2">
+    <div className="h-9 bg-[#252526] border-b border-[#333333] flex items-center px-2 gap-1.5">
       {tabs.map(tab => (
         <div
           key={tab.id}
           onClick={() => handleTabClick(tab.id)}
           className={`
-            relative flex items-center gap-2 px-4 py-1.5 mr-1 rounded-t cursor-pointer transition-colors
+            relative flex items-center gap-2 px-4 py-1.5 rounded-t cursor-pointer transition-all
             ${
               tab.isActive
-                ? 'bg-[#252526] border-t border-x border-[#333333] -mb-px'
-                : 'bg-[#1E1E1E] hover:bg-[#252526]/50'
+                ? 'bg-[#1E1E1E] text-[#E0E0E0] border border-[#333333] border-b-0 -mb-px'
+                : 'bg-[#1E1E1E] text-[#B3B3B3] hover:text-[#E0E0E0]'
             }
           `}
         >
-          <span
-            className={`text-sm ${
-              tab.isActive ? 'text-[#E0E0E0]' : 'text-[#858585]'
-            }`}
-          >
+          <span className="text-sm font-['Fira_Code',monospace]">
             {tab.label}
           </span>
           {tabs.length > 1 && (
@@ -84,8 +80,7 @@ export default function TabBar({ onNewTab, onTabClose, onTabSwitch }: TabBarProp
               onClick={e => handleTabClose(e, tab.id)}
               className="
                 ml-1 w-4 h-4 rounded-sm flex items-center justify-center
-                hover:bg-[#333333] opacity-0 group-hover:opacity-100
-                transition-opacity
+                hover:bg-[#333333] transition-opacity
               "
               aria-label="Close tab"
             >
@@ -99,19 +94,13 @@ export default function TabBar({ onNewTab, onTabClose, onTabSwitch }: TabBarProp
       <button
         onClick={handleNewTab}
         className="
-          mb-1 px-2 py-1 rounded hover:bg-[#252526]/50
-          text-[#858585] hover:text-[#E0E0E0] transition-colors
+          px-3 py-1 rounded hover:bg-[#2D2D2D]
+          text-[#858585] hover:text-[#E0E0E0] transition-colors text-lg
         "
         aria-label="New tab"
+        title="New Session"
       >
-        <svg
-          width="16"
-          height="16"
-          viewBox="0 0 16 16"
-          fill="currentColor"
-        >
-          <path d="M8 1v14M1 8h14" stroke="currentColor" strokeWidth="2" />
-        </svg>
+        +
       </button>
     </div>
   );

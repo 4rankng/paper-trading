@@ -48,29 +48,36 @@ export default function Table({ command }: TableProps) {
     });
   }
 
+  const getCellClass = (value: string) => {
+    // Check for positive/negative indicators
+    if (value.startsWith('+') || value.toLowerCase().includes('positive') || value.toLowerCase() === 'strong' || value.toLowerCase() === 'growing') {
+      return 'text-[#89D185]';
+    }
+    if (value.startsWith('-') || value.toLowerCase().includes('negative') || value.toLowerCase() === 'below' || value.toLowerCase() === 'weak') {
+      return 'text-[#F48771]';
+    }
+    return 'text-[#E0E0E0]';
+  };
+
   return (
-    <div className="my-4">
-      {options?.caption && (
-        <div className="text-[#5a5a5a] text-xs mb-2 font-mono uppercase tracking-wide">
-          {options.caption}
-        </div>
-      )}
-      <table className="w-full text-left">
+    <div className="overflow-x-auto">
+      <table className="w-full text-left font-['Fira_Code',monospace]">
         <thead>
-          <tr className="border-b border-[#333333]">
+          <tr>
             {headers.map((header, i) => (
               <th
                 key={i}
                 onClick={() => handleSort(i)}
-                className={`p-2 text-xs font-semibold text-[#E0E0E0] uppercase tracking-wide font-mono ${
+                className={`px-3 py-2.5 text-xs font-semibold uppercase tracking-wider border-b-2 border-[#3E3E42] ${
                   options?.sortable
-                    ? 'cursor-pointer hover:text-[#5C6AC4] transition-colors'
+                    ? 'cursor-pointer hover:text-[#4FC1FF] transition-colors'
                     : ''
                 }`}
+                style={{ color: '#4FC1FF' }}
               >
                 {header}
                 {sortColumn === i && (
-                  <span className="ml-2 text-[#5C6AC4]">
+                  <span className="ml-2">
                     {sortDirection === 'asc' ? '↑' : '↓'}
                   </span>
                 )}
@@ -80,9 +87,15 @@ export default function Table({ command }: TableProps) {
         </thead>
         <tbody>
           {sortedRows.map((row, i) => (
-            <tr key={i} className="border-b border-[#252525]">
+            <tr
+              key={i}
+              className="border-b border-[#333333] hover:bg-[#2D2D2D] transition-colors"
+            >
               {row.map((cell, j) => (
-                <td key={j} className="p-2 text-sm text-[#B3B3B3] font-mono">
+                <td
+                  key={j}
+                  className={`px-3 py-2.5 text-sm ${getCellClass(cell.toString())}`}
+                >
                   {cell}
                 </td>
               ))}

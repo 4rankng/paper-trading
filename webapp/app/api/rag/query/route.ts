@@ -2,8 +2,14 @@ import { NextRequest, NextResponse } from 'next/server';
 import { readdir, readFile, access } from 'fs/promises';
 import { join } from 'path';
 import { constants } from 'fs';
+import { config } from 'dotenv';
 
-const FILEDB_BASE = process.env.FILEDB_PATH || './filedb';
+// Load environment variables from project root .env
+const envPath = join(process.cwd(), '../.env');
+config({ path: envPath });
+
+// Default to relative path from webapp to parent filedb directory
+const FILEDB_BASE = process.env.FILEDB_PATH || join(process.cwd(), '../filedb');
 const CONVERSATIONS_DIR = join(FILEDB_BASE, 'webapp', 'conversations');
 
 export async function GET(request: NextRequest) {

@@ -80,3 +80,45 @@ body {
   background-color: var(--accent-blue);
   color: var(--text-primary);
 }
+
+/* Fade-in animation for messages */
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.animate-fadeIn {
+  animation: fadeIn 0.3s ease-in;
+}
+
+/* Ensure text wraps properly in terminal output */
+.prose,
+.prose * {
+  overflow-wrap: break-word;
+  word-wrap: break-word;
+  word-break: break-word;
+}
+
+/* For long URLs/code that should break */
+.prose code,
+.prose a {
+  word-break: break-all;
+}
+
+/* For tables */
+.prose table {
+  table-layout: fixed;
+  width: 100%;
+}
+
+.prose td,
+.prose th {
+  word-wrap: break-word;
+  overflow-wrap: break-word;
+}

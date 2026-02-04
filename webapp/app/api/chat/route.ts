@@ -33,7 +33,7 @@ export async function POST(request: NextRequest) {
       });
     }
 
-    // Fetch RAG context
+    // Fetch RAG context (conversation history)
     let context = '';
     try {
       const ragResponse = await fetch(
@@ -47,10 +47,35 @@ export async function POST(request: NextRequest) {
       console.error('Failed to fetch RAG context:', error);
     }
 
+    // Fetch real data from filedb
+    let dataContext = '';
+    try {
+      const dataResponse = await fetch(
+        `${process.env.NEXT_PUBLIC_WEBAPP_URL || 'http://localhost:3000'}/api/data/query`,
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ query: message }),
+        }
+      );
+      if (dataResponse.ok) {
+        const dataData = await dataResponse.json();
+        dataContext = dataData.context || '';
+      }
+    } catch (error) {
+      console.error('Failed to fetch data context:', error);
+    }
+
     // Build system prompt with context
-    const systemPrompt = context
-      ? `${SYSTEM_PROMPT}\n\nRelevant context from conversation history:\n${context}`
-      : SYSTEM_PROMPT;
+    let enhancedPrompt = SYSTEM_PROMPT;
+
+    if (context) {
+      enhancedPrompt += `\n\nRelevant context from conversation history:\n${context}`;
+    }
+
+    if (dataContext) {
+      enhancedPrompt += `\n\nRelevant data from filedb:\n${dataContext}\n\nIMPORTANT: Use this REAL data in your response. Do NOT make up or fabricate any numbers or holdings.`;
+    }
 
     // Store user message
     try {
@@ -74,7 +99,7 @@ export async function POST(request: NextRequest) {
     const stream = await anthropic.messages.create({
       model: 'claude-sonnet-4-20250514',
       max_tokens: 4096,
-      system: systemPrompt,
+      system: enhancedPrompt,
       messages: [{ role: 'user', content: message }],
       stream: true,
     });

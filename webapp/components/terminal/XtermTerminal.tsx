@@ -5,8 +5,8 @@ import { Terminal } from 'xterm';
 import { FitAddon } from 'xterm-addon-fit';
 import { WebLinksAddon } from '@xterm/addon-web-links';
 import { useTerminalStore } from '@/store/useTerminalStore';
-import { getXtermTheme, defaultTheme } from '@/lib/themes';
-import { parseVizCommands, splitTextByVizs } from '@/lib/viz-parser';
+import { getXtermTheme, defaultTheme } from '@/utils/themes';
+import { parseVizCommands, splitTextByVizs } from '@/utils/viz-parser';
 import { VizCommand } from '@/types/visualizations';
 import 'xterm/css/xterm.css';
 

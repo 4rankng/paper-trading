@@ -7,21 +7,26 @@ interface TitleBarProps {
 }
 
 export default function TitleBar({ onNewTab }: TitleBarProps) {
-  const { sessionId, isLoading } = useTerminalStore();
+  const { isLoading } = useTerminalStore();
 
   const handleMinimize = () => {
-    // Placeholder - would integrate with window manager in desktop app
     console.log('Minimize');
   };
 
   const handleMaximize = () => {
-    // Placeholder
     console.log('Maximize');
   };
 
   const handleClose = () => {
-    // Placeholder
     console.log('Close');
+  };
+
+  const handleSettings = () => {
+    console.log('Settings');
+  };
+
+  const handleTheme = () => {
+    console.log('Theme toggle');
   };
 
   return (
@@ -30,34 +35,40 @@ export default function TitleBar({ onNewTab }: TitleBarProps) {
       <div className="flex items-center gap-2">
         <button
           onClick={handleClose}
-          className="w-3 h-3 rounded-full bg-[#F48771] hover:bg-[#FF6B5B] transition-colors"
+          className="w-3 h-3 rounded-full bg-[#F48771] hover:bg-[#FF6B5B] transition-colors cursor-pointer"
           aria-label="Close"
         />
         <button
           onClick={handleMinimize}
-          className="w-3 h-3 rounded-full bg-[#DCDCAA] hover:bg-[#FFE05E] transition-colors"
+          className="w-3 h-3 rounded-full bg-[#DCDCAA] hover:bg-[#FFE05E] transition-colors cursor-pointer"
           aria-label="Minimize"
         />
         <button
           onClick={handleMaximize}
-          className="w-3 h-3 rounded-full bg-[#89D185] hover:bg-[#6BFF6B] transition-colors"
+          className="w-3 h-3 rounded-full bg-[#89D185] hover:bg-[#6BFF6B] transition-colors cursor-pointer"
           aria-label="Maximize"
         />
+        <span className="ml-3 text-sm text-[#B3B3B3] font-medium">TermAI Explorer</span>
       </div>
 
-      {/* Title */}
-      <h1 className="text-sm text-[#E0E0E0] font-medium">TermAI Explorer</h1>
-
-      {/* Session status */}
-      <div className="flex items-center gap-2">
-        <div
-          className={`w-2 h-2 rounded-full ${
-            isLoading ? 'bg-[#DCDCAA] animate-pulse' : 'bg-[#89D185]'
-          }`}
-        />
-        <span className="text-xs text-[#858585]">
-          {sessionId ? 'Connected' : 'Connecting...'}
-        </span>
+      {/* Action buttons */}
+      <div className="flex items-center gap-3">
+        <button
+          onClick={handleSettings}
+          className="text-[#B3B3B3] hover:text-[#E0E0E0] transition-colors cursor-pointer text-lg"
+          aria-label="Settings"
+          title="Settings"
+        >
+          ⚙
+        </button>
+        <button
+          onClick={handleTheme}
+          className="text-[#B3B3B3] hover:text-[#E0E0E0] transition-colors cursor-pointer text-lg"
+          aria-label="Toggle theme"
+          title="Theme"
+        >
+          ☀
+        </button>
       </div>
     </div>
   );

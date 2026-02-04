@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react';
 import { useTerminalStore } from '@/store/useTerminalStore';
 
 export default function StatusBar() {
-  const { sessionId, messages, isLoading } = useTerminalStore();
+  const { sessionId, messages, isLoading, clearMessages } = useTerminalStore();
   const [currentTime, setCurrentTime] = useState(new Date());
 
   useEffect(() => {
@@ -13,8 +13,7 @@ export default function StatusBar() {
   }, []);
 
   const handleClearHistory = () => {
-    // TODO: Implement clear history
-    console.log('Clear history');
+    clearMessages();
   };
 
   const handleSettings = () => {
@@ -23,49 +22,41 @@ export default function StatusBar() {
   };
 
   return (
-    <div className="h-6 bg-[#2D2D2D] flex items-center justify-between px-3 text-xs text-white select-none border-t border-[#333333]">
-      {/* Left: Session info - heavily dimmed, low priority */}
-      <div className="flex items-center gap-4 text-[10px]">
-        <span className="text-[#4a4a4a] opacity-50">
-          {sessionId?.slice(0, 8) || '...'}
-        </span>
-        <span className="text-[#5a5a5a] opacity-60">
-          {messages.length} msg{messages.length !== 1 ? 's' : ''}
-        </span>
-      </div>
-
-      {/* Center: Quick actions - colored accents */}
-      <div className="flex items-center gap-3 text-[10px]">
+    <div className="h-6 bg-[#2D2D2D] flex items-center justify-between px-4 text-xs select-none border-t border-[#333333]">
+      {/* Left: Session info */}
+      <div className="flex items-center gap-4">
+        <div className="flex items-center gap-1.5 text-[#858585]">
+          <span className="text-[10px]">Session:</span>
+          <code className="text-[#B3B3B3] font-['Fira_Code',monospace]">
+            {sessionId?.slice(0, 8) || '...'}
+          </code>
+        </div>
+        <div className="text-[#858585]">
+          {messages.length} message{messages.length !== 1 ? 's' : ''}
+        </div>
         <button
           onClick={handleClearHistory}
-          className="text-[#5C6AC4] hover:text-[#75BEFF] transition-colors"
+          className="text-[#858585] hover:text-[#E0E0E0] transition-colors font-['Fira_Code',monospace]"
           aria-label="Clear history"
         >
           Clear
         </button>
-        <span className="text-[#3E3E42]">|</span>
         <button
           onClick={handleSettings}
-          className="text-[#5C6AC4] hover:text-[#75BEFF] transition-colors"
+          className="text-[#858585] hover:text-[#E0E0E0] transition-colors font-['Fira_Code',monospace]"
           aria-label="Settings"
         >
           Settings
         </button>
       </div>
 
-      {/* Right: Status and time - bright, prioritized */}
-      <div className="flex items-center gap-4">
-        <span className="text-[#89D185] font-semibold">
-          {isLoading ? 'Processing...' : 'Ready'}
-        </span>
-        <span className="text-[#E0E0E0] font-mono text-[11px] opacity-90">
-          {currentTime.toLocaleTimeString('en-US', {
-            hour12: false,
-            hour: '2-digit',
-            minute: '2-digit',
-            second: '2-digit',
-          })}
-        </span>
+      {/* Right: Status indicator */}
+      <div
+        className={`font-semibold font-['Fira_Code',monospace] ${
+          isLoading ? 'text-[#DCDCAA]' : 'text-[#89D185]'
+        }`}
+      >
+        {isLoading ? '● Processing...' : '● Ready'}
       </div>
     </div>
   );

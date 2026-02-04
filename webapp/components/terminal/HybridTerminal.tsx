@@ -1,28 +1,19 @@
 'use client';
 
-import { useEffect, useLayoutEffect, useRef, useCallback } from 'react';
-import { Terminal } from 'xterm';
-import { FitAddon } from 'xterm-addon-fit';
-import { WebLinksAddon } from '@xterm/addon-web-links';
+import { useEffect, useRef, useCallback, useState } from 'react';
 import { useTerminalStore } from '@/store/useTerminalStore';
-import { getXtermTheme, defaultTheme } from '@/lib/themes';
 import { VizCommand } from '@/types/visualizations';
 import TerminalOutput from './TerminalOutput';
-import 'xterm/css/xterm.css';
 
 interface HybridTerminalProps {
   className?: string;
 }
 
 export default function HybridTerminal({ className = '' }: HybridTerminalProps) {
-  const terminalRef = useRef<HTMLDivElement>(null);
-  const xtermRef = useRef<Terminal | null>(null);
-  const fitAddonRef = useRef<FitAddon | null>(null);
-  const inputBufferRef = useRef('');
-  const commandHistoryIndexRef = useRef(-1);
+  const [input, setInput] = useState('');
+  const [historyIndex, setHistoryIndex] = useState(-1);
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
   const outputContainerRef = useRef<HTMLDivElement>(null);
-  const cleanupRef = useRef<(() => void) | null>(null);
-  const handlerAttachedRef = useRef(false);
 
   const {
     sessionId,
@@ -35,6 +26,7 @@ export default function HybridTerminal({ className = '' }: HybridTerminalProps) 
     addToCommandHistory,
     setLoading,
     setError,
+    clearMessages,
   } = useTerminalStore();
 
   // Scroll to bottom when new messages arrive
@@ -44,43 +36,27 @@ export default function HybridTerminal({ className = '' }: HybridTerminalProps) 
     }
   }, [messages.length]);
 
-  // Write prompt - compact, inline for modern terminal feel
-  const writePrompt = useCallback((terminal: Terminal, currentInput = '') => {
-    console.log('[writePrompt] Called with input:', JSON.stringify(currentInput));
-    // Compact inline prompt without newline
-    const promptStr = '\r\x1b[1;32m➜\x1b[0m \x1b[1;36muser@termai\x1b[0m:\x1b[1;34m~\x1b[0m$ ' + currentInput;
-    console.log('[writePrompt] Writing prompt:', JSON.stringify(promptStr));
-    terminal.clear();
-    terminal.write(promptStr);
-    console.log('[writePrompt] Prompt written');
-  }, []);
-
-  // Execute command - accepts store state to avoid closure staleness
-  const executeCommandWithStore = useCallback(async (
-    command: string,
-    storeState: {
-      sessionId: string | null;
-      addMessage: (msg: any) => void;
-      addToCommandHistory: (cmd: string) => void;
-      setLoading: (loading: boolean) => void;
-      setError: (error: string | null) => void;
-    }
-  ) => {
-    const { sessionId, addMessage, addToCommandHistory, setLoading, setError } = storeState;
-
+  // Execute command
+  const executeCommand = useCallback(async (command: string) => {
     if (!sessionId) {
       setError('No session active');
       return;
     }
 
-    addToCommandHistory(command);
+    const trimmedCommand = command.trim();
+    if (!trimmedCommand) return;
 
-    const userMessage = {
-      role: 'user' as const,
-      content: command,
+    addToCommandHistory(trimmedCommand);
+    setInput('');
+    setHistoryIndex(-1);
+
+    // Add user message
+    addMessage({
+      role: 'user',
+      content: trimmedCommand,
       timestamp: new Date().toISOString(),
-    };
-    addMessage(userMessage);
+    });
+
     setLoading(true);
     setError(null);
 
@@ -88,7 +64,7 @@ export default function HybridTerminal({ className = '' }: HybridTerminalProps) 
       const response = await fetch('/api/chat', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ message: command, session_id: sessionId }),
+        body: JSON.stringify({ message: trimmedCommand, session_id: sessionId }),
       });
 
       if (!response.ok) {
@@ -120,14 +96,12 @@ export default function HybridTerminal({ className = '' }: HybridTerminalProps) 
                   assistantMessage += parsed.text;
 
                   // Parse visualizations from accumulated text
-                  const { parseVizCommands } = await import('@/lib/viz-parser');
+                  const { parseVizCommands } = await import('@/utils/viz-parser');
                   const vizs = parseVizCommands(assistantMessage);
                   currentVizs = vizs.map(v => v.command);
 
-                  // Update last message in real-time for streaming effect
-                  // (Use addMessage for first chunk, updateLastMessage for subsequent chunks)
+                  // Update last message in real-time
                   if (assistantMessage === parsed.text) {
-                    // First chunk - create new message
                     addMessage({
                       role: 'assistant',
                       content: assistantMessage,
@@ -135,7 +109,6 @@ export default function HybridTerminal({ className = '' }: HybridTerminalProps) 
                       visualizations: currentVizs,
                     });
                   } else {
-                    // Subsequent chunks - update existing message
                     updateLastMessage(assistantMessage, currentVizs);
                   }
                 }
@@ -151,233 +124,95 @@ export default function HybridTerminal({ className = '' }: HybridTerminalProps) 
       const errorMsg = err instanceof Error ? err.message : 'Failed to send message';
       setError(errorMsg);
     } finally {
-      console.log('[Finally] Command completed, clearing terminal');
       setLoading(false);
-      // Clear terminal after completion - prompt appears when user starts typing
-      const terminal = xtermRef.current;
-      if (terminal) {
-        console.log('[Finally] Clearing terminal');
-        terminal.clear();
-        console.log('[Finally] Terminal cleared');
-      }
     }
-  }, [writePrompt, updateLastMessage]);
+  }, [sessionId, addMessage, updateLastMessage, addToCommandHistory, setLoading, setError]);
 
-  // Execute command for external calls (e.g., from data handler)
-  const executeCommand = useCallback(async (command: string) => {
-    const storeState = useTerminalStore.getState();
-    await executeCommandWithStore(command, storeState);
-  }, [executeCommandWithStore]);
-
-  // Initialize xterm.js for input only (runs once)
-  useLayoutEffect(() => {
-    if (!terminalRef.current || xtermRef.current) return;
-
-    // Delay opening terminal until container has computed dimensions
-    // This prevents "Cannot read properties of undefined (reading 'dimensions')" error
-    const initTimer = setTimeout(() => {
-      if (!terminalRef.current || xtermRef.current) return;
-
-      try {
-        const terminal = new Terminal({
-            theme: getXtermTheme(defaultTheme),
-            fontFamily: "'Fira Code', 'Source Code Pro', monospace",
-            fontSize: 13,
-            lineHeight: 1.4,
-            cursorBlink: true,
-            cursorStyle: 'block',
-            scrollback: 0, // No scrollback, messages render above
-            rows: 2, // Compact input line
-            letterSpacing: 1.1,
-          });
-
-          const fitAddon = new FitAddon();
-          const webLinksAddon = new WebLinksAddon();
-
-          terminal.loadAddon(fitAddon);
-          terminal.loadAddon(webLinksAddon);
-
-          // Open terminal after container has computed dimensions
-          terminal.open(terminalRef.current);
-
-          xtermRef.current = terminal;
-          fitAddonRef.current = fitAddon;
-
-        // Handle window resize
-        const handleResize = () => {
-          requestAnimationFrame(() => {
-            try {
-              fitAddonRef.current?.fit();
-            } catch (e) {
-              // Silently fail if terminal not ready
-            }
-          });
-        };
-
-        window.addEventListener('resize', handleResize);
-
-        // Set up data handler - uses refs to always access latest values
-        const handleData = (data: string) => {
-          const currentCommandHistory = useTerminalStore.getState().commandHistory;
-
-          // Handle Enter key
-          if (data === '\r') {
-            const command = inputBufferRef.current.trim();
-            inputBufferRef.current = '';
-            commandHistoryIndexRef.current = -1;
-
-            if (command) {
-              console.log('[Enter] Clearing terminal, command:', command);
-              // Clear terminal immediately to remove typed text
-              terminal.clear();
-
-              // Get latest executeCommand from store
-              const { sessionId, addMessage, addToCommandHistory, setLoading, setError } = useTerminalStore.getState();
-
-              console.log('[Enter] Executing command');
-              // Execute command inline with fresh store values
-              executeCommandWithStore(command, { sessionId, addMessage, addToCommandHistory, setLoading, setError });
-              console.log('[Enter] Command executed');
-            } else {
-              // Empty command, just rewrite prompt
-              writePrompt(terminal);
-            }
-            return;
-          }
-
-          // Handle Backspace - manually move cursor back and clear character
-          if (data === '\u007F') {
-            if (inputBufferRef.current.length > 0) {
-              inputBufferRef.current = inputBufferRef.current.slice(0, -1);
-              // Move cursor back one position and clear character
-              terminal.write('\b \b');
-            }
-            return;
-          }
-
-          // Handle Arrow Up (previous command)
-          if (data === '\u001B[A') {
-            if (commandHistoryIndexRef.current < currentCommandHistory.length - 1) {
-              commandHistoryIndexRef.current++;
-              const newIndex = currentCommandHistory.length - 1 - commandHistoryIndexRef.current;
-              const cmd = currentCommandHistory[newIndex];
-              inputBufferRef.current = cmd;
-              writePrompt(terminal, cmd);
-            }
-            return;
-          }
-
-          // Handle Arrow Down (next command)
-          if (data === '\u001B[B') {
-            if (commandHistoryIndexRef.current > 0) {
-              commandHistoryIndexRef.current--;
-              const newIndex = currentCommandHistory.length - 1 - commandHistoryIndexRef.current;
-              const cmd = currentCommandHistory[newIndex];
-              inputBufferRef.current = cmd;
-              writePrompt(terminal, cmd);
-            } else if (commandHistoryIndexRef.current === 0) {
-              commandHistoryIndexRef.current = -1;
-              inputBufferRef.current = '';
-              writePrompt(terminal, '');
-            }
-            return;
-          }
-
-          // Handle Ctrl+C
-          if (data === '\u0003') {
-            terminal.clear();
-            inputBufferRef.current = '';
-            writePrompt(terminal);
-            return;
-          }
-
-          // Regular character input (printable ASCII)
-          const charCode = data.charCodeAt(0);
-          if (charCode >= 32 && charCode <= 126) {
-            // If buffer is empty, write prompt first
-            if (inputBufferRef.current.length === 0) {
-              writePrompt(terminal);
-            }
-            inputBufferRef.current += data;
-            terminal.write(data);
-          }
-        };
-
-        // Only attach handler once (prevents React Strict Mode double attachment)
-        if (!handlerAttachedRef.current) {
-          terminal.onData(handleData);
-          handlerAttachedRef.current = true;
-        }
-
-        // Focus terminal on initialization
-        requestAnimationFrame(() => {
-          try {
-            fitAddon.fit();
-            terminal.focus();
-          } catch (e) {
-            // Ignore fit errors
-          }
-          writePrompt(terminal);
-        });
-
-        // Store cleanup function
-        cleanupRef.current = () => {
-          window.removeEventListener('resize', handleResize);
-          terminal.dispose();
-          xtermRef.current = null;
-          fitAddonRef.current = null;
-          handlerAttachedRef.current = false;
-        };
-      } catch (error) {
-        console.error('Failed to initialize xterm.js:', error);
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault();
+      executeCommand(input);
+    } else if (e.key === 'ArrowUp') {
+      e.preventDefault();
+      if (historyIndex < commandHistory.length - 1) {
+        const newIndex = historyIndex + 1;
+        setHistoryIndex(newIndex);
+        const cmdIndex = commandHistory.length - 1 - newIndex;
+        setInput(commandHistory[cmdIndex] || '');
       }
-    }, 0); // Zero timeout - just push to end of event loop, enough for layout computation
-
-    // Cleanup for the setTimeout
-    return () => {
-      clearTimeout(initTimer);
-      if (cleanupRef.current) {
-        cleanupRef.current();
-        cleanupRef.current = null;
+    } else if (e.key === 'ArrowDown') {
+      e.preventDefault();
+      if (historyIndex > 0) {
+        const newIndex = historyIndex - 1;
+        setHistoryIndex(newIndex);
+        const cmdIndex = commandHistory.length - 1 - newIndex;
+        setInput(commandHistory[cmdIndex] || '');
+      } else if (historyIndex === 0) {
+        setHistoryIndex(-1);
+        setInput('');
       }
-    };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [writePrompt]); // Only depend on writePrompt. executeCommandWithStore is intentionally omitted to prevent re-initialization. It's accessed via closure from the data handler which calls useTerminalStore.getState() for fresh values.
+    } else if (e.key === 'c' && e.ctrlKey) {
+      e.preventDefault();
+      setInput('');
+      setHistoryIndex(-1);
+    }
+  };
+
+  const handleClear = () => {
+    clearMessages();
+    setError(null);
+  };
 
   return (
     <div className={`flex flex-col h-full bg-[#1E1E1E] ${className}`}>
-      {/* Message output area with inline visualizations - optimized padding */}
+      {/* Message output area with inline visualizations */}
       <div
         ref={outputContainerRef}
-        className="flex-1 overflow-y-auto px-4 py-3"
+        className="flex-1 overflow-y-auto p-5"
       >
         {messages.length === 0 && (
-          <div className="text-center py-12">
-            <div className="text-white font-bold text-xl mb-3 tracking-wide">TermAI Explorer</div>
-            <div className="text-[#5a5a5a] text-sm">
+          <div className="text-center py-16">
+            <div className="text-white font-bold text-xl mb-3 tracking-wide font-['Fira_Code',monospace]">
+              TermAI Explorer
+            </div>
+            <div className="text-[#5a5a5a] text-sm font-['Fira_Code',monospace]">
               Type a command and press Enter
             </div>
           </div>
         )}
         <TerminalOutput messages={messages} />
         {isLoading && (
-          <div className="text-[#5C6AC4] animate-pulse mt-2 text-sm">Processing...</div>
+          <div className="flex items-center gap-2 mt-4 text-sm">
+            <div className="flex gap-1">
+              <span className="w-1 h-1 bg-[#BB86FC] rounded-full animate-pulse" style={{ animationDelay: '0ms' }}></span>
+              <span className="w-1 h-1 bg-[#BB86FC] rounded-full animate-pulse" style={{ animationDelay: '200ms' }}></span>
+              <span className="w-1 h-1 bg-[#BB86FC] rounded-full animate-pulse" style={{ animationDelay: '400ms' }}></span>
+            </div>
+            <span className="text-[#B3B3B3] font-['Fira_Code',monospace]">Processing...</span>
+          </div>
         )}
         {error && (
-          <div className="text-[#F48771] bg-[#F48771]/10 border-l-2 border-[#F48771] rounded-r p-3 mt-4">
+          <div className="text-[#F48771] bg-[#F48771]/10 border-l-2 border-[#F48771] rounded-r p-3 mt-4 font-['Fira_Code',monospace] text-sm">
             {error}
           </div>
         )}
       </div>
 
-      {/* Terminal input area - optimized height */}
-      <div
-        className="border-t border-[#333333] bg-[#1E1E1E]"
-        onClick={() => {
-          xtermRef.current?.focus();
-        }}
-      >
-        <div ref={terminalRef} className="w-full" style={{ minHeight: '56px', height: '56px' }} />
+      {/* Terminal Input Area */}
+      <div className="h-20 bg-[#252526] border-t border-[#333333] px-4 py-3 flex flex-col shrink-0">
+        <div className="text-[#5C6AC4] font-semibold mb-1.5 text-sm font-['Fira_Code',monospace]">
+          ➜ user@termai:~$
+        </div>
+        <textarea
+          ref={textareaRef}
+          value={input}
+          onChange={(e) => setInput(e.target.value)}
+          onKeyDown={handleKeyDown}
+          placeholder="Type a command... (Press Enter to send, Shift+Enter for new line)"
+          className="flex-1 bg-[#1E1E1E] border border-[#3E3E42] rounded px-3 py-2 text-[#E0E0E0] font-['Fira_Code',monospace] text-sm resize-none outline-none focus:border-[#5C6AC4] placeholder:text-[#858585] wrap-soft"
+          rows={2}
+          wrap="soft"
+        />
       </div>
     </div>
   );

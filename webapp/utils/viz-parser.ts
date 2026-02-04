@@ -1,0 +1,115 @@
+import { VizCommand, ParsedViz, VizType } from '@/types/visualizations';
+
+const VIZ_REGEX = /!\[viz:(\w+)\]\(([\s\S]*?)\)/g;
+
+// Map chart type aliases to 'chart' type
+const CHART_TYPE_ALIASES: Record<string, 'line' | 'bar' | 'scatter'> = {
+  'line': 'line',
+  'bar': 'bar',
+  'scatter': 'scatter',
+};
+
+export function parseVizCommands(text: string): ParsedViz[] {
+  const vizCommands: ParsedViz[] = [];
+  let match;
+
+  while ((match = VIZ_REGEX.exec(text)) !== null) {
+    const [fullMatch, typeStr, jsonStr] = match;
+    const startIndex = match.index;
+    const endIndex = startIndex + fullMatch.length;
+
+    try {
+      const data = JSON.parse(jsonStr);
+      const typeStrLower = typeStr.toLowerCase();
+
+      // Handle chart type aliases (bar, line, scatter -> chart)
+      if (CHART_TYPE_ALIASES[typeStrLower]) {
+        const command: VizCommand = {
+          type: 'chart',
+          ...data,
+          chartType: CHART_TYPE_ALIASES[typeStrLower],
+        } as VizCommand;
+
+        vizCommands.push({
+          command,
+          startIndex,
+          endIndex,
+        });
+        continue;
+      }
+
+      const type = typeStrLower as VizType;
+
+      const command: VizCommand = {
+        type,
+        ...data,
+      } as VizCommand;
+
+      vizCommands.push({
+        command,
+        startIndex,
+        endIndex,
+      });
+    } catch (error) {
+      // Silently skip incomplete JSON during streaming - this is expected
+      // Only log actual parsing errors, not incomplete chunks
+      if (!(error instanceof SyntaxError)) {
+        console.error('Failed to parse visualization command:', error);
+      }
+    }
+  }
+
+  return vizCommands;
+}
+
+export function replaceVizsWithPlaceholders(
+  text: string,
+  parsedVizs: ParsedViz[]
+): string {
+  let result = text;
+
+  // Replace from end to start to maintain correct indices
+  parsedVizs
+    .sort((a, b) => b.startIndex - a.startIndex)
+    .forEach(({ startIndex, endIndex }, index) => {
+      const placeholder = `__VIZ_${index}__`;
+      result =
+        result.substring(0, startIndex) + placeholder + result.substring(endIndex);
+    });
+
+  return result;
+}
+
+export function splitTextByVizs(
+  text: string,
+  parsedVizs: ParsedViz[]
+): Array<{ type: 'text' | 'viz'; content: string; index?: number }> {
+  const parts: Array<{ type: 'text' | 'viz'; content: string; index?: number }> = [];
+  let lastIndex = 0;
+
+  const sortedVizs = [...parsedVizs].sort((a, b) => a.startIndex - b.startIndex);
+
+  sortedVizs.forEach((viz, i) => {
+    if (viz.startIndex > lastIndex) {
+      parts.push({
+        type: 'text',
+        content: text.substring(lastIndex, viz.startIndex),
+      });
+    }
+    parts.push({
+      type: 'viz',
+      content: '',
+      index: i,
+    });
+    lastIndex = viz.endIndex;
+  });
+
+  if (lastIndex < text.length) {
+    parts.push({
+      type: 'text',
+      content: text.substring(lastIndex),
+    });
+  }
+
+  return parts;
+}

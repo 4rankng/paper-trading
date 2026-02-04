@@ -1,6 +1,5 @@
 'use client';
 
-import { useEffect, useRef } from 'react';
 import {
   Chart as ChartJS,
   CategoryScale,
@@ -32,7 +31,7 @@ interface ChartProps {
   command: ChartVizCommand;
 }
 
-// Modern color palette for charts
+// One Dark theme colors for charts
 const DEFAULT_COLORS = [
   '#5C6AC4', // Blue
   '#BB86FC', // Purple
@@ -52,7 +51,7 @@ export default function Chart({ command }: ChartProps) {
       legend: {
         display: true,
         labels: {
-          color: '#E0E0E0',
+          color: '#B3B3B3',
           font: {
             family: "'Fira Code', monospace",
             size: 12,
@@ -63,8 +62,16 @@ export default function Chart({ command }: ChartProps) {
         backgroundColor: '#252526',
         titleColor: '#E0E0E0',
         bodyColor: '#B3B3B3',
-        borderColor: '#333333',
+        borderColor: '#3E3E42',
         borderWidth: 1,
+        titleFont: {
+          family: "'Fira Code', monospace",
+          size: 12,
+        },
+        bodyFont: {
+          family: "'Fira Code', monospace",
+          size: 11,
+        },
       },
       ...options?.plugins,
     },
@@ -72,7 +79,7 @@ export default function Chart({ command }: ChartProps) {
       x: {
         display: true,
         ticks: {
-          color: '#858585',
+          color: '#B3B3B3',
           font: {
             family: "'Fira Code', monospace",
             size: 11,
@@ -87,7 +94,7 @@ export default function Chart({ command }: ChartProps) {
       y: {
         display: true,
         ticks: {
-          color: '#858585',
+          color: '#B3B3B3',
           font: {
             family: "'Fira Code', monospace",
             size: 11,
@@ -109,10 +116,11 @@ export default function Chart({ command }: ChartProps) {
     datasets: data.datasets.map((ds, index) => ({
       ...ds,
       borderColor: ds.borderColor || DEFAULT_COLORS[index % DEFAULT_COLORS.length],
-      backgroundColor: ds.backgroundColor || DEFAULT_COLORS[index % DEFAULT_COLORS.length] + '40',
+      backgroundColor: ds.backgroundColor || DEFAULT_COLORS[index % DEFAULT_COLORS.length] + '20',
       borderWidth: 2,
-      tension: 0.3,
+      tension: 0.4,
       pointRadius: 3,
+      pointBackgroundColor: ds.borderColor || DEFAULT_COLORS[index % DEFAULT_COLORS.length],
       pointHoverRadius: 5,
     })),
   };
@@ -120,7 +128,7 @@ export default function Chart({ command }: ChartProps) {
   const ChartComponent = chartType === 'bar' ? Bar : chartType === 'scatter' ? Scatter : Line;
 
   return (
-    <div className="w-full h-64 my-4">
+    <div className="h-72">
       <ChartComponent data={chartData} options={chartOptions} />
     </div>
   );
