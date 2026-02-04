@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useLayoutEffect, useRef, useCallback, useState } from 'react';
+import { useEffect, useLayoutEffect, useRef, useCallback } from 'react';
 import { Terminal } from 'xterm';
 import { FitAddon } from 'xterm-addon-fit';
 import { WebLinksAddon } from '@xterm/addon-web-links';
@@ -21,7 +21,7 @@ export default function HybridTerminal({ className = '' }: HybridTerminalProps) 
   const inputBufferRef = useRef('');
   const commandHistoryIndexRef = useRef(-1);
   const outputContainerRef = useRef<HTMLDivElement>(null);
-  const cleanupRef = useRef<(() => void) | null>(null);
+  const isInitializedRef = useRef(false);
 
   const {
     sessionId,
@@ -31,7 +31,6 @@ export default function HybridTerminal({ className = '' }: HybridTerminalProps) 
     commandHistory,
     addMessage,
     addToCommandHistory,
-    navigateCommandHistory,
     setLoading,
     setError,
   } = useTerminalStore();
@@ -41,84 +40,7 @@ export default function HybridTerminal({ className = '' }: HybridTerminalProps) 
     if (outputContainerRef.current) {
       outputContainerRef.current.scrollTop = outputContainerRef.current.scrollHeight;
     }
-  }, [messages.length]); // eslint-disable-line react-hooks/exhaustive-deps
-
-  // Initialize xterm.js for input only
-  useLayoutEffect(() => {
-    if (!terminalRef.current || xtermRef.current) return;
-
-    // Small delay to ensure container is rendered with dimensions
-    const initTimer = setTimeout(() => {
-      if (!terminalRef.current || xtermRef.current) return;
-
-      try {
-        const terminal = new Terminal({
-          theme: getXtermTheme(defaultTheme),
-          fontFamily: "'Fira Code', 'Source Code Pro', monospace",
-          fontSize: 14,
-          lineHeight: 1.2,
-          cursorBlink: true,
-          cursorStyle: 'block',
-          scrollback: 0, // No scrollback, messages render above
-          rows: 3, // Just enough for input line
-        });
-
-        const fitAddon = new FitAddon();
-        const webLinksAddon = new WebLinksAddon();
-
-        terminal.loadAddon(fitAddon);
-        terminal.loadAddon(webLinksAddon);
-
-        terminal.open(terminalRef.current);
-
-        xtermRef.current = terminal;
-        fitAddonRef.current = fitAddon;
-
-        // Handle window resize
-        const handleResize = () => {
-          requestAnimationFrame(() => {
-            try {
-              fitAddonRef.current?.fit();
-            } catch (e) {
-              // Silently fail if terminal not ready
-            }
-          });
-        };
-
-        window.addEventListener('resize', handleResize);
-
-        // Fit and write prompt after a brief delay
-        requestAnimationFrame(() => {
-          try {
-            fitAddon.fit();
-          } catch (e) {
-            // Ignore fit errors
-          }
-          // Write initial prompt
-          writePrompt(terminal);
-        });
-
-        // Store cleanup function
-        cleanupRef.current = () => {
-          window.removeEventListener('resize', handleResize);
-          terminal.dispose();
-        };
-      } catch (error) {
-        console.error('Failed to initialize xterm.js:', error);
-      }
-    }, 100);
-
-    return () => {
-      clearTimeout(initTimer);
-      // Call cleanup if it was registered
-      if (cleanupRef.current) {
-        cleanupRef.current();
-        xtermRef.current = null;
-        fitAddonRef.current = null;
-        cleanupRef.current = null;
-      }
-    };
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [messages.length]);
 
   // Write prompt
   const writePrompt = useCallback((terminal: Terminal, currentInput = '') => {
@@ -128,87 +50,6 @@ export default function HybridTerminal({ className = '' }: HybridTerminalProps) 
       terminal.write(currentInput);
     }
   }, []);
-
-  // Handle terminal input
-  useEffect(() => {
-    const terminal = xtermRef.current;
-    if (!terminal) return;
-
-    const handleData = (data: string) => {
-      // Handle Enter key
-      if (data === '\r') {
-        const command = inputBufferRef.current.trim();
-        inputBufferRef.current = '';
-        commandHistoryIndexRef.current = -1;
-
-        if (command) {
-          executeCommand(command);
-        } else {
-          // Empty command, just rewrite prompt
-          writePrompt(terminal);
-        }
-        return;
-      }
-
-      // Handle Backspace
-      if (data === '\u007F') {
-        if (inputBufferRef.current.length > 0) {
-          inputBufferRef.current = inputBufferRef.current.slice(0, -1);
-          writePrompt(terminal, inputBufferRef.current);
-        }
-        return;
-      }
-
-      // Handle Arrow Up (previous command)
-      if (data === '\u001B[A') {
-        if (commandHistoryIndexRef.current < commandHistory.length - 1) {
-          commandHistoryIndexRef.current++;
-          const newIndex = commandHistory.length - 1 - commandHistoryIndexRef.current;
-          const cmd = commandHistory[newIndex];
-          inputBufferRef.current = cmd;
-          writePrompt(terminal, cmd);
-        }
-        return;
-      }
-
-      // Handle Arrow Down (next command)
-      if (data === '\u001B[B') {
-        if (commandHistoryIndexRef.current > 0) {
-          commandHistoryIndexRef.current--;
-          const newIndex = commandHistory.length - 1 - commandHistoryIndexRef.current;
-          const cmd = commandHistory[newIndex];
-          inputBufferRef.current = cmd;
-          writePrompt(terminal, cmd);
-        } else if (commandHistoryIndexRef.current === 0) {
-          commandHistoryIndexRef.current = -1;
-          inputBufferRef.current = '';
-          writePrompt(terminal, '');
-        }
-        return;
-      }
-
-      // Handle Ctrl+C
-      if (data === '\u0003') {
-        terminal.clear();
-        inputBufferRef.current = '';
-        writePrompt(terminal);
-        return;
-      }
-
-      // Regular character input (printable ASCII)
-      const charCode = data.charCodeAt(0);
-      if (charCode >= 32 && charCode <= 126) {
-        inputBufferRef.current += data;
-        terminal.write(data);
-      }
-    };
-
-    terminal.onData(handleData);
-
-    return () => {
-      terminal.onData(() => {});
-    };
-  }, [commandHistory, writePrompt]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Execute command
   const executeCommand = useCallback(async (command: string) => {
@@ -297,6 +138,161 @@ export default function HybridTerminal({ className = '' }: HybridTerminalProps) 
       setLoading(false);
     }
   }, [sessionId, addMessage, addToCommandHistory, setLoading, setError, writePrompt]);
+
+  // Set up data handler when terminal is ready
+  useEffect(() => {
+    const terminal = xtermRef.current;
+    if (!terminal || isInitializedRef.current) return;
+
+    isInitializedRef.current = true;
+
+    const handleData = (data: string) => {
+      // Handle Enter key
+      if (data === '\r') {
+        const command = inputBufferRef.current.trim();
+        inputBufferRef.current = '';
+        commandHistoryIndexRef.current = -1;
+
+        if (command) {
+          executeCommand(command);
+        } else {
+          // Empty command, just rewrite prompt
+          writePrompt(terminal);
+        }
+        return;
+      }
+
+      // Handle Backspace
+      if (data === '\u007F') {
+        if (inputBufferRef.current.length > 0) {
+          inputBufferRef.current = inputBufferRef.current.slice(0, -1);
+          writePrompt(terminal, inputBufferRef.current);
+        }
+        return;
+      }
+
+      // Handle Arrow Up (previous command)
+      if (data === '\u001B[A') {
+        if (commandHistoryIndexRef.current < commandHistory.length - 1) {
+          commandHistoryIndexRef.current++;
+          const newIndex = commandHistory.length - 1 - commandHistoryIndexRef.current;
+          const cmd = commandHistory[newIndex];
+          inputBufferRef.current = cmd;
+          writePrompt(terminal, cmd);
+        }
+        return;
+      }
+
+      // Handle Arrow Down (next command)
+      if (data === '\u001B[B') {
+        if (commandHistoryIndexRef.current > 0) {
+          commandHistoryIndexRef.current--;
+          const newIndex = commandHistory.length - 1 - commandHistoryIndexRef.current;
+          const cmd = commandHistory[newIndex];
+          inputBufferRef.current = cmd;
+          writePrompt(terminal, cmd);
+        } else if (commandHistoryIndexRef.current === 0) {
+          commandHistoryIndexRef.current = -1;
+          inputBufferRef.current = '';
+          writePrompt(terminal, '');
+        }
+        return;
+      }
+
+      // Handle Ctrl+C
+      if (data === '\u0003') {
+        terminal.clear();
+        inputBufferRef.current = '';
+        writePrompt(terminal);
+        return;
+      }
+
+      // Regular character input (printable ASCII)
+      const charCode = data.charCodeAt(0);
+      if (charCode >= 32 && charCode <= 126) {
+        inputBufferRef.current += data;
+        terminal.write(data);
+      }
+    };
+
+    terminal.onData(handleData);
+
+    return () => {
+      terminal.onData(() => {});
+      isInitializedRef.current = false;
+    };
+  }, [commandHistory, executeCommand, writePrompt]);
+
+  // Initialize xterm.js for input only
+  useLayoutEffect(() => {
+    if (!terminalRef.current || xtermRef.current) return;
+
+    // Small delay to ensure container is rendered with dimensions
+    const initTimer = setTimeout(() => {
+      if (!terminalRef.current || xtermRef.current) return;
+
+      try {
+        const terminal = new Terminal({
+          theme: getXtermTheme(defaultTheme),
+          fontFamily: "'Fira Code', 'Source Code Pro', monospace",
+          fontSize: 14,
+          lineHeight: 1.2,
+          cursorBlink: true,
+          cursorStyle: 'block',
+          scrollback: 0, // No scrollback, messages render above
+          rows: 3, // Just enough for input line
+        });
+
+        const fitAddon = new FitAddon();
+        const webLinksAddon = new WebLinksAddon();
+
+        terminal.loadAddon(fitAddon);
+        terminal.loadAddon(webLinksAddon);
+
+        terminal.open(terminalRef.current);
+
+        xtermRef.current = terminal;
+        fitAddonRef.current = fitAddon;
+
+        // Handle window resize
+        const handleResize = () => {
+          requestAnimationFrame(() => {
+            try {
+              fitAddonRef.current?.fit();
+            } catch (e) {
+              // Silently fail if terminal not ready
+            }
+          });
+        };
+
+        window.addEventListener('resize', handleResize);
+
+        // Fit and write initial prompt
+        requestAnimationFrame(() => {
+          try {
+            fitAddon.fit();
+          } catch (e) {
+            // Ignore fit errors
+          }
+          writePrompt(terminal);
+        });
+
+        // Cleanup
+        return () => {
+          window.removeEventListener('resize', handleResize);
+          terminal.dispose();
+          xtermRef.current = null;
+          fitAddonRef.current = null;
+        };
+      } catch (error) {
+        console.error('Failed to initialize xterm.js:', error);
+      }
+    }, 100);
+
+    return () => {
+      clearTimeout(initTimer);
+    };
+  }, [writePrompt]);
 
   return (
     <div className={`flex flex-col h-full bg-[#1E1E1E] ${className}`}>
