@@ -221,6 +221,9 @@ export default function HybridTerminal({ className = '' }: HybridTerminalProps) 
             commandHistoryIndexRef.current = -1;
 
             if (command) {
+              // Clear terminal immediately to remove typed text
+              terminal.clear();
+
               // Get latest executeCommand from store
               const { sessionId, addMessage, addToCommandHistory, setLoading, setError } = useTerminalStore.getState();
 
