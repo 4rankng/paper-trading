@@ -21,6 +21,7 @@ export default function HybridTerminal({ className = '' }: HybridTerminalProps) 
   const inputBufferRef = useRef('');
   const commandHistoryIndexRef = useRef(-1);
   const outputContainerRef = useRef<HTMLDivElement>(null);
+  const cleanupRef = useRef<(() => void) | null>(null);
 
   const {
     sessionId,
@@ -46,69 +47,76 @@ export default function HybridTerminal({ className = '' }: HybridTerminalProps) 
   useLayoutEffect(() => {
     if (!terminalRef.current || xtermRef.current) return;
 
-    const terminal = new Terminal({
-      theme: getXtermTheme(defaultTheme),
-      fontFamily: "'Fira Code', 'Source Code Pro', monospace",
-      fontSize: 14,
-      lineHeight: 1.2,
-      cursorBlink: true,
-      cursorStyle: 'block',
-      scrollback: 0, // No scrollback, messages render above
-      rows: 3, // Just enough for input line
-    });
+    // Small delay to ensure container is rendered with dimensions
+    const initTimer = setTimeout(() => {
+      if (!terminalRef.current || xtermRef.current) return;
 
-    const fitAddon = new FitAddon();
-    const webLinksAddon = new WebLinksAddon();
+      try {
+        const terminal = new Terminal({
+          theme: getXtermTheme(defaultTheme),
+          fontFamily: "'Fira Code', 'Source Code Pro', monospace",
+          fontSize: 14,
+          lineHeight: 1.2,
+          cursorBlink: true,
+          cursorStyle: 'block',
+          scrollback: 0, // No scrollback, messages render above
+          rows: 3, // Just enough for input line
+        });
 
-    terminal.loadAddon(fitAddon);
-    terminal.loadAddon(webLinksAddon);
+        const fitAddon = new FitAddon();
+        const webLinksAddon = new WebLinksAddon();
 
-    terminal.open(terminalRef.current);
+        terminal.loadAddon(fitAddon);
+        terminal.loadAddon(webLinksAddon);
 
-    xtermRef.current = terminal;
-    fitAddonRef.current = fitAddon;
+        terminal.open(terminalRef.current);
 
-    // Handle window resize
-    const handleResize = () => {
-      requestAnimationFrame(() => {
-        try {
-          fitAddon.fit();
-        } catch (e) {
-          // Silently fail if terminal not ready
-        }
-      });
-    };
+        xtermRef.current = terminal;
+        fitAddonRef.current = fitAddon;
 
-    window.addEventListener('resize', handleResize);
-
-    // Defer fit and initial prompt to ensure container has dimensions
-    // Use double requestAnimationFrame to ensure terminal viewport is ready
-    requestAnimationFrame(() => {
-      requestAnimationFrame(() => {
-        try {
-          // Fit addon will handle terminal readiness internally
-          fitAddon.fit();
-        } catch (e) {
-          // Terminal might not be ready yet, try once more with timeout
-          setTimeout(() => {
+        // Handle window resize
+        const handleResize = () => {
+          requestAnimationFrame(() => {
             try {
-              fitAddon.fit();
-            } catch (e2) {
-              // Give up silently
+              fitAddonRef.current?.fit();
+            } catch (e) {
+              // Silently fail if terminal not ready
             }
-          }, 50);
-        }
+          });
+        };
 
-        // Write initial prompt
-        writePrompt(terminal);
-      });
-    });
+        window.addEventListener('resize', handleResize);
+
+        // Fit and write prompt after a brief delay
+        requestAnimationFrame(() => {
+          try {
+            fitAddon.fit();
+          } catch (e) {
+            // Ignore fit errors
+          }
+          // Write initial prompt
+          writePrompt(terminal);
+        });
+
+        // Store cleanup function
+        cleanupRef.current = () => {
+          window.removeEventListener('resize', handleResize);
+          terminal.dispose();
+        };
+      } catch (error) {
+        console.error('Failed to initialize xterm.js:', error);
+      }
+    }, 100);
 
     return () => {
-      window.removeEventListener('resize', handleResize);
-      terminal.dispose();
-      xtermRef.current = null;
-      fitAddonRef.current = null;
+      clearTimeout(initTimer);
+      // Call cleanup if it was registered
+      if (cleanupRef.current) {
+        cleanupRef.current();
+        xtermRef.current = null;
+        fitAddonRef.current = null;
+        cleanupRef.current = null;
+      }
     };
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 

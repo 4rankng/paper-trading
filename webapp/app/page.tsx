@@ -15,31 +15,17 @@ const HybridTerminal = dynamic(
 );
 
 export default function Home() {
-  const { sessionId, setSessionId, setLoading } = useTerminalStore();
-  const [isInitialized, setIsInitialized] = useState(false);
+  const { sessionId, setSessionId } = useTerminalStore();
 
+  // Initialize session synchronously on mount - localStorage is instant
   useEffect(() => {
-    const initSession = async () => {
-      setLoading(true);
-      try {
-        const id = await Storage.getOrCreateSession();
-        setSessionId(id);
-      } catch (error) {
-        console.error('Failed to initialize session:', error);
-      } finally {
-        setLoading(false);
-        setIsInitialized(true);
-      }
-    };
-
     if (!sessionId) {
-      initSession();
-    } else {
-      setIsInitialized(true);
+      Storage.getOrCreateSession().then(setSessionId).catch(console.error);
     }
-  }, [sessionId, setSessionId, setLoading]);
+  }, [sessionId, setSessionId]);
 
-  if (!isInitialized) {
+  // Only show loading briefly on first visit (no sessionId yet)
+  if (!sessionId) {
     return (
       <div className="h-screen bg-[#1E1E1E] flex items-center justify-center">
         <div className="text-[#5C6AC4]">Initializing TermAI Explorer...</div>
