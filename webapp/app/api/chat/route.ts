@@ -287,22 +287,52 @@ const SYSTEM_PROMPT = `You are TermAI Explorer, a terminal-based financial AI as
 CRITICAL RULES:
 1. ALWAYS use the available tools to fetch REAL data before responding
 2. NEVER make up or fabricate numbers, holdings, prices, or financial information
-3. When asked about portfolio/holdings, use get_portfolios() or get_portfolio() tools
-4. When asked to add/update/remove positions, use the appropriate holding tools
-5. When asked about trades, use get_trades() tool
-6. When asked about watchlist, use get_watchlist() or add_to_watchlist() tools
-7. When asked about a specific stock's analysis, use get_analytics() and get_news() tools
+3. CONSOLIDATE and INTERPRET the data - don't just return raw numbers. Provide insights.
+4. When asked about portfolio/holdings, use get_portfolios() or get_portfolio() tools
+5. When asked to add/update/remove positions, use the appropriate holding tools
+6. When asked about trades, use get_trades() tool
+7. When asked about watchlist, use get_watchlist() or add_to_watchlist() tools
+8. When asked about a specific stock's analysis, use get_analytics() and get_news() tools
 
-VISUALIZATION FORMAT:
-To create visualizations, use this markdown format:
-- Line chart: ![viz:chart]({"type":"line","chartType":"line","data":{"labels":["A","B","C"],"datasets":[{"label":"Data","data":[1,2,3]}]}})
-- Bar chart: ![viz:chart]({"type":"bar","chartType":"bar","data":{"labels":["A","B","C"],"datasets":[{"label":"Data","data":[1,2,3]}]}})
-- Pie chart: ![viz:pie]({"data":[{"label":"A","value":10},{"label":"B","value":20}],"options":{"title":"Distribution"}})
-- Table: ![viz:table]({"headers":["Name","Value"],"rows":[["Item 1",100],["Item 2",200]]})
+DATA CONSOLIDATION:
+When you receive tool results with structured data:
+- Group related information together
+- Calculate totals, percentages, averages where helpful
+- Highlight important trends, outliers, or concerns
+- Provide context (e.g., "This represents 15% of your portfolio")
+- Use visualizations to make data more digestible
+
+AVAILABLE VISUALIZATIONS:
+Use these markdown formats to create charts and tables in your responses:
+
+1. LINE CHART - For trends over time (prices, portfolio value)
+   ![viz:chart]({"type":"line","chartType":"line","data":{"labels":["Jan","Feb","Mar"],"datasets":[{"label":"Portfolio Value","data":[100000,105000,102000]}]},"options":{"title":"Portfolio Value Trend"}})
+
+2. BAR CHART - For comparisons (holdings by value, P/L by stock)
+   ![viz:chart]({"type":"bar","chartType":"bar","data":{"labels":["AAPL","MSFT","GOOGL"],"datasets":[{"label":"Holdings Value","data":[50000,30000,20000]}]},"options":{"title":"Holdings by Stock"}})
+
+3. PIE CHART - For distributions (asset allocation, sector breakdown)
+   ![viz:pie]({"data":[{"label":"CORE","value":127522},{"label":"AI_PICKS","value":13749}],"options":{"title":"Portfolio Allocation"}})
+
+4. TABLE - For detailed data (holdings list, trade history)
+   ![viz:table]({"headers":["Ticker","Shares","Value","P/L %"],["AAPL",100,"$50,000","+12.5%"],["MSFT",50,"$30,000","+8.3%"]]})
+
+VISUALIZATION BEST PRACTICES:
+- Use line charts for time-series data (price history, portfolio growth)
+- Use bar charts for comparisons across categories (holdings, performance)
+- Use pie charts for parts-of-whole (allocation by portfolio, sector distribution)
+- Use tables for detailed listings with multiple columns
+- Always provide a brief text summary along with visualizations
+
+RESPONSE FORMAT:
+1. Start with a concise summary
+2. Use visualizations to present key data
+3. Add insights and observations
+4. Keep responses mobile-friendly (short lines, bullet lists)
 
 Keep responses concise and terminal-appropriate. Always cite data sources.`;
 
-// Helper function to execute tool calls and return formatted results
+// Helper function to execute tool calls and return structured data for LLM
 async function executeToolCall(toolName: string, toolInput: any) {
   console.log('[Chat API] Executing tool:', toolName, 'with input:', toolInput);
 
@@ -310,57 +340,50 @@ async function executeToolCall(toolName: string, toolInput: any) {
     switch (toolName) {
       case 'get_portfolios': {
         const data = await fetch(`${BASE_URL}/api/portfolio`).then(r => r.json());
-        // Format portfolio data into readable summary
-        let summary = 'PORTFOLIOS:\n\n';
+        // Return structured data for LLM to consolidate
+        const structured: any = { cash: data.cash, portfolios: {} };
         for (const [id, portfolio] of Object.entries(data.portfolios || {})) {
           const p = portfolio as any;
-          summary += `${id}: ${p.name}\n`;
-          summary += `  Holdings: ${p.holdings?.length || 0}\n`;
-          if (p.summary) {
-            summary += `  Value: $${p.summary.holdings_value?.toLocaleString()}\n`;
-            summary += `  P/L: $${p.summary.total_gain_loss?.toLocaleString()} (${p.summary.total_gain_loss_pct?.toFixed(2)}%)\n`;
-          }
-          if (p.holdings && p.holdings.length > 0) {
-            summary += '  Positions:\n';
-            p.holdings.forEach((h: any) => {
-              summary += `    - ${h.ticker}: ${h.shares} shares @ $${h.avg_cost}`;
-              if (h.current_price) {
-                const pl = ((h.current_price - h.avg_cost) * h.shares).toFixed(2);
-                const plPct = (((h.current_price - h.avg_cost) / h.avg_cost) * 100).toFixed(2);
-                summary += ` | P/L: $${pl} (${plPct}%)`;
-              }
-              summary += '\n';
-            });
-          }
-          summary += '\n';
+          structured.portfolios[id] = {
+            name: p.name,
+            holdings_value: p.summary?.holdings_value,
+            total_gain_loss: p.summary?.total_gain_loss,
+            total_gain_loss_pct: p.summary?.total_gain_loss_pct,
+            holdings: p.holdings?.map((h: any) => ({
+              ticker: h.ticker,
+              shares: h.shares,
+              avg_cost: h.avg_cost,
+              current_price: h.current_price,
+              market_value: h.market_value,
+              gain_loss: h.gain_loss,
+              gain_loss_pct: h.gain_loss_pct,
+            })),
+          };
         }
-        if (data.cash) {
-          summary += `Cash: $${data.cash.amount?.toLocaleString()}\n`;
-        }
-        return { success: true, summary };
+        return { success: true, data: structured };
       }
 
       case 'get_portfolio': {
         const data = await fetch(`${BASE_URL}/api/portfolio/${toolInput.id}`).then(r => r.json());
-        const p = data;
-        let summary = `${toolInput.id}: ${p.name}\n`;
-        if (p.holdings && p.holdings.length > 0) {
-          summary += 'Holdings:\n';
-          p.holdings.forEach((h: any) => {
-            summary += `  - ${h.ticker}: ${h.shares} shares @ $${h.avg_cost}`;
-            if (h.current_price) {
-              const pl = ((h.current_price - h.avg_cost) * h.shares).toFixed(2);
-              const plPct = (((h.current_price - h.avg_cost) / h.avg_cost) * 100).toFixed(2);
-              summary += ` | Current: $${h.current_price} | P/L: $${pl} (${plPct}%)`;
-            }
-            summary += '\n';
-          });
-        }
-        if (p.summary) {
-          summary += `\nTotal Value: $${p.summary.holdings_value?.toLocaleString()}\n`;
-          summary += `Total P/L: $${p.summary.total_gain_loss?.toLocaleString()} (${p.summary.total_gain_loss_pct?.toFixed(2)}%)\n`;
-        }
-        return { success: true, summary };
+        return {
+          success: true,
+          data: {
+            id: toolInput.id,
+            name: data.name,
+            holdings_value: data.summary?.holdings_value,
+            total_gain_loss: data.summary?.total_gain_loss,
+            total_gain_loss_pct: data.summary?.total_gain_loss_pct,
+            holdings: data.holdings?.map((h: any) => ({
+              ticker: h.ticker,
+              shares: h.shares,
+              avg_cost: h.avg_cost,
+              current_price: h.current_price,
+              market_value: h.market_value,
+              gain_loss: h.gain_loss,
+              gain_loss_pct: h.gain_loss_pct,
+            })),
+          },
+        };
       }
 
       case 'add_holding': {
@@ -374,9 +397,7 @@ async function executeToolCall(toolName: string, toolInput: any) {
             current_price: toolInput.current_price,
           }),
         }).then(r => r.json());
-        return result.success
-          ? { success: true, summary: `Added ${toolInput.ticker} to ${toolInput.portfolio_id}: ${toolInput.shares} shares @ $${toolInput.avg_cost}` }
-          : result;
+        return result.success ? { success: true } : result;
       }
 
       case 'update_holding': {
@@ -388,9 +409,7 @@ async function executeToolCall(toolName: string, toolInput: any) {
             body: JSON.stringify(toolInput),
           }
         ).then(r => r.json());
-        return result.success
-          ? { success: true, summary: `Updated ${toolInput.ticker} in ${toolInput.portfolio_id}` }
-          : result;
+        return result.success ? { success: true } : result;
       }
 
       case 'remove_holding': {
@@ -398,24 +417,25 @@ async function executeToolCall(toolName: string, toolInput: any) {
           `${BASE_URL}/api/portfolio/${toolInput.portfolio_id}/holdings/${toolInput.ticker}`,
           { method: 'DELETE' }
         ).then(r => r.json());
-        return result.success ? result : { success: true, summary: result.message };
+        return result.success ? { success: true } : result;
       }
 
       case 'get_watchlist': {
         const data = await fetch(`${BASE_URL}/api/watchlist`).then(r => r.json());
-        if (!data.entries || data.entries.length === 0) {
-          return { success: true, summary: 'Watchlist is empty' };
-        }
-        let summary = `WATCHLIST (${data.entries.length} entries):\n`;
-        data.entries.forEach((e: any) => {
-          summary += `  - ${e.ticker}`;
-          if (e.strategy) summary += ` [${e.strategy}]`;
-          if (e.notes) summary += `: ${e.notes}`;
-          if (e.target_entry) summary += ` | Entry: $${e.target_entry}`;
-          if (e.target_exit) summary += ` | Exit: $${e.target_exit}`;
-          summary += '\n';
-        });
-        return { success: true, summary };
+        return {
+          success: true,
+          data: {
+            entries: data.entries?.map((e: any) => ({
+              ticker: e.ticker,
+              strategy: e.strategy,
+              notes: e.notes,
+              target_entry: e.target_entry,
+              target_exit: e.target_exit,
+              stop_loss: e.stop_loss,
+              status: e.status,
+            })),
+          },
+        };
       }
 
       case 'add_to_watchlist': {
@@ -424,9 +444,7 @@ async function executeToolCall(toolName: string, toolInput: any) {
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(toolInput),
         }).then(r => r.json());
-        return result.success
-          ? { success: true, summary: `Added ${toolInput.ticker} to watchlist` }
-          : result;
+        return result.success ? { success: true } : result;
       }
 
       case 'get_trades': {
@@ -434,17 +452,20 @@ async function executeToolCall(toolName: string, toolInput: any) {
         if (toolInput.ticker) params.set('ticker', toolInput.ticker);
         if (toolInput.portfolio) params.set('portfolio', toolInput.portfolio);
         const data = await fetch(`${BASE_URL}/api/trades?${params}`).then(r => r.json());
-        if (!data.trades || data.trades.length === 0) {
-          return { success: true, summary: 'No trades found' };
-        }
-        let summary = `TRADES (${data.trades.length}):\n`;
-        data.trades.slice(0, 20).forEach((t: any) => {
-          summary += `  ${t.timestamp} | ${t.portfolio} | ${t.action} ${t.ticker} ${t.shares} @ $${t.price}\n`;
-        });
-        if (data.trades.length > 20) {
-          summary += `  ... and ${data.trades.length - 20} more\n`;
-        }
-        return { success: true, summary };
+        return {
+          success: true,
+          data: {
+            trades: data.trades?.map((t: any) => ({
+              timestamp: t.timestamp,
+              portfolio: t.portfolio,
+              ticker: t.ticker,
+              action: t.action,
+              shares: t.shares,
+              price: t.price,
+              total_value: t.total_value,
+            })),
+          },
+        };
       }
 
       case 'log_trade': {
@@ -453,18 +474,21 @@ async function executeToolCall(toolName: string, toolInput: any) {
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(toolInput),
         }).then(r => r.json());
-        return result.success
-          ? { success: true, summary: `Logged ${toolInput.action} ${toolInput.ticker}: ${toolInput.shares} shares @ $${toolInput.price}` }
-          : result;
+        return result.success ? { success: true } : result;
       }
 
       case 'get_analytics': {
         const data = await fetch(`${BASE_URL}/api/analytics/${toolInput.ticker}`).then(r => r.json());
-        let summary = `${toolInput.ticker} ANALYTICS:\n`;
-        if (data.technical) summary += `\nTechnical:\n${data.technical.substring(0, 300)}...\n`;
-        if (data.fundamental) summary += `\nFundamental:\n${data.fundamental.substring(0, 300)}...\n`;
-        if (data.thesis) summary += `\nThesis:\n${data.thesis.substring(0, 300)}...\n`;
-        return { success: true, summary };
+        // Return analytics for LLM to summarize
+        return {
+          success: true,
+          data: {
+            ticker: toolInput.ticker,
+            technical: data.technical?.substring(0, 1000), // Truncate for size
+            fundamental: data.fundamental?.substring(0, 1000),
+            thesis: data.thesis?.substring(0, 1000),
+          },
+        };
       }
 
       case 'update_analytics': {
@@ -473,37 +497,44 @@ async function executeToolCall(toolName: string, toolInput: any) {
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ content: toolInput.content }),
         }).then(r => r.json());
-        return result.success
-          ? { success: true, summary: `Updated ${toolInput.ticker} ${toolInput.type} analysis` }
-          : result;
+        return result.success ? { success: true } : result;
       }
 
       case 'get_news': {
         const params = new URLSearchParams();
         if (toolInput.limit) params.set('limit', Math.min(toolInput.limit, 10).toString());
         const data = await fetch(`${BASE_URL}/api/news/${toolInput.ticker}?${params}`).then(r => r.json());
-        if (!data.articles || data.articles.length === 0) {
-          return { success: true, summary: `No news found for ${toolInput.ticker}` };
-        }
-        let summary = `${toolInput.ticker} NEWS (${data.articles.length} articles):\n`;
-        data.articles.slice(0, 5).forEach((a: any) => {
-          summary += `  - ${a.date}: ${a.title || 'No title'}\n`;
-        });
-        return { success: true, summary };
+        return {
+          success: true,
+          data: {
+            ticker: toolInput.ticker,
+            articles: data.articles?.map((a: any) => ({
+              date: a.date,
+              title: a.title,
+              source: a.source,
+              url: a.url,
+            })),
+          },
+        };
       }
 
       case 'get_prices': {
         const params = new URLSearchParams();
-        if (toolInput.limit) params.set('limit', Math.min(toolInput.limit, 5).toString());
+        if (toolInput.limit) params.set('limit', Math.min(toolInput.limit, 10).toString());
         const data = await fetch(`${BASE_URL}/api/prices/${toolInput.ticker}?${params}`).then(r => r.json());
-        if (!data.prices || data.prices.length === 0) {
-          return { success: true, summary: `No price data for ${toolInput.ticker}` };
-        }
-        let summary = `${toolInput.ticker} PRICES:\n`;
-        data.prices.slice(0, 5).forEach((p: any) => {
-          summary += `  ${p.date}: O:$${p.open} H:$${p.high} L:$${p.low} C:$${p.close}\n`;
-        });
-        return { success: true, summary };
+        return {
+          success: true,
+          data: {
+            ticker: toolInput.ticker,
+            prices: data.prices?.map((p: any) => ({
+              date: p.date,
+              open: p.open,
+              high: p.high,
+              low: p.low,
+              close: p.close,
+            })),
+          },
+        };
       }
 
       default:
@@ -611,8 +642,12 @@ export async function POST(request: NextRequest) {
               let content: string;
               if (result.error) {
                 content = `Error: ${result.error}`;
-              } else if (result.summary) {
-                content = result.summary;
+              } else if (result.data) {
+                // Send structured data as JSON for LLM to consolidate
+                content = JSON.stringify(result.data);
+              } else if (result.success !== undefined) {
+                // Mutation operations - return success confirmation
+                content = result.success ? 'Success' : 'Failed';
               } else {
                 content = JSON.stringify(result);
               }
