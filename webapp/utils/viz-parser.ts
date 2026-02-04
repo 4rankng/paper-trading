@@ -1,6 +1,55 @@
 import { VizCommand, ParsedViz, VizType } from '@/types/visualizations';
 
-const VIZ_REGEX = /!\[viz:(\w+)\]\(([\s\S]*?)\)/g;
+// Match viz markdown: ![viz:type](...)
+const VIZ_REGEX = /!\[viz:(\w+)\]\(/g;
+
+// Extract complete JSON by matching parentheses
+function extractJSON(text: string, startIndex: number): { json: string; endIndex: number } | null {
+  let parenCount = 0;
+  let i = startIndex;
+  let inString = false;
+  let escapeNext = false;
+
+  while (i < text.length) {
+    const char = text[i];
+
+    if (escapeNext) {
+      escapeNext = false;
+      i++;
+      continue;
+    }
+
+    if (char === '\\') {
+      escapeNext = true;
+      i++;
+      continue;
+    }
+
+    if (char === '"') {
+      inString = !inString;
+      i++;
+      continue;
+    }
+
+    if (!inString) {
+      if (char === '(') {
+        parenCount++;
+      } else if (char === ')') {
+        parenCount--;
+        if (parenCount === 0) {
+          // Found matching closing parenthesis
+          const json = text.substring(startIndex, i);
+          return { json, endIndex: i + 1 };
+        }
+      }
+    }
+
+    i++;
+  }
+
+  // No matching closing parenthesis found
+  return null;
+}
 
 // Map chart type aliases to 'chart' type
 const CHART_TYPE_ALIASES: Record<string, 'line' | 'bar' | 'scatter'> = {
@@ -13,10 +62,23 @@ export function parseVizCommands(text: string): ParsedViz[] {
   const vizCommands: ParsedViz[] = [];
   let match;
 
+  // Reset regex for new search
+  VIZ_REGEX.lastIndex = 0;
+
   while ((match = VIZ_REGEX.exec(text)) !== null) {
-    const [fullMatch, typeStr, jsonStr] = match;
+    const typeStr = match[1];
     const startIndex = match.index;
-    const endIndex = startIndex + fullMatch.length;
+    const openParenIndex = startIndex + match[0].length;
+
+    // Extract JSON by matching parentheses
+    const result = extractJSON(text, openParenIndex);
+
+    if (!result) {
+      console.log('[viz-parser] No matching closing parenthesis found for viz at', startIndex);
+      continue;
+    }
+
+    const { json: jsonStr, endIndex } = result;
 
     try {
       const data = JSON.parse(jsonStr);
