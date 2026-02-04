@@ -77,18 +77,33 @@ def _is_project_root(path: Path) -> bool:
     return any((path / m).exists() for m in markers)
 
 
+def get_filedb_dir() -> Path:
+    """
+    Get the centralized filedb directory for all data storage.
+
+    The filedb/ directory is the single source of truth for all
+    persistent data in the stock advisor system.
+
+    Returns:
+        Path: Full path to the filedb directory
+    """
+    root = get_project_root()
+    filedb = root / "filedb"
+    filedb.mkdir(parents=True, exist_ok=True)
+    return filedb
+
+
 def get_data_dir(name: str) -> Path:
     """
-    Get a data directory path by name.
+    Get a data directory path by name within filedb/.
 
     Args:
         name: Directory name (e.g., 'prices', 'analytics', 'news')
 
     Returns:
-        Path: Full path to the data directory
+        Path: Full path to the data directory within filedb/
     """
-    root = get_project_root()
-    return root / name
+    return get_filedb_dir() / name
 
 
 def ensure_dir(path: Path) -> Path:

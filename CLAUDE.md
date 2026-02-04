@@ -11,6 +11,26 @@ Stdout responses must be mobile-friendly:
 
 *(Files: research/analytics/plans may use any format)*
 
+## Data Storage Architecture
+
+All persistent data is centralized in `filedb/` directory:
+
+```
+filedb/
+├── analytics/{TICKER}/           # Technical, fundamental, thesis files
+├── prices/{TICKER}.csv           # Historical OHLCV data
+├── news/{TICKER}/{YYYY}/{MM}/    # News articles by date
+├── portfolios.json               # Portfolio holdings (multi-portfolio)
+├── watchlist.json                # Watchlist with strategy classification
+├── trade_log.csv                 # Trade execution history
+├── trading-plans/                # Generated trading plans
+├── trading-debates/              # Multi-agent debate results
+├── ask-history/                  # LLM question generation history
+└── macro/                        # Macroeconomic analysis files
+```
+
+**Data Access:** Use `.claude/shared/data_access.py` DataAccess class for all file I/O.
+
 ## Core Skills
 
 | Skill | Purpose | Trigger |
@@ -39,6 +59,6 @@ Stdout responses must be mobile-friendly:
 **Market Sentiment:** ALWAYS check CNN Fear & Greed Index (https://edition.cnn.com/markets/fear-and-greed) when analyzing market conditions or providing trade recommendations.
 
 **Data-First Decision Making:** Before ANY recommendation, ALWAYS:
-1. Read existing analytics files: `analytics/{TICKER}/` (technical, fundamental, thesis)
+1. Read existing analytics files from `filedb/analytics/{TICKER}/` (technical, fundamental, thesis)
 2. Web search for fresh data: latest news, earnings, catalysts, sector developments
 3. Check data freshness: Files older than 24h must be refreshed with `/analyze {TICKER}`

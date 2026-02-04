@@ -2,10 +2,10 @@
 Common utilities for portfolio management scripts.
 
 Multi-Portfolio Architecture (v3.0 Minimal):
-- Uses portfolios.json with multiple portfolios
+- Uses filedb/portfolios.json with multiple portfolios
 - SHARED cash pool at top level (all portfolios share the same cash)
 - Portfolios only contain MINIMAL stock position data (ticker, shares, avg_cost, current_price, status)
-- All analysis data (thesis, sector, machine_type, etc.) stored in analytics/[TICKER]/ folder
+- All analysis data (thesis, sector, machine_type, etc.) stored in filedb/analytics/[TICKER]/ folder
 
 Structure:
 {
@@ -30,12 +30,12 @@ Structure:
   "metadata": {"default_portfolio": "CORE", "version": "3.0"}
 }
 
-IMPORTANT: portfolios.json is for MINIMAL data only.
-Analysis data lives in analytics/[TICKER]/:
+IMPORTANT: filedb/portfolios.json is for MINIMAL data only.
+Analysis data lives in filedb/analytics/[TICKER]/:
   - {TICKER}_investment_thesis.md
   - {TICKER}_technical_analysis.md
   - {TICKER}_fundamental_analysis.md
-  - price.csv (historical prices)
+  - price.csv (historical prices in filedb/prices/)
 """
 import csv
 import json
@@ -50,7 +50,7 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parents[3]))
 
 try:
-    from shared.project import get_project_root
+    from shared.project import get_project_root, get_filedb_dir
     from shared.data_access import DataAccess as _DataAccess
     from shared.validators import validate_portfolio_structure as _validate_portfolio_structure
     SHARED_AVAILABLE = True
@@ -66,6 +66,8 @@ except ImportError:
                 return current
             if (current / "watchlist.json").exists():
                 return current
+            if (current / "filedb").exists():
+                return current
             parent = current.parent
             if parent == current:  # reached root
                 break
@@ -80,11 +82,16 @@ except ImportError:
             return Path(*parts) if parts else Path.cwd()
         return Path.cwd()
 
+    def get_filedb_dir() -> Path:
+        """Get the filedb directory."""
+        root = get_project_root()
+        return root / "filedb"
+
 
 def load_portfolios(path: Path | None = None) -> dict:
-    """Load portfolios.json from project root."""
+    """Load portfolios.json from filedb/."""
     if path is None:
-        path = get_project_root() / "portfolios.json"
+        path = get_filedb_dir() / "portfolios.json"
     if not path.exists():
         raise FileNotFoundError(f"Portfolios not found: {path}")
     with open(path) as f:
@@ -92,15 +99,16 @@ def load_portfolios(path: Path | None = None) -> dict:
 
 
 def save_portfolios(portfolios: dict, path: Path | None = None) -> None:
-    """Save portfolios.json to project root."""
+    """Save portfolios.json to filedb/."""
     if path is None:
-        path = get_project_root() / "portfolios.json"
+        path = get_filedb_dir() / "portfolios.json"
+    path.parent.mkdir(parents=True, exist_ok=True)
     with open(path, "w") as f:
         json.dump(portfolios, f, indent=2)
 
 
 def get_shared_cash(path: Path | None = None) -> dict:
-    """Get the shared cash pool from portfolios.json.
+    """Get the shared cash pool from filedb/portfolios.json.
 
     Args:
         path: Path to portfolios.json
@@ -109,7 +117,7 @@ def get_shared_cash(path: Path | None = None) -> dict:
         Dict with amount and target_buffer_pct
     """
     if path is None:
-        path = get_project_root() / "portfolios.json"
+        path = get_filedb_dir() / "portfolios.json"
     if not path.exists():
         raise FileNotFoundError(f"Portfolios not found: {path}")
 
@@ -125,7 +133,7 @@ def update_shared_cash(amount: float, path: Path | None = None) -> None:
         path: Path to portfolios.json
     """
     if path is None:
-        path = get_project_root() / "portfolios.json"
+        path = get_filedb_dir() / "portfolios.json"
 
     portfolios = load_portfolios(path)
     portfolios["cash"]["amount"] = round(amount, 2)
@@ -135,7 +143,7 @@ def update_shared_cash(amount: float, path: Path | None = None) -> None:
 
 
 def get_portfolio(portfolio_name: str | None = None, path: Path | None = None, include_cash: bool = True) -> dict:
-    """Get a specific portfolio from portfolios.json.
+    """Get a specific portfolio from filedb/portfolios.json.
 
     Args:
         portfolio_name: Name of portfolio (e.g., "CORE", "AI_PICKS").
@@ -152,7 +160,7 @@ def get_portfolio(portfolio_name: str | None = None, path: Path | None = None, i
         ValueError: If portfolio_name not found
     """
     if path is None:
-        path = get_project_root() / "portfolios.json"
+        path = get_filedb_dir() / "portfolios.json"
     if not path.exists():
         raise FileNotFoundError(f"Portfolios not found: {path}")
 
@@ -181,7 +189,7 @@ def list_portfolios(path: Path | None = None) -> dict:
         Dict with shared_cash and portfolios list
     """
     if path is None:
-        path = get_project_root() / "portfolios.json"
+        path = get_filedb_dir() / "portfolios.json"
     if not path.exists():
         return {"shared_cash": {"amount": 0, "target_buffer_pct": 15}, "portfolios": []}
 
@@ -388,13 +396,14 @@ def log_trade(
     portfolio_name: str = "CORE",
 ) -> dict:
     """
-    Log a trade to trade_log.csv with portfolio_name support.
+    Log a trade to filedb/trade_log.csv with portfolio_name support.
 
     Returns:
         dict with trade details
     """
     if trade_log_path is None:
-        trade_log_path = get_project_root() / "trade_log.csv"
+        trade_log_path = get_filedb_dir() / "trade_log.csv"
+        trade_log_path.parent.mkdir(parents=True, exist_ok=True)
 
     if timestamp is None:
         timestamp = datetime.now().isoformat()

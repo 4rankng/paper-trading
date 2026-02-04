@@ -35,6 +35,14 @@ def get_project_root() -> Path:
     return Path(*current_path.parts[:current_path.parts.index("skills") - 2])
 
 
+def get_filedb_dir() -> Path:
+    """Get the filedb directory for centralized data storage."""
+    root = get_project_root()
+    filedb = root / "filedb"
+    filedb.mkdir(parents=True, exist_ok=True)
+    return filedb
+
+
 def get_timestamp() -> str:
     """Get current timestamp in ISO format."""
     return datetime.now(timezone.utc).isoformat().replace('+00:00', 'Z')
@@ -87,12 +95,12 @@ def output_error(message: str, exit_code: int = 1) -> None:
 # ============================================================================
 
 class WatchlistManager:
-    """Manages lean watchlist.json."""
+    """Manages lean watchlist.json from filedb/."""
 
     def __init__(self, watchlist_path: Path = None):
         """Initialize WatchlistManager."""
-        project_root = get_project_root()
-        self.watchlist_path = watchlist_path or (project_root / "watchlist.json")
+        filedb = get_filedb_dir()
+        self.watchlist_path = watchlist_path or (filedb / "watchlist.json")
         self._watchlist_cache = None
 
     def _load_watchlist(self) -> List[Dict]:

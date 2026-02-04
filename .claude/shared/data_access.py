@@ -16,7 +16,7 @@ try:
 except ImportError:
     HAS_PANDAS = False
 
-from .project import get_project_root
+from .project import get_project_root, get_filedb_dir
 
 
 @dataclass
@@ -98,17 +98,23 @@ class DataAccess:
         """
         Initialize DataAccess with project root.
 
+        All data is stored under the filedb/ directory for centralized
+        data management.
+
         Args:
             project_root: Optional project root path. If not provided,
                          will be detected automatically.
         """
         self.root = project_root or get_project_root()
-        self._analytics_dir = self.root / "analytics"
-        self._prices_dir = self.root / "prices"
-        self._news_dir = self.root / "news"
-        self._portfolios_path = self.root / "portfolios.json"
-        self._watchlist_path = self.root / "watchlist.json"
-        self._trade_log_path = self.root / "trade_log.csv"
+        self._filedb = get_filedb_dir()
+
+        # All data directories now under filedb/
+        self._analytics_dir = self._filedb / "analytics"
+        self._prices_dir = self._filedb / "prices"
+        self._news_dir = self._filedb / "news"
+        self._portfolios_path = self._filedb / "portfolios.json"
+        self._watchlist_path = self._filedb / "watchlist.json"
+        self._trade_log_path = self._filedb / "trade_log.csv"
 
         # Cache for expensive operations
         self._cache: Dict[str, Any] = {}

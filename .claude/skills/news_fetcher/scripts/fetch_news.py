@@ -39,6 +39,14 @@ def get_project_root() -> Path:
     return Path(__file__).parent.parent.parent.parent
 
 
+def get_filedb_dir() -> Path:
+    """Get the filedb directory for centralized data storage."""
+    root = get_project_root()
+    filedb = root / "filedb"
+    filedb.mkdir(parents=True, exist_ok=True)
+    return filedb
+
+
 def generate_slug(title: str) -> str:
     """Generate URL-friendly slug from news headline."""
     # Remove special characters
@@ -145,7 +153,9 @@ class NewsFetcher:
             max_headlines: Maximum headlines to fetch per ticker
         """
         self.project_root = get_project_root()
-        self.news_dir = self.project_root / 'news'
+        self.filedb = get_filedb_dir()
+        self.news_dir = self.filedb / 'news'
+        self.news_dir.mkdir(parents=True, exist_ok=True)
         self.max_headlines = max_headlines
         self.results = {}
         self.errors = []

@@ -38,13 +38,13 @@ except ImportError:
     sys.exit(1)
 
 try:
-    from shared.data_access import get_project_root
+    from shared.data_access import get_project_root, get_filedb_dir
 except ImportError:
     # Fallback for when run from scripts directory directly
     def get_project_root() -> Path:
         """Get project root directory using marker files."""
         p = Path(__file__).resolve()
-        markers = ['prices/', '.git/', 'watchlist.json']
+        markers = ['filedb/', '.git/', 'watchlist.json']
         for parent in [p, *p.parents]:
             if any((parent / m).exists() for m in markers):
                 return parent
@@ -52,6 +52,13 @@ except ImportError:
             idx = p.parts.index(".claude")
             return Path(*p.parts[:idx])
         raise RuntimeError("Project root not found")
+
+    def get_filedb_dir() -> Path:
+        """Get the filedb directory."""
+        root = get_project_root()
+        filedb = root / "filedb"
+        filedb.mkdir(parents=True, exist_ok=True)
+        return filedb
 
 
 class PriceFetcher:
@@ -67,7 +74,9 @@ class PriceFetcher:
             tickers: Multiple tickers to fetch
         """
         self.project_root = get_project_root()
-        self.prices_dir = self.project_root / 'prices'
+        self.filedb = get_filedb_dir()
+        self.prices_dir = self.filedb / 'prices'
+        self.prices_dir.mkdir(parents=True, exist_ok=True)
         self.period = period if period in ["6mo", "1y", "2y"] else "2y"
         self.results = {}
         self.errors = []
