@@ -15,10 +15,6 @@ interface HybridTerminalProps {
 }
 
 export default function HybridTerminal({ className = '' }: HybridTerminalProps) {
-  const renderCountRef = useRef(0);
-  renderCountRef.current += 1;
-  console.log('[HybridTerminal] Render #', renderCountRef.current);
-
   const terminalRef = useRef<HTMLDivElement>(null);
   const xtermRef = useRef<Terminal | null>(null);
   const fitAddonRef = useRef<FitAddon | null>(null);
@@ -43,24 +39,17 @@ export default function HybridTerminal({ className = '' }: HybridTerminalProps) 
 
   // Scroll to bottom when new messages arrive
   useEffect(() => {
-    console.log('[Scroll Effect] Messages length:', messages.length);
     if (outputContainerRef.current) {
       outputContainerRef.current.scrollTop = outputContainerRef.current.scrollHeight;
     }
   }, [messages.length]);
 
-  // Write prompt - bold, high-contrast for visual anchor
+  // Write prompt - compact, inline for modern terminal feel
   const writePrompt = useCallback((terminal: Terminal, currentInput = '') => {
-    console.log('[writePrompt] Called with input:', JSON.stringify(currentInput));
-    console.trace('[writePrompt] Call stack:');
-
-    // Build complete prompt string first to avoid multiple writes
-    const promptStr = '\r\n\x1b[1;32m➜\x1b[0m \x1b[1;36muser@termai\x1b[0m:\x1b[1;34m~\x1b[0m$ ' + currentInput;
-
+    // Compact inline prompt without newline
+    const promptStr = '\r\x1b[1;32m➜\x1b[0m \x1b[1;36muser@termai\x1b[0m:\x1b[1;34m~\x1b[0m$ ' + currentInput;
     terminal.clear();
     terminal.write(promptStr);
-
-    console.log('[writePrompt] Completed, wrote:', JSON.stringify(promptStr));
   }, []);
 
   // Execute command - accepts store state to avoid closure staleness
@@ -159,19 +148,14 @@ export default function HybridTerminal({ className = '' }: HybridTerminalProps) 
       const errorMsg = err instanceof Error ? err.message : 'Failed to send message';
       setError(errorMsg);
     } finally {
-      console.log('[Finally] Command completed, calling writePrompt');
       setLoading(false);
-      // Rewrite prompt after completion
+      // Clear terminal after completion - prompt appears when user starts typing
       const terminal = xtermRef.current;
       if (terminal) {
-        console.log('[Finally] Terminal exists, calling writePrompt');
-        writePrompt(terminal);
-        console.log('[Finally] writePrompt completed');
-      } else {
-        console.log('[Finally] Terminal does NOT exist!');
+        terminal.clear();
       }
     }
-  }, [writePrompt]);
+  }, [writePrompt, updateLastMessage]);
 
   // Execute command for external calls (e.g., from data handler)
   const executeCommand = useCallback(async (command: string) => {
@@ -192,13 +176,13 @@ export default function HybridTerminal({ className = '' }: HybridTerminalProps) 
         const terminal = new Terminal({
             theme: getXtermTheme(defaultTheme),
             fontFamily: "'Fira Code', 'Source Code Pro', monospace",
-            fontSize: 14,
-            lineHeight: 1.6,
+            fontSize: 13,
+            lineHeight: 1.4,
             cursorBlink: true,
             cursorStyle: 'block',
             scrollback: 0, // No scrollback, messages render above
-            rows: 3, // Just enough for input line
-            letterSpacing: 1.2,
+            rows: 2, // Compact input line
+            letterSpacing: 1.1,
           });
 
           const fitAddon = new FitAddon();
@@ -228,7 +212,6 @@ export default function HybridTerminal({ className = '' }: HybridTerminalProps) 
 
         // Set up data handler - uses refs to always access latest values
         const handleData = (data: string) => {
-          console.log('[Handler] Received data:', JSON.stringify(data), 'charCode:', data.charCodeAt(0));
           const currentCommandHistory = useTerminalStore.getState().commandHistory;
 
           // Handle Enter key
@@ -252,12 +235,10 @@ export default function HybridTerminal({ className = '' }: HybridTerminalProps) 
 
           // Handle Backspace - manually move cursor back and clear character
           if (data === '\u007F') {
-            console.log('[Backspace] Buffer before:', JSON.stringify(inputBufferRef.current));
             if (inputBufferRef.current.length > 0) {
               inputBufferRef.current = inputBufferRef.current.slice(0, -1);
               // Move cursor back one position and clear character
               terminal.write('\b \b');
-              console.log('[Backspace] Buffer after:', JSON.stringify(inputBufferRef.current));
             }
             return;
           }
@@ -301,16 +282,17 @@ export default function HybridTerminal({ className = '' }: HybridTerminalProps) 
           // Regular character input (printable ASCII)
           const charCode = data.charCodeAt(0);
           if (charCode >= 32 && charCode <= 126) {
-            console.log('[Char] Adding:', data, 'Buffer before:', JSON.stringify(inputBufferRef.current));
+            // If buffer is empty, write prompt first
+            if (inputBufferRef.current.length === 0) {
+              writePrompt(terminal);
+            }
             inputBufferRef.current += data;
             terminal.write(data);
-            console.log('[Char] Buffer after:', JSON.stringify(inputBufferRef.current));
           }
         };
 
         // Only attach handler once (prevents React Strict Mode double attachment)
         if (!handlerAttachedRef.current) {
-          console.log('[Handler] Attaching onData handler');
           terminal.onData(handleData);
           handlerAttachedRef.current = true;
         }
@@ -352,38 +334,38 @@ export default function HybridTerminal({ className = '' }: HybridTerminalProps) 
 
   return (
     <div className={`flex flex-col h-full bg-[#1E1E1E] ${className}`}>
-      {/* Message output area with inline visualizations */}
+      {/* Message output area with inline visualizations - optimized padding */}
       <div
         ref={outputContainerRef}
-        className="flex-1 overflow-y-auto p-4 space-y-4"
+        className="flex-1 overflow-y-auto px-4 py-3"
       >
         {messages.length === 0 && (
-          <div className="text-center py-8">
-            <div className="text-[#5C6AC4] text-lg mb-2">Welcome to TermAI Explorer</div>
-            <div className="text-[#858585] text-sm">
-              Type a message and press Enter to start
+          <div className="text-center py-12">
+            <div className="text-white font-bold text-xl mb-3 tracking-wide">TermAI Explorer</div>
+            <div className="text-[#5a5a5a] text-sm">
+              Type a command and press Enter
             </div>
           </div>
         )}
         <TerminalOutput messages={messages} />
         {isLoading && (
-          <div className="text-[#5C6AC4] animate-pulse">Thinking...</div>
+          <div className="text-[#5C6AC4] animate-pulse mt-2 text-sm">Processing...</div>
         )}
         {error && (
-          <div className="text-[#F48771] bg-[#F48771]/10 border border-[#F48771] rounded p-3">
-            Error: {error}
+          <div className="text-[#F48771] bg-[#F48771]/10 border-l-2 border-[#F48771] rounded-r p-3 mt-4">
+            {error}
           </div>
         )}
       </div>
 
-      {/* Terminal input area */}
+      {/* Terminal input area - optimized height */}
       <div
         className="border-t border-[#333333] bg-[#1E1E1E]"
         onClick={() => {
           xtermRef.current?.focus();
         }}
       >
-        <div ref={terminalRef} className="w-full" style={{ minHeight: '80px', height: '80px' }} />
+        <div ref={terminalRef} className="w-full" style={{ minHeight: '56px', height: '56px' }} />
       </div>
     </div>
   );

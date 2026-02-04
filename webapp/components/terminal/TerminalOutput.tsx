@@ -11,11 +11,11 @@ interface TerminalOutputProps {
 
 export default function TerminalOutput({ messages }: TerminalOutputProps) {
   return (
-    <div className="space-y-2">
+    <div className="space-y-3">
       {messages.map((msg, i) => (
-        <div key={i} className="mb-2">
+        <div key={i} className="mb-1">
           {/* System metadata: heavily de-emphasized, minimal visual weight */}
-          <div className="text-[#6a6a6a] text-[10px] mb-2 font-mono opacity-40 tracking-wider">
+          <div className="text-[#5a5a5a] text-[10px] mb-1.5 font-mono opacity-40 tracking-wider">
             {msg.role === 'user' ? (
               <span className="text-[#89D185]">➜ user</span>
             ) : (
@@ -23,8 +23,8 @@ export default function TerminalOutput({ messages }: TerminalOutputProps) {
             )}
             {' '}{new Date(msg.timestamp).toLocaleTimeString()}
           </div>
-          {/* Primary output: bolder font weight for readability */}
-          <div className="text-[#E8E8E8] font-mono whitespace-pre-wrap leading-relaxed tracking-wide font-[400] text-[15px]">
+          {/* Primary output: optimized font weight and size */}
+          <div className="text-[#E8E8E8] font-mono whitespace-pre-wrap leading-relaxed tracking-wide font-normal text-sm">
             <MessageContent message={msg} />
           </div>
         </div>
@@ -46,26 +46,26 @@ function MessageContent({ message }: { message: Message }) {
               key={i}
               className="prose prose-invert max-w-none prose-sm"
               components={{
-                // Headers: bold white, not purple - create clear hierarchy
-                h1: ({ children }) => <h1 className="text-white font-bold text-xl mb-4 mt-6 tracking-wide">{children}</h1>,
-                h2: ({ children }) => <h2 className="text-white font-semibold text-lg mb-3 mt-5 tracking-wide">{children}</h2>,
-                h3: ({ children }) => <h3 className="text-white font-medium text-base mb-2 mt-4 tracking-wide">{children}</h3>,
-                // Paragraphs: tighter spacing for related content
-                p: ({ children }) => <p className="mb-2 text-[#E8E8E8] leading-relaxed tracking-wide">{children}</p>,
+                // Headers: bold white, not purple - create clear hierarchy, compact spacing
+                h1: ({ children }) => <h1 className="text-white font-bold text-lg mb-3 mt-4 tracking-wide">{children}</h1>,
+                h2: ({ children }) => <h2 className="text-white font-semibold text-base mb-2.5 mt-3 tracking-wide">{children}</h2>,
+                h3: ({ children }) => <h3 className="text-white font-medium text-sm mb-2 mt-2 tracking-wide">{children}</h3>,
+                // Paragraphs: compact spacing
+                p: ({ children }) => <p className="mb-1.5 text-[#E8E8E8] leading-relaxed tracking-wide">{children}</p>,
                 // Code: cyan for interactive elements
                 code: ({ children }) => (
-                  <code className="bg-[#252526] text-[#4FC1FF] px-1.5 py-0.5 rounded text-sm tracking-wide border border-[#333333] font-normal">{children}</code>
+                  <code className="bg-[#252526] text-[#4FC1FF] px-1 py-0.5 rounded text-sm tracking-wide border border-[#333333] font-normal">{children}</code>
                 ),
                 pre: ({ children }) => (
-                  <pre className="bg-[#1a1a1a] border border-[#333333] rounded p-3 overflow-x-auto text-sm leading-relaxed tracking-wide my-4">{children}</pre>
+                  <pre className="bg-[#1a1a1a] border border-[#333333] rounded p-2.5 overflow-x-auto text-sm leading-relaxed tracking-wide my-3">{children}</pre>
                 ),
-                // Lists: left-aligned numbers, indented body
-                ul: ({ children }) => <ul className="list-disc list-inside mb-4 space-y-1 ml-0">{children}</ul>,
-                ol: ({ children }) => <ol className="list-decimal list-inside mb-4 space-y-1 ml-0">{children}</ol>,
-                li: ({ children }) => <li className="text-[#D0D0D0] leading-relaxed pl-1">{children}</li>,
-                // Strong/bold: white for primary emphasis, not purple
+                // Lists: left-aligned, compact
+                ul: ({ children }) => <ul className="list-disc list-inside mb-3 space-y-1 ml-0">{children}</ul>,
+                ol: ({ children }) => <ol className="list-decimal list-inside mb-3 space-y-1 ml-0">{children}</ol>,
+                li: ({ children }) => <li className="text-[#D0D0D0] leading-relaxed pl-0.5">{children}</li>,
+                // Strong/bold: white for primary emphasis
                 strong: ({ children }) => <strong className="text-white font-bold">{children}</strong>,
-                // Links: blue accent, kept for interactive elements
+                // Links: blue accent
                 a: ({ children, href }) => (
                   <a href={href} className="text-[#5C6AC4] hover:text-[#75BEFF] underline transition-colors" target="_blank" rel="noopener noreferrer">{children}</a>
                 ),
@@ -77,7 +77,7 @@ function MessageContent({ message }: { message: Message }) {
         } else if (part.type === 'viz') {
           const viz = vizCommands[part.index!];
           return (
-            <div key={i} className="my-6">
+            <div key={i} className="my-4">
               <VizRenderer command={viz.command} />
             </div>
           );
