@@ -14,15 +14,17 @@ export default function TerminalOutput({ messages }: TerminalOutputProps) {
     <div className="space-y-4">
       {messages.map((msg, i) => (
         <div key={i} className="mb-4">
-          <div className="text-[#858585] text-xs mb-2 font-mono">
+          {/* System metadata: smaller, lower opacity for hierarchy */}
+          <div className="text-[#858585] text-xs mb-3 font-mono opacity-60">
             {msg.role === 'user' ? (
-              <span className="text-[#89D185]">➜ user@termai</span>
+              <span className="text-[#89D185] font-semibold">➜ user@termai</span>
             ) : (
               <span className="text-[#5C6AC4]">→ assistant</span>
             )}
             {' '}@ {new Date(msg.timestamp).toLocaleTimeString()}
           </div>
-          <div className="text-[#E0E0E0] font-mono whitespace-pre-wrap">
+          {/* Primary output: enhanced readability with better leading and spacing */}
+          <div className="text-[#E0E0E0] font-mono whitespace-pre-wrap leading-relaxed tracking-wide">
             <MessageContent message={msg} />
           </div>
         </div>
@@ -44,19 +46,19 @@ function MessageContent({ message }: { message: Message }) {
               key={i}
               className="prose prose-invert max-w-none prose-sm"
               components={{
-                p: ({ children }) => <p className="mb-2 text-[#E0E0E0]">{children}</p>,
+                p: ({ children }) => <p className="mb-3 text-[#E0E0E0] leading-relaxed tracking-wide">{children}</p>,
                 code: ({ children }) => (
-                  <code className="bg-[#252526] text-[#4FC1FF] px-1.5 py-0.5 rounded text-sm">{children}</code>
+                  <code className="bg-[#252526] text-[#4FC1FF] px-2 py-1 rounded text-sm tracking-wide border border-[#333333]">{children}</code>
                 ),
                 pre: ({ children }) => (
-                  <pre className="bg-[#252526] border border-[#333333] rounded p-3 overflow-x-auto text-sm">{children}</pre>
+                  <pre className="bg-[#252526] border border-[#333333] rounded p-3 overflow-x-auto text-sm leading-relaxed tracking-wide">{children}</pre>
                 ),
-                ul: ({ children }) => <ul className="list-disc list-inside mb-2 space-y-1">{children}</ul>,
-                ol: ({ children }) => <ol className="list-decimal list-inside mb-2 space-y-1">{children}</ol>,
-                li: ({ children }) => <li className="text-[#B3B3B3]">{children}</li>,
+                ul: ({ children }) => <ul className="list-disc list-inside mb-3 space-y-1.5">{children}</ul>,
+                ol: ({ children }) => <ol className="list-decimal list-inside mb-3 space-y-1.5">{children}</ol>,
+                li: ({ children }) => <li className="text-[#B3B3B3] leading-relaxed">{children}</li>,
                 strong: ({ children }) => <strong className="text-[#BB86FC] font-semibold">{children}</strong>,
                 a: ({ children, href }) => (
-                  <a href={href} className="text-[#5C6AC4] hover:text-[#75BEFF] underline" target="_blank" rel="noopener noreferrer">{children}</a>
+                  <a href={href} className="text-[#5C6AC4] hover:text-[#75BEFF] underline transition-colors" target="_blank" rel="noopener noreferrer">{children}</a>
                 ),
               }}
             >

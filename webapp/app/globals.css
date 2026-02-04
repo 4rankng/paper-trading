@@ -35,6 +35,9 @@ body {
   color: var(--text-primary);
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+  /* Enhanced typography for readability */
+  line-height: 1.6;
+  letter-spacing: 0.02em;
 }
 
 * {

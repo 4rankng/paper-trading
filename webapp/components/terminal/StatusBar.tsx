@@ -23,42 +23,42 @@ export default function StatusBar() {
   };
 
   return (
-    <div className="h-6 bg-[#007ACC] flex items-center justify-between px-3 text-xs text-white select-none">
-      {/* Left: Session info */}
-      <div className="flex items-center gap-4">
-        <span className="text-[#E0E0E0]">
+    <div className="h-6 bg-[#2D2D2D] flex items-center justify-between px-3 text-xs text-white select-none border-t border-[#333333]">
+      {/* Left: Session info - smaller, lower hierarchy */}
+      <div className="flex items-center gap-4 text-[10px]">
+        <span className="text-[#858585]">
           Session: {sessionId?.slice(0, 8) || '...'}
         </span>
-        <span className="text-[#B3B3B3]">
+        <span className="text-[#858585]">
           {messages.length} message{messages.length !== 1 ? 's' : ''}
         </span>
       </div>
 
-      {/* Center: Quick actions */}
-      <div className="flex items-center gap-3">
+      {/* Center: Quick actions - colored accents */}
+      <div className="flex items-center gap-3 text-[10px]">
         <button
           onClick={handleClearHistory}
-          className="hover:text-[#E0E0E0] transition-colors"
+          className="text-[#5C6AC4] hover:text-[#75BEFF] transition-colors"
           aria-label="Clear history"
         >
           Clear
         </button>
-        <span className="text-[#5C6AC4]">|</span>
+        <span className="text-[#3E3E42]">|</span>
         <button
           onClick={handleSettings}
-          className="hover:text-[#E0E0E0] transition-colors"
+          className="text-[#5C6AC4] hover:text-[#75BEFF] transition-colors"
           aria-label="Settings"
         >
           Settings
         </button>
       </div>
 
-      {/* Right: Timestamp and status */}
+      {/* Right: Timestamp and status - prioritized */}
       <div className="flex items-center gap-4">
-        <span className="text-[#B3B3B3]">
+        <span className="text-[#89D185] font-medium">
           {isLoading ? 'Processing...' : 'Ready'}
         </span>
-        <span className="text-[#E0E0E0] font-mono">
+        <span className="text-[#858585] font-mono text-[10px]">
           {currentTime.toLocaleTimeString('en-US', {
             hour12: false,
             hour: '2-digit',

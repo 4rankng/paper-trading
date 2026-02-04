@@ -43,9 +43,10 @@ export default function HybridTerminal({ className = '' }: HybridTerminalProps) 
     }
   }, [messages.length]);
 
-  // Write prompt
+  // Write prompt - bold, high-contrast for visual anchor
   const writePrompt = useCallback((terminal: Terminal, currentInput = '') => {
     terminal.clear();
+    // Bold green arrow, bold cyan username for clear visual hierarchy
     terminal.write('\r\n\x1b[1;32m➜\x1b[0m \x1b[1;36muser@termai\x1b[0m:\x1b[1;34m~\x1b[0m$ ');
     if (currentInput) {
       terminal.write(currentInput);
@@ -80,12 +81,6 @@ export default function HybridTerminal({ className = '' }: HybridTerminalProps) 
     addMessage(userMessage);
     setLoading(true);
     setError(null);
-
-    // Clear input line and rewrite prompt
-    const terminal = xtermRef.current;
-    if (terminal) {
-      writePrompt(terminal);
-    }
 
     try {
       const response = await fetch('/api/chat', {
@@ -176,11 +171,12 @@ export default function HybridTerminal({ className = '' }: HybridTerminalProps) 
             theme: getXtermTheme(defaultTheme),
             fontFamily: "'Fira Code', 'Source Code Pro', monospace",
             fontSize: 14,
-            lineHeight: 1.2,
+            lineHeight: 1.6,
             cursorBlink: true,
             cursorStyle: 'block',
             scrollback: 0, // No scrollback, messages render above
             rows: 3, // Just enough for input line
+            letterSpacing: 1.2,
           });
 
           const fitAddon = new FitAddon();
