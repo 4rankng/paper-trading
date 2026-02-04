@@ -1,8 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { writeFile, mkdir, readFile } from 'fs/promises';
+import { writeFile, mkdir, readFile, access } from 'fs/promises';
 import { join } from 'path';
 import { Message } from '@/types';
 import { config } from 'dotenv';
+import { constants } from 'fs';
 
 // Load environment variables from project root .env
 const envPath = join(process.cwd(), '../.env');
@@ -13,7 +14,7 @@ const CONVERSATIONS_DIR = join(FILEDB_BASE, 'webapp', 'conversations');
 
 async function ensureDir(dir: string) {
   try {
-    await access(dir);
+    await access(dir, constants.F_OK);
   } catch {
     await mkdir(dir, { recursive: true });
   }

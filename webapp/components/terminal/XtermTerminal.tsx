@@ -6,7 +6,7 @@ import { FitAddon } from 'xterm-addon-fit';
 import { WebLinksAddon } from '@xterm/addon-web-links';
 import { useTerminalStore } from '@/store/useTerminalStore';
 import { getXtermTheme, defaultTheme } from '@/utils/themes';
-import { parseVizCommands, splitTextByVizs } from '@/utils/viz-parser';
+import { parseVizCommands, splitTextByVizs, replaceVizsWithErrors } from '@/utils/viz-parser';
 import { VizCommand } from '@/types/visualizations';
 import 'xterm/css/xterm.css';
 
@@ -283,7 +283,13 @@ export default function XtermTerminal({ className = '', onVisualization }: Xterm
                   assistantMessage += newText;
 
                   // Extract visualizations
-                  const vizs = parseVizCommands(newText);
+                  const { vizs, errors } = parseVizCommands(newText);
+
+                  // If there are errors, replace them with helpful messages
+                  const textWithErrors = errors.length > 0
+                    ? replaceVizsWithErrors(newText, errors)
+                    : newText;
+
                   vizs.forEach(viz => {
                     vizCommands.push(viz.command);
                     if (onVisualization) {
@@ -292,7 +298,7 @@ export default function XtermTerminal({ className = '', onVisualization }: Xterm
                   });
 
                   // Display text (replace viz markers with placeholders)
-                  const parts = splitTextByVizs(newText, vizs);
+                  const parts = splitTextByVizs(textWithErrors, vizs);
                   parts.forEach(part => {
                     if (part.type === 'text') {
                       // Write text in dim color
@@ -342,8 +348,11 @@ export default function XtermTerminal({ className = '', onVisualization }: Xterm
         terminal.writeln(`\x1b[90m${msg.content}\x1b[0m`);
       } else {
         // Parse and display assistant message
-        const vizs = parseVizCommands(msg.content);
-        const parts = splitTextByVizs(msg.content, vizs);
+        const { vizs, errors } = parseVizCommands(msg.content);
+        const contentWithErrors = errors.length > 0
+          ? replaceVizsWithErrors(msg.content, errors)
+          : msg.content;
+        const parts = splitTextByVizs(contentWithErrors, vizs);
         parts.forEach(part => {
           if (part.type === 'text') {
             terminal.write(`\x1b[90m${part.content}\x1b[0m`);

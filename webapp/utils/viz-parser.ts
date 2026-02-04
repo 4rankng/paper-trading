@@ -1,5 +1,14 @@
 import { VizCommand, ParsedViz, VizType } from '@/types/visualizations';
 
+// Export error type for UI display
+export interface VizParseError {
+  startIndex: number;
+  endIndex: number;
+  type: string;
+  error: string;
+  hint: string;
+}
+
 // Match viz markdown: ![viz:type](...)
 const VIZ_REGEX = /!\[viz:(\w+)\]\(/g;
 
@@ -58,8 +67,9 @@ const CHART_TYPE_ALIASES: Record<string, 'line' | 'bar' | 'scatter'> = {
   'scatter': 'scatter',
 };
 
-export function parseVizCommands(text: string): ParsedViz[] {
+export function parseVizCommands(text: string): { vizs: ParsedViz[]; errors: VizParseError[] } {
   const vizCommands: ParsedViz[] = [];
+  const errors: VizParseError[] = [];
   let match;
 
   // Reset regex for new search
@@ -74,6 +84,13 @@ export function parseVizCommands(text: string): ParsedViz[] {
     const result = extractJSON(text, openParenIndex);
 
     if (!result) {
+      errors.push({
+        startIndex,
+        endIndex: openParenIndex + 50, // Approximate end for error display
+        type: typeStr,
+        error: 'Could not find matching closing parenthesis',
+        hint: 'Check that your JSON is properly closed with })',
+      });
       continue;
     }
 
@@ -85,7 +102,7 @@ export function parseVizCommands(text: string): ParsedViz[] {
 
       // Validate that data is an object, not an array (common LLM mistake)
       if (Array.isArray(data)) {
-        throw new Error('Visualization data must be an object, not an array. Check that "rows" is inside the object, not a separate element.');
+        throw new Error('Data must be an object with "headers" and "rows" keys, not an array');
       }
 
       // Handle chart type aliases (bar, line, scatter -> chart)
@@ -119,13 +136,30 @@ export function parseVizCommands(text: string): ParsedViz[] {
         startIndex,
         endIndex,
       });
-    } catch (error) {
+    } catch (error: any) {
       // Log parse errors for debugging
       console.error('[viz-parser] Failed to parse visualization:', error);
       console.error('[viz-parser] JSON was:', jsonStr.substring(0, 200));
+
+      // Create user-friendly error message
+      let hint = 'Check JSON syntax';
+      if (error.message.includes('array')) {
+        hint = 'The "rows" key should be inside the object: {"headers":[...],"rows":[[...]]}';
+      } else if (error.message.includes('JSON')) {
+        hint = 'Check for missing quotes, commas, or brackets';
+      }
+
+      errors.push({
+        startIndex,
+        endIndex,
+        type: typeStr,
+        error: error.message,
+        hint,
+      });
     }
   }
-  return vizCommands;
+
+  return { vizs: vizCommands, errors };
 }
 
 export function replaceVizsWithPlaceholders(
@@ -141,6 +175,26 @@ export function replaceVizsWithPlaceholders(
       const placeholder = `__VIZ_${index}__`;
       result =
         result.substring(0, startIndex) + placeholder + result.substring(endIndex);
+    });
+
+  return result;
+}
+
+export function replaceVizsWithErrors(
+  text: string,
+  errors: VizParseError[]
+): string {
+  let result = text;
+  let errorCount = 0;
+
+  // Replace from end to start to maintain correct indices
+  errors
+    .sort((a, b) => b.startIndex - a.startIndex)
+    .forEach(({ startIndex, endIndex, type, error, hint }) => {
+      const errorPlaceholder = `[⚠️ ${type} chart error: ${error}\n💡 Hint: ${hint}]`;
+      result =
+        result.substring(0, startIndex) + errorPlaceholder + result.substring(endIndex);
+      errorCount++;
     });
 
   return result;

@@ -63,7 +63,9 @@ export async function PUT(
     if (typeof body.stop_loss === 'number') entry.stop_loss = body.stop_loss;
     if (body.status !== undefined) entry.status = body.status;
 
-    data.metadata.last_updated = new Date().toISOString();
+    const metadata: any = data.metadata || {};
+    metadata.last_updated = new Date().toISOString();
+    data.metadata = metadata;
 
     await writeFile(WATCHLIST_PATH, JSON.stringify(data, null, 2));
 
@@ -96,8 +98,10 @@ export async function DELETE(
     }
 
     data.entries.splice(entryIndex, 1);
-    data.metadata.total_count = data.entries.length;
-    data.metadata.last_updated = new Date().toISOString();
+    const metadata: any = data.metadata || {};
+    metadata.total_count = data.entries.length;
+    metadata.last_updated = new Date().toISOString();
+    data.metadata = metadata;
 
     await writeFile(WATCHLIST_PATH, JSON.stringify(data, null, 2));
 

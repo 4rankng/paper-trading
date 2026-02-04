@@ -97,7 +97,7 @@ export default function HybridTerminal({ className = '' }: HybridTerminalProps) 
 
                   // Parse visualizations from accumulated text
                   const { parseVizCommands } = await import('@/utils/viz-parser');
-                  const vizs = parseVizCommands(assistantMessage);
+                  const { vizs } = parseVizCommands(assistantMessage);
                   currentVizs = vizs.map(v => v.command);
 
                   // Update last message in real-time

@@ -76,10 +76,13 @@ export async function POST(
     recalculateSummary(data, id);
 
     // Update metadata timestamp
-    data.metadata = data.metadata || {} as any;
-    data.metadata.last_updated = new Date().toISOString();
-    data.portfolios[id].metadata = data.portfolios[id].metadata || {};
-    data.portfolios[id].metadata.last_updated = new Date().toISOString();
+    const portfolioMetadata: any = data.portfolios[id].metadata || {};
+    portfolioMetadata.last_updated = new Date().toISOString();
+    data.portfolios[id].metadata = portfolioMetadata;
+
+    const globalMetadata: any = data.metadata || {};
+    globalMetadata.last_updated = new Date().toISOString();
+    data.metadata = globalMetadata;
 
     await writeFile(PORTFOLIO_PATH, JSON.stringify(data, null, 2));
 

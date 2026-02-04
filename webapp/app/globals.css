@@ -122,3 +122,8 @@ body {
   word-wrap: break-word;
   overflow-wrap: break-word;
 }
+
+/* Chart.js dark mode fix */
+canvas {
+  color-scheme: dark !important;
+}

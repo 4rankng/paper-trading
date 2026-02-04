@@ -1,7 +1,7 @@
 'use client';
 
 import { Message } from '@/types';
-import { parseVizCommands, splitTextByVizs } from '@/utils/viz-parser';
+import { parseVizCommands, splitTextByVizs, replaceVizsWithErrors } from '@/utils/viz-parser';
 import VizRenderer from '@/components/visualizations/VizRenderer';
 import ReactMarkdown from 'react-markdown';
 
@@ -37,11 +37,16 @@ function UserMessage({ content }: { content: string }) {
 }
 
 function AssistantMessage({ message }: { message: Message }) {
-  // Always parse viz commands from content to get correct positions for text splitting
-  const vizCommands = parseVizCommands(message.content);
+  // Parse viz commands and get any errors
+  const { vizs, errors } = parseVizCommands(message.content);
+
+  // Replace error vizs with helpful error messages
+  const contentWithErrors = errors.length > 0
+    ? replaceVizsWithErrors(message.content, errors)
+    : message.content;
 
   // Split text by viz positions to remove markdown syntax
-  const parts = splitTextByVizs(message.content, vizCommands);
+  const parts = splitTextByVizs(contentWithErrors, vizs);
 
   return (
     <div className="bg-[#252526] px-4 py-4 rounded-r border-l-3 border-[#BB86FC] border-l-[3px] break-words overflow-wrap-anywhere">
@@ -77,7 +82,7 @@ function AssistantMessage({ message }: { message: Message }) {
               </ReactMarkdown>
             );
           } else if (part.type === 'viz') {
-            const viz = vizCommands[part.index!];
+            const viz = vizs[part.index!];
             return (
               <div key={i} className="my-4">
                 <VizRenderer command={viz.command} />

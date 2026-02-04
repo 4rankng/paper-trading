@@ -63,7 +63,7 @@ export async function GET(
           let source = '';
           let articleContent = content;
 
-          const yamlMatch = content.match(/^---\n(.*?)\n---\n(.*)$/s);
+          const yamlMatch = content.match(/^---\n([\s\S]*?)\n---\n([\s\S]*)$/);
           if (yamlMatch) {
             const yaml = yamlMatch[1];
             articleContent = yamlMatch[2];
