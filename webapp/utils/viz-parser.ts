@@ -70,13 +70,10 @@ export function parseVizCommands(text: string): ParsedViz[] {
     const startIndex = match.index;
     const openParenIndex = startIndex + match[0].length;
 
-    console.log('[viz-parser] Found viz type:', typeStr, 'at', startIndex);
-
     // Extract JSON by matching parentheses
     const result = extractJSON(text, openParenIndex);
 
     if (!result) {
-      console.log('[viz-parser] No matching closing parenthesis found for viz at', startIndex);
       continue;
     }
 
@@ -101,7 +98,6 @@ export function parseVizCommands(text: string): ParsedViz[] {
           startIndex,
           endIndex,
         });
-        console.log('[viz-parser] Parsed chart alias:', typeStr, '-> type=chart, chartType=', CHART_TYPE_ALIASES[typeStrLower], 'at', startIndex, '-', endIndex);
         continue;
       }
 
@@ -118,19 +114,10 @@ export function parseVizCommands(text: string): ParsedViz[] {
         startIndex,
         endIndex,
       });
-      console.log('[viz-parser] Parsed viz:', type, 'at', startIndex, '-', endIndex);
     } catch (error) {
-      // Log parse errors for debugging
-      if (!(error instanceof SyntaxError)) {
-        console.error('[viz-parser] Failed to parse visualization command:', error);
-        console.error('[viz-parser] JSON was:', jsonStr.substring(0, 100));
-      } else {
-        console.log('[viz-parser] Incomplete JSON during streaming, skipping...');
-      }
+      // Silently skip parse errors
     }
   }
-
-  console.log('[viz-parser] Total viz commands found:', vizCommands.length);
   return vizCommands;
 }
 

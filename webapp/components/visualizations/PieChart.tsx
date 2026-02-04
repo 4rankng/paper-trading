@@ -62,6 +62,7 @@ export default function PieChart({ command }: PieChartProps) {
             return data.labels.map((label: string, i: number) => ({
               text: `${label} (${data.datasets[0].data[i]}%)`,
               fillStyle: data.datasets[0].backgroundColor[i],
+              color: '#E0E0E0',
               hidden: false,
               index: i,
             }));
