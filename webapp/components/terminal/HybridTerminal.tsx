@@ -46,10 +46,13 @@ export default function HybridTerminal({ className = '' }: HybridTerminalProps) 
 
   // Write prompt - compact, inline for modern terminal feel
   const writePrompt = useCallback((terminal: Terminal, currentInput = '') => {
+    console.log('[writePrompt] Called with input:', JSON.stringify(currentInput));
     // Compact inline prompt without newline
     const promptStr = '\r\x1b[1;32m➜\x1b[0m \x1b[1;36muser@termai\x1b[0m:\x1b[1;34m~\x1b[0m$ ' + currentInput;
+    console.log('[writePrompt] Writing prompt:', JSON.stringify(promptStr));
     terminal.clear();
     terminal.write(promptStr);
+    console.log('[writePrompt] Prompt written');
   }, []);
 
   // Execute command - accepts store state to avoid closure staleness
@@ -148,11 +151,14 @@ export default function HybridTerminal({ className = '' }: HybridTerminalProps) 
       const errorMsg = err instanceof Error ? err.message : 'Failed to send message';
       setError(errorMsg);
     } finally {
+      console.log('[Finally] Command completed, clearing terminal');
       setLoading(false);
       // Clear terminal after completion - prompt appears when user starts typing
       const terminal = xtermRef.current;
       if (terminal) {
+        console.log('[Finally] Clearing terminal');
         terminal.clear();
+        console.log('[Finally] Terminal cleared');
       }
     }
   }, [writePrompt, updateLastMessage]);
@@ -221,14 +227,17 @@ export default function HybridTerminal({ className = '' }: HybridTerminalProps) 
             commandHistoryIndexRef.current = -1;
 
             if (command) {
+              console.log('[Enter] Clearing terminal, command:', command);
               // Clear terminal immediately to remove typed text
               terminal.clear();
 
               // Get latest executeCommand from store
               const { sessionId, addMessage, addToCommandHistory, setLoading, setError } = useTerminalStore.getState();
 
+              console.log('[Enter] Executing command');
               // Execute command inline with fresh store values
               executeCommandWithStore(command, { sessionId, addMessage, addToCommandHistory, setLoading, setError });
+              console.log('[Enter] Command executed');
             } else {
               // Empty command, just rewrite prompt
               writePrompt(terminal);
