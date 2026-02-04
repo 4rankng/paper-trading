@@ -284,7 +284,7 @@ def update_portfolio(portfolio_name: str, portfolio: dict, path: Path | None = N
         shared_cash: Optional shared cash amount/dict for position % calculations
     """
     if path is None:
-        path = get_project_root() / "portfolios.json"
+        path = get_filedb_dir() / "portfolios.json"
 
     portfolios = load_portfolios(path)
 

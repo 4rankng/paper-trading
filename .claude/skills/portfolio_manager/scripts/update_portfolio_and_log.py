@@ -74,6 +74,7 @@ def execute_trade(
     sys.path.insert(0, str(Path(__file__).parent))
     from common import (
         get_project_root,
+        get_filedb_dir,
         get_portfolio,
         get_shared_cash,
         update_shared_cash,
@@ -122,8 +123,7 @@ def execute_trade(
 
     # Determine path to portfolios.json
     if portfolios_path is None:
-        root = get_project_root()
-        portfolios_path = root / 'portfolios.json'
+        portfolios_path = get_filedb_dir() / 'portfolios.json'
     else:
         portfolios_path = Path(portfolios_path)
 

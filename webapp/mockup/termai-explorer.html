@@ -1,0 +1,814 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TermAI Explorer - AI-Native Terminal</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.js"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Fira+Code:wght@400;500;600&display=swap" rel="stylesheet">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        :root {
+            /* One Dark Theme Colors */
+            --bg-primary: #1E1E1E;
+            --bg-secondary: #252526;
+            --bg-tertiary: #2D2D2D;
+            --text-primary: #E0E0E0;
+            --text-secondary: #B3B3B3;
+            --text-dim: #858585;
+            --accent-blue: #5C6AC4;
+            --accent-purple: #BB86FC;
+            --accent-cyan: #4FC1FF;
+            --border-color: #333333;
+            --border-light: #3E3E42;
+            --error: #F48771;
+            --success: #89D185;
+            --warning: #DCDCAA;
+            --info: #75BEFF;
+        }
+
+        body {
+            font-family: 'Fira Code', 'Source Code Pro', Monaco, 'Courier New', monospace;
+            background: var(--bg-primary);
+            color: var(--text-primary);
+            height: 100vh;
+            overflow: hidden;
+            -webkit-font-smoothing: antialiased;
+            -moz-osx-font-smoothing: grayscale;
+        }
+
+        .terminal-container {
+            display: flex;
+            flex-direction: column;
+            height: 100vh;
+            max-width: 1200px;
+            margin: 0 auto;
+            background: var(--bg-primary);
+        }
+
+        /* Title Bar */
+        .title-bar {
+            height: 40px;
+            background: var(--bg-secondary);
+            border-bottom: 1px solid var(--border-color);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0 16px;
+        }
+
+        .title-left {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .window-controls {
+            display: flex;
+            gap: 8px;
+        }
+
+        .window-control {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            cursor: pointer;
+        }
+
+        .window-control.close { background: #F48771; }
+        .window-control.minimize { background: var(--warning); }
+        .window-control.maximize { background: var(--success); }
+
+        .title-text {
+            font-size: 13px;
+            font-weight: 500;
+            color: var(--text-secondary);
+        }
+
+        .title-right {
+            display: flex;
+            gap: 12px;
+        }
+
+        .icon-button {
+            background: none;
+            border: none;
+            color: var(--text-secondary);
+            cursor: pointer;
+            padding: 4px;
+            transition: color 0.2s;
+        }
+
+        .icon-button:hover {
+            color: var(--text-primary);
+        }
+
+        /* Tab Bar */
+        .tab-bar {
+            height: 36px;
+            background: var(--bg-secondary);
+            border-bottom: 1px solid var(--border-color);
+            display: flex;
+            align-items: center;
+            padding: 0 8px;
+            gap: 4px;
+        }
+
+        .tab {
+            padding: 6px 16px;
+            background: var(--bg-tertiary);
+            border-radius: 4px 4px 0 0;
+            font-size: 13px;
+            color: var(--text-secondary);
+            cursor: pointer;
+            transition: all 0.2s;
+            border: 1px solid var(--border-color);
+            border-bottom: none;
+        }
+
+        .tab.active {
+            background: var(--bg-primary);
+            color: var(--text-primary);
+            border-color: var(--border-light);
+        }
+
+        .tab:hover:not(.active) {
+            background: var(--bg-secondary);
+            color: var(--text-primary);
+        }
+
+        .tab-add {
+            background: none;
+            border: none;
+            color: var(--text-dim);
+            font-size: 18px;
+            cursor: pointer;
+            padding: 4px 12px;
+            transition: color 0.2s;
+        }
+
+        .tab-add:hover {
+            color: var(--text-primary);
+        }
+
+        /* Message Output Area */
+        .output-area {
+            flex: 1;
+            overflow-y: auto;
+            padding: 20px;
+            background: var(--bg-primary);
+        }
+
+        .output-area::-webkit-scrollbar {
+            width: 8px;
+        }
+
+        .output-area::-webkit-scrollbar-track {
+            background: var(--bg-primary);
+        }
+
+        .output-area::-webkit-scrollbar-thumb {
+            background: var(--bg-tertiary);
+            border-radius: 4px;
+        }
+
+        .output-area::-webkit-scrollbar-thumb:hover {
+            background: var(--border-light);
+        }
+
+        .message {
+            margin-bottom: 24px;
+            animation: fadeIn 0.3s ease-in;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .message-user {
+            background: var(--bg-secondary);
+            padding: 12px 16px;
+            border-radius: 6px;
+            border-left: 3px solid var(--accent-blue);
+            font-size: 14px;
+        }
+
+        .message-user::before {
+            content: '➜ user@termai:~$ ';
+            color: var(--accent-blue);
+            font-weight: 600;
+        }
+
+        .message-assistant {
+            background: var(--bg-secondary);
+            padding: 16px;
+            border-radius: 6px;
+            border-left: 3px solid var(--accent-purple);
+        }
+
+        .message-assistant-header {
+            color: var(--accent-purple);
+            font-weight: 600;
+            margin-bottom: 12px;
+            font-size: 14px;
+        }
+
+        .message-assistant-header::before {
+            content: '→ assistant: ';
+        }
+
+        .message-content {
+            color: var(--text-primary);
+            font-size: 14px;
+            line-height: 1.6;
+        }
+
+        .message-content p {
+            margin-bottom: 12px;
+        }
+
+        /* Inline Visualizations */
+        .visualization {
+            background: var(--bg-tertiary);
+            border: 1px solid var(--border-light);
+            border-radius: 8px;
+            padding: 16px;
+            margin: 16px 0;
+        }
+
+        .viz-header {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin-bottom: 12px;
+            color: var(--accent-cyan);
+            font-size: 13px;
+            font-weight: 600;
+        }
+
+        .viz-icon {
+            font-size: 16px;
+        }
+
+        .viz-content {
+            background: var(--bg-secondary);
+            border-radius: 6px;
+            padding: 12px;
+        }
+
+        /* Chart Visualization */
+        .chart-container {
+            position: relative;
+            height: 300px;
+        }
+
+        /* Table Visualization */
+        .table-container {
+            overflow-x: auto;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 13px;
+        }
+
+        th {
+            background: var(--bg-tertiary);
+            color: var(--accent-cyan);
+            padding: 10px 12px;
+            text-align: left;
+            font-weight: 600;
+            border-bottom: 2px solid var(--border-light);
+        }
+
+        td {
+            padding: 10px 12px;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        tr:hover {
+            background: var(--bg-tertiary);
+        }
+
+        .positive {
+            color: var(--success);
+        }
+
+        .negative {
+            color: var(--error);
+        }
+
+        /* Terminal Input Area */
+        .input-area {
+            height: 80px;
+            background: var(--bg-secondary);
+            border-top: 1px solid var(--border-color);
+            padding: 12px 16px;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .terminal-input {
+            flex: 1;
+            background: var(--bg-primary);
+            border: 1px solid var(--border-light);
+            border-radius: 4px;
+            padding: 8px 12px;
+            color: var(--text-primary);
+            font-family: inherit;
+            font-size: 14px;
+            outline: none;
+            resize: none;
+        }
+
+        .terminal-input:focus {
+            border-color: var(--accent-blue);
+        }
+
+        .terminal-input::placeholder {
+            color: var(--text-dim);
+        }
+
+        .input-prompt {
+            color: var(--accent-blue);
+            font-weight: 600;
+            margin-bottom: 4px;
+            font-size: 14px;
+        }
+
+        /* Status Bar */
+        .status-bar {
+            height: 24px;
+            background: var(--bg-tertiary);
+            border-top: 1px solid var(--border-color);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0 16px;
+            font-size: 12px;
+            color: var(--text-dim);
+        }
+
+        .status-left {
+            display: flex;
+            gap: 16px;
+        }
+
+        .status-item {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .status-button {
+            background: none;
+            border: none;
+            color: var(--text-dim);
+            cursor: pointer;
+            font-family: inherit;
+            font-size: 12px;
+            padding: 0 4px;
+            transition: color 0.2s;
+        }
+
+        .status-button:hover {
+            color: var(--text-primary);
+        }
+
+        .status-ready {
+            color: var(--success);
+        }
+
+        /* Loading indicator */
+        .loading {
+            display: inline-flex;
+            gap: 4px;
+            margin-left: 8px;
+        }
+
+        .loading span {
+            width: 4px;
+            height: 4px;
+            background: var(--accent-purple);
+            border-radius: 50%;
+            animation: pulse 1.4s infinite ease-in-out;
+        }
+
+        .loading span:nth-child(2) {
+            animation-delay: 0.2s;
+        }
+
+        .loading span:nth-child(3) {
+            animation-delay: 0.4s;
+        }
+
+        @keyframes pulse {
+            0%, 80%, 100% { opacity: 0.3; }
+            40% { opacity: 1; }
+        }
+
+        /* Code blocks */
+        code {
+            background: var(--bg-tertiary);
+            padding: 2px 6px;
+            border-radius: 3px;
+            font-size: 13px;
+            color: var(--accent-cyan);
+        }
+    </style>
+</head>
+<body>
+    <div class="terminal-container">
+        <!-- Title Bar -->
+        <div class="title-bar">
+            <div class="title-left">
+                <div class="window-controls">
+                    <div class="window-control close"></div>
+                    <div class="window-control minimize"></div>
+                    <div class="window-control maximize"></div>
+                </div>
+                <span class="title-text">TermAI Explorer</span>
+            </div>
+            <div class="title-right">
+                <button class="icon-button" title="Settings">⚙</button>
+                <button class="icon-button" title="Theme">☀</button>
+            </div>
+        </div>
+
+        <!-- Tab Bar -->
+        <div class="tab-bar">
+            <div class="tab active">Session 1</div>
+            <div class="tab">Session 2</div>
+            <button class="tab-add" title="New Session">+</button>
+        </div>
+
+        <!-- Message Output Area -->
+        <div class="output-area" id="outputArea">
+            <!-- User Message -->
+            <div class="message">
+                <div class="message-user">analyze AAPL stock</div>
+            </div>
+
+            <!-- Assistant Response with Inline Visualizations -->
+            <div class="message">
+                <div class="message-assistant">
+                    <div class="message-assistant-header"></div>
+                    <div class="message-content">
+                        <p>Analyzing Apple Inc. (AAPL) stock performance...</p>
+                        <p>Based on recent market data, AAPL has shown strong momentum over the past 30 days with consistent upward movement. Here's a detailed breakdown:</p>
+                    </div>
+
+                    <!-- Chart Visualization (Inline) -->
+                    <div class="visualization">
+                        <div class="viz-header">
+                            <span class="viz-icon">📊</span>
+                            <span>AAPL Price History (Last 30 Days)</span>
+                        </div>
+                        <div class="viz-content">
+                            <div class="chart-container">
+                                <canvas id="priceChart"></canvas>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="message-content">
+                        <p>Key financial metrics show healthy fundamentals with improving margins and strong revenue growth:</p>
+                    </div>
+
+                    <!-- Table Visualization (Inline) -->
+                    <div class="visualization">
+                        <div class="viz-header">
+                            <span class="viz-icon">📋</span>
+                            <span>Financial Metrics</span>
+                        </div>
+                        <div class="viz-content">
+                            <div class="table-container">
+                                <table>
+                                    <thead>
+                                        <tr>
+                                            <th>Metric</th>
+                                            <th>Value</th>
+                                            <th>Change</th>
+                                            <th>Status</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        <tr>
+                                            <td>Current Price</td>
+                                            <td>$178.42</td>
+                                            <td class="positive">+2.3%</td>
+                                            <td>Strong</td>
+                                        </tr>
+                                        <tr>
+                                            <td>Volume</td>
+                                            <td>45.2M</td>
+                                            <td class="negative">-5.1%</td>
+                                            <td>Normal</td>
+                                        </tr>
+                                        <tr>
+                                            <td>Market Cap</td>
+                                            <td>$2.85T</td>
+                                            <td class="positive">+3.8%</td>
+                                            <td>Growing</td>
+                                        </tr>
+                                        <tr>
+                                            <td>P/E Ratio</td>
+                                            <td>29.4</td>
+                                            <td class="positive">+1.2%</td>
+                                            <td>Fair</td>
+                                        </tr>
+                                        <tr>
+                                            <td>52-Week High</td>
+                                            <td>$199.62</td>
+                                            <td>-10.6%</td>
+                                            <td>Below</td>
+                                        </tr>
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="message-content">
+                        <p><strong>Recommendation:</strong> BUY at $175-180 range. The stock shows strong technical support at $175 and positive momentum indicators. Consider position sizing based on your risk tolerance.</p>
+                        <p><strong>Risk Factors:</strong> Monitor upcoming earnings report and general market volatility. Set stop-loss at $172 to manage downside risk.</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Another User Message -->
+            <div class="message">
+                <div class="message-user">show me sector comparison</div>
+            </div>
+
+            <!-- Assistant with Pie Chart -->
+            <div class="message">
+                <div class="message-assistant">
+                    <div class="message-assistant-header"></div>
+                    <div class="message-content">
+                        <p>Here's the technology sector performance breakdown for Q4 2024:</p>
+                    </div>
+
+                    <!-- Pie Chart Visualization (Inline) -->
+                    <div class="visualization">
+                        <div class="viz-header">
+                            <span class="viz-icon">📊</span>
+                            <span>Tech Sector Market Share</span>
+                        </div>
+                        <div class="viz-content">
+                            <div class="chart-container">
+                                <canvas id="sectorChart"></canvas>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="message-content">
+                        <p>Apple maintains a dominant position with 28.5% market share, followed by Microsoft at 24.2%. The sector shows healthy diversification with no single player exceeding 30%.</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Terminal Input Area -->
+        <div class="input-area">
+            <div class="input-prompt">➜ user@termai:~$</div>
+            <textarea 
+                class="terminal-input" 
+                id="terminalInput"
+                placeholder="Type a command... (Press Enter to send, Shift+Enter for new line)"
+                rows="2"
+            ></textarea>
+        </div>
+
+        <!-- Status Bar -->
+        <div class="status-bar">
+            <div class="status-left">
+                <div class="status-item">
+                    <span>Session:</span>
+                    <code>abc12345</code>
+                </div>
+                <div class="status-item">
+                    <span>12 messages</span>
+                </div>
+                <button class="status-button">Clear</button>
+                <button class="status-button">Settings</button>
+            </div>
+            <div class="status-ready">● Ready</div>
+        </div>
+    </div>
+
+    <script>
+        // Chart.js Configuration
+        const chartDefaults = {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: {
+                    labels: {
+                        color: '#B3B3B3',
+                        font: {
+                            family: 'Fira Code',
+                            size: 12
+                        }
+                    }
+                }
+            },
+            scales: {
+                x: {
+                    grid: {
+                        color: '#333333'
+                    },
+                    ticks: {
+                        color: '#B3B3B3',
+                        font: {
+                            family: 'Fira Code',
+                            size: 11
+                        }
+                    }
+                },
+                y: {
+                    grid: {
+                        color: '#333333'
+                    },
+                    ticks: {
+                        color: '#B3B3B3',
+                        font: {
+                            family: 'Fira Code',
+                            size: 11
+                        }
+                    }
+                }
+            }
+        };
+
+        // Line Chart - Stock Price
+        const priceCtx = document.getElementById('priceChart').getContext('2d');
+        new Chart(priceCtx, {
+            type: 'line',
+            data: {
+                labels: ['Jan 5', 'Jan 8', 'Jan 11', 'Jan 14', 'Jan 17', 'Jan 20', 'Jan 23', 'Jan 26', 'Jan 29', 'Feb 1', 'Feb 4'],
+                datasets: [{
+                    label: 'AAPL Price',
+                    data: [172, 175, 173, 176, 178, 177, 180, 179, 182, 181, 178],
+                    borderColor: '#5C6AC4',
+                    backgroundColor: 'rgba(92, 106, 196, 0.1)',
+                    borderWidth: 2,
+                    fill: true,
+                    tension: 0.4,
+                    pointRadius: 3,
+                    pointBackgroundColor: '#5C6AC4',
+                    pointHoverRadius: 5
+                }]
+            },
+            options: {
+                ...chartDefaults,
+                plugins: {
+                    ...chartDefaults.plugins,
+                    tooltip: {
+                        backgroundColor: '#252526',
+                        titleColor: '#E0E0E0',
+                        bodyColor: '#B3B3B3',
+                        borderColor: '#3E3E42',
+                        borderWidth: 1,
+                        titleFont: {
+                            family: 'Fira Code',
+                            size: 12
+                        },
+                        bodyFont: {
+                            family: 'Fira Code',
+                            size: 11
+                        }
+                    }
+                }
+            }
+        });
+
+        // Pie Chart - Sector Distribution
+        const sectorCtx = document.getElementById('sectorChart').getContext('2d');
+        new Chart(sectorCtx, {
+            type: 'pie',
+            data: {
+                labels: ['Apple', 'Microsoft', 'Google', 'Amazon', 'Meta', 'Others'],
+                datasets: [{
+                    data: [28.5, 24.2, 18.3, 12.8, 8.4, 7.8],
+                    backgroundColor: [
+                        '#5C6AC4',
+                        '#BB86FC',
+                        '#4FC1FF',
+                        '#89D185',
+                        '#DCDCAA',
+                        '#F48771'
+                    ],
+                    borderColor: '#1E1E1E',
+                    borderWidth: 2
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: {
+                        position: 'right',
+                        labels: {
+                            color: '#B3B3B3',
+                            font: {
+                                family: 'Fira Code',
+                                size: 12
+                            },
+                            padding: 12,
+                            generateLabels: function(chart) {
+                                const data = chart.data;
+                                return data.labels.map((label, i) => ({
+                                    text: `${label} (${data.datasets[0].data[i]}%)`,
+                                    fillStyle: data.datasets[0].backgroundColor[i],
+                                    hidden: false,
+                                    index: i
+                                }));
+                            }
+                        }
+                    },
+                    tooltip: {
+                        backgroundColor: '#252526',
+                        titleColor: '#E0E0E0',
+                        bodyColor: '#B3B3B3',
+                        borderColor: '#3E3E42',
+                        borderWidth: 1,
+                        callbacks: {
+                            label: function(context) {
+                                return ` ${context.label}: ${context.parsed}%`;
+                            }
+                        }
+                    }
+                }
+            }
+        });
+
+        // Terminal Input Handler
+        const terminalInput = document.getElementById('terminalInput');
+        const outputArea = document.getElementById('outputArea');
+
+        terminalInput.addEventListener('keydown', function(e) {
+            if (e.key === 'Enter' && !e.shiftKey) {
+                e.preventDefault();
+                const command = this.value.trim();
+                if (command) {
+                    sendCommand(command);
+                    this.value = '';
+                }
+            }
+        });
+
+        function sendCommand(command) {
+            // Add user message
+            const userMsg = document.createElement('div');
+            userMsg.className = 'message';
+            userMsg.innerHTML = `<div class="message-user">${escapeHtml(command)}</div>`;
+            outputArea.appendChild(userMsg);
+
+            // Simulate AI response
+            setTimeout(() => {
+                const assistantMsg = document.createElement('div');
+                assistantMsg.className = 'message';
+                assistantMsg.innerHTML = `
+                    <div class="message-assistant">
+                        <div class="message-assistant-header"></div>
+                        <div class="message-content">
+                            <p>Processing your request<span class="loading"><span></span><span></span><span></span></span></p>
+                        </div>
+                    </div>
+                `;
+                outputArea.appendChild(assistantMsg);
+                outputArea.scrollTop = outputArea.scrollHeight;
+            }, 500);
+        }
+
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+
+        // Auto-scroll to bottom
+        outputArea.scrollTop = outputArea.scrollHeight;
+
+        // Focus input on load
+        terminalInput.focus();
+
+        // Clear button
+        document.querySelector('.status-button').addEventListener('click', function() {
+            if (this.textContent === 'Clear') {
+                outputArea.innerHTML = '';
+            }
+        });
+    </script>
+</body>
+</html>

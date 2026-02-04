@@ -18,6 +18,7 @@ from pathlib import Path
 
 from common import (
     get_project_root,
+    get_filedb_dir,
     get_portfolio,
     get_shared_cash,
     list_portfolios,
@@ -59,8 +60,7 @@ def get_portfolio_status(portfolio_name: str | None = None, verbose: bool = Fals
         verbose: If True, return full holding data. Otherwise, simplified for LLM.
     """
     try:
-        root = get_project_root()
-        portfolios_path = root / "portfolios.json"
+        portfolios_path = get_filedb_dir() / "portfolios.json"
 
         if not portfolios_path.exists():
             return {"status": "error", "error": f"Portfolios file not found: {portfolios_path}"}
