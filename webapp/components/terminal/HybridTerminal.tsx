@@ -227,11 +227,12 @@ export default function HybridTerminal({ className = '' }: HybridTerminalProps) 
             return;
           }
 
-          // Handle Backspace
+          // Handle Backspace - manually move cursor back and clear character
           if (data === '\u007F') {
             if (inputBufferRef.current.length > 0) {
               inputBufferRef.current = inputBufferRef.current.slice(0, -1);
-              writePrompt(terminal, inputBufferRef.current);
+              // Move cursor back one position and clear character
+              terminal.write('\b \b');
             }
             return;
           }
