@@ -45,6 +45,7 @@ export default function HybridTerminal({ className = '' }: HybridTerminalProps) 
 
   // Write prompt - bold, high-contrast for visual anchor
   const writePrompt = useCallback((terminal: Terminal, currentInput = '') => {
+    console.log('[writePrompt] Called with input:', JSON.stringify(currentInput));
     terminal.clear();
     // Bold green arrow, bold cyan username for clear visual hierarchy
     terminal.write('\r\n\x1b[1;32m➜\x1b[0m \x1b[1;36muser@termai\x1b[0m:\x1b[1;34m~\x1b[0m$ ');
@@ -206,6 +207,7 @@ export default function HybridTerminal({ className = '' }: HybridTerminalProps) 
 
         // Set up data handler - uses refs to always access latest values
         const handleData = (data: string) => {
+          console.log('[Handler] Received data:', JSON.stringify(data), 'charCode:', data.charCodeAt(0));
           const currentCommandHistory = useTerminalStore.getState().commandHistory;
 
           // Handle Enter key
@@ -229,10 +231,12 @@ export default function HybridTerminal({ className = '' }: HybridTerminalProps) 
 
           // Handle Backspace - manually move cursor back and clear character
           if (data === '\u007F') {
+            console.log('[Backspace] Buffer before:', JSON.stringify(inputBufferRef.current));
             if (inputBufferRef.current.length > 0) {
               inputBufferRef.current = inputBufferRef.current.slice(0, -1);
               // Move cursor back one position and clear character
               terminal.write('\b \b');
+              console.log('[Backspace] Buffer after:', JSON.stringify(inputBufferRef.current));
             }
             return;
           }
@@ -276,13 +280,16 @@ export default function HybridTerminal({ className = '' }: HybridTerminalProps) 
           // Regular character input (printable ASCII)
           const charCode = data.charCodeAt(0);
           if (charCode >= 32 && charCode <= 126) {
+            console.log('[Char] Adding:', data, 'Buffer before:', JSON.stringify(inputBufferRef.current));
             inputBufferRef.current += data;
             terminal.write(data);
+            console.log('[Char] Buffer after:', JSON.stringify(inputBufferRef.current));
           }
         };
 
         // Only attach handler once (prevents React Strict Mode double attachment)
         if (!handlerAttachedRef.current) {
+          console.log('[Handler] Attaching onData handler');
           terminal.onData(handleData);
           handlerAttachedRef.current = true;
         }
