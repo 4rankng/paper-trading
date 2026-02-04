@@ -14,7 +14,7 @@ import json
 import sys
 from pathlib import Path
 
-from common import get_project_root
+from common import get_project_root, get_filedb_dir
 
 
 def get_trade_log(
@@ -33,7 +33,7 @@ def get_trade_log(
     Returns:
         Dictionary with trade log entries
     """
-    trade_log_path = get_project_root() / "trade_log.csv"
+    trade_log_path = get_filedb_dir() / "trade_log.csv"
 
     if not trade_log_path.exists():
         return {"status": "success", "count": 0, "trades": []}

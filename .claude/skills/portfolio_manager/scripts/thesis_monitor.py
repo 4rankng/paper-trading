@@ -46,8 +46,9 @@ except ImportError:
         """Minimal fallback DataAccess."""
         def __init__(self):
             self.root = get_project_root()
-            self._prices_dir = self.root / "prices"
-            self._analytics_dir = self.root / "analytics"
+            self.filedb_dir = self.root / "filedb"
+            self._prices_dir = self.filedb_dir / "prices"
+            self._analytics_dir = self.filedb_dir / "analytics"
 
         def read_price_data(self, ticker):
             import pandas as pd
@@ -89,7 +90,7 @@ except ImportError:
 
         def get_portfolio(self, portfolio_name=None):
             import json
-            portfolios_path = self.root / "portfolios.json"
+            portfolios_path = self.filedb_dir / "portfolios.json"
             if portfolios_path.exists():
                 portfolios = json.load(open(portfolios_path))
                 if portfolio_name is None:
@@ -99,7 +100,7 @@ except ImportError:
 
         def load_portfolios(self):
             import json
-            portfolios_path = self.root / "portfolios.json"
+            portfolios_path = self.filedb_dir / "portfolios.json"
             if portfolios_path.exists():
                 return json.load(open(portfolios_path))
             return {"portfolios": {}, "cash": {}}
