@@ -73,7 +73,7 @@ export default function PieChart({ command }: PieChartProps) {
   };
 
   return (
-    <div className="w-full h-72 my-4 p-4 bg-[#1E1E1E] border border-[#333333] rounded-lg">
+    <div className="w-full h-56 my-4">
       <Pie data={chartData} options={chartOptions} />
     </div>
   );

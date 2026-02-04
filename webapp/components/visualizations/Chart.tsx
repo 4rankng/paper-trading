@@ -120,7 +120,7 @@ export default function Chart({ command }: ChartProps) {
   const ChartComponent = chartType === 'bar' ? Bar : chartType === 'scatter' ? Scatter : Line;
 
   return (
-    <div className="w-full h-72 my-4 p-4 bg-[#1E1E1E] border border-[#333333] rounded-lg">
+    <div className="w-full h-64 my-4">
       <ChartComponent data={chartData} options={chartOptions} />
     </div>
   );

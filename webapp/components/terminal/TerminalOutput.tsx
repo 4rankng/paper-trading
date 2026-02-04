@@ -10,21 +10,19 @@ interface TerminalOutputProps {
 }
 
 export default function TerminalOutput({ messages }: TerminalOutputProps) {
+  // Only show assistant messages - user messages are internal only
+  const assistantMessages = messages.filter(msg => msg.role === 'assistant');
+
   return (
-    <div className="space-y-3">
-      {messages.map((msg, i) => (
-        <div key={i} className="mb-1">
-          {/* System metadata: heavily de-emphasized, minimal visual weight */}
-          <div className="text-[#5a5a5a] text-[10px] mb-1.5 font-mono opacity-40 tracking-wider">
-            {msg.role === 'user' ? (
-              <span className="text-[#89D185]">➜ user</span>
-            ) : (
-              <span className="text-[#5C6AC4]">→ assistant</span>
-            )}
-            {' '}{new Date(msg.timestamp).toLocaleTimeString()}
+    <div className="space-y-4">
+      {assistantMessages.map((msg, i) => (
+        <div key={i} className="mb-4">
+          {/* Minimal timestamp - no card styling */}
+          <div className="text-[#5a5a5a] text-xs mb-2 font-mono opacity-50">
+            {new Date(msg.timestamp).toLocaleTimeString()}
           </div>
-          {/* Primary output: optimized font weight and size */}
-          <div className="text-[#E8E8E8] font-mono whitespace-pre-wrap leading-relaxed tracking-wide font-normal text-sm">
+          {/* Clean terminal output - no borders, no backgrounds */}
+          <div className="text-[#E8E8E8] font-mono whitespace-pre-wrap text-sm leading-relaxed">
             <MessageContent message={msg} />
           </div>
         </div>
