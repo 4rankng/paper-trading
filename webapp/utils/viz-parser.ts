@@ -88,9 +88,11 @@ export function parseVizCommands(text: string): ParsedViz[] {
 
       // Handle chart type aliases (bar, line, scatter -> chart)
       if (CHART_TYPE_ALIASES[typeStrLower]) {
+        // Extract data but exclude 'type' field to prevent overwriting
+        const { type, ...dataWithoutType } = data as any;
         const command: VizCommand = {
           type: 'chart',
-          ...data,
+          ...dataWithoutType,
           chartType: CHART_TYPE_ALIASES[typeStrLower],
         } as VizCommand;
 
@@ -103,6 +105,7 @@ export function parseVizCommands(text: string): ParsedViz[] {
         continue;
       }
 
+      // Direct type match (chart, table, pie)
       const type = typeStrLower as VizType;
 
       const command: VizCommand = {
@@ -117,12 +120,12 @@ export function parseVizCommands(text: string): ParsedViz[] {
       });
       console.log('[viz-parser] Parsed viz:', type, 'at', startIndex, '-', endIndex);
     } catch (error) {
-      // Silently skip incomplete JSON during streaming - this is expected
-      // Only log actual parsing errors, not incomplete chunks
+      // Log parse errors for debugging
       if (!(error instanceof SyntaxError)) {
-        console.error('Failed to parse visualization command:', error);
+        console.error('[viz-parser] Failed to parse visualization command:', error);
+        console.error('[viz-parser] JSON was:', jsonStr.substring(0, 100));
       } else {
-        console.log('[viz-parser] Incomplete JSON, skipping...');
+        console.log('[viz-parser] Incomplete JSON during streaming, skipping...');
       }
     }
   }
