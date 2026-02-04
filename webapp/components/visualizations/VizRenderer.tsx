@@ -29,18 +29,25 @@ export default function VizRenderer({ command }: VizRendererProps) {
   const icon = VIZ_ICONS[command.type] || '📊';
   const title = getVizTitle(command);
 
+  // Use light background for pie charts
+  const isPieChart = command.type === 'pie';
+  const cardBg = isPieChart ? 'bg-gray-100' : 'bg-[#2D2D2D]';
+  const contentBg = isPieChart ? 'bg-white' : 'bg-[#252526]';
+  const borderColor = isPieChart ? 'border-gray-300' : 'border-[#3E3E42]';
+  const titleColor = isPieChart ? 'text-gray-800' : 'text-[#4FC1FF]';
+
   return (
-    <div className="bg-[#2D2D2D] border border-[#3E3E42] rounded-lg p-4 my-4">
+    <div className={`${cardBg} border ${borderColor} rounded-lg p-4 my-4`}>
       {/* Header */}
       <div className="flex items-center gap-2 mb-3">
         <span className="text-lg">{icon}</span>
-        <span className="text-[#4FC1FF] text-sm font-semibold font-['Fira_Code',monospace]">
+        <span className={`${titleColor} text-sm font-semibold font-['Fira_Code',monospace]`}>
           {title}
         </span>
       </div>
 
       {/* Content */}
-      <div className="bg-[#252526] rounded p-3">
+      <div className={`${contentBg} rounded p-3`}>
         <VizContent command={command} />
       </div>
     </div>

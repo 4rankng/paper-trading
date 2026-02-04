@@ -51,7 +51,7 @@ export default function PieChart({ command }: PieChartProps) {
         display: options?.showLegend !== false,
         position: 'right' as const,
         labels: {
-          color: '#E0E0E0 !important',
+          color: '#1a1a1a',
           font: {
             family: "'Fira Code', monospace",
             size: 12,
@@ -62,7 +62,7 @@ export default function PieChart({ command }: PieChartProps) {
             return data.labels.map((label: string, i: number) => ({
               text: `${label} (${data.datasets[0].data[i]}%)`,
               fillStyle: data.datasets[0].backgroundColor[i],
-              color: '#E0E0E0 !important',
+              color: '#1a1a1a',
               hidden: false,
               index: i,
             }));
@@ -72,17 +72,17 @@ export default function PieChart({ command }: PieChartProps) {
       title: {
         display: !!options?.title,
         text: options?.title,
-        color: '#E0E0E0 !important',
+        color: '#1a1a1a',
         font: {
           family: "'Fira Code', monospace",
           size: 14,
         },
       },
       tooltip: {
-        backgroundColor: '#252526',
-        titleColor: '#E0E0E0',
-        bodyColor: '#B3B3B3',
-        borderColor: '#3E3E42',
+        backgroundColor: '#ffffff',
+        titleColor: '#1a1a1a',
+        bodyColor: '#4a4a4a',
+        borderColor: '#e0e0e0',
         borderWidth: 1,
         titleFont: {
           family: "'Fira Code', monospace",
