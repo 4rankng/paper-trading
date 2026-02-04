@@ -51,8 +51,19 @@ export default function HybridTerminal({ className = '' }: HybridTerminalProps) 
     }
   }, []);
 
-  // Execute command
-  const executeCommand = useCallback(async (command: string) => {
+  // Execute command - accepts store state to avoid closure staleness
+  const executeCommandWithStore = useCallback(async (
+    command: string,
+    storeState: {
+      sessionId: string | null;
+      addMessage: (msg: any) => void;
+      addToCommandHistory: (cmd: string) => void;
+      setLoading: (loading: boolean) => void;
+      setError: (error: string | null) => void;
+    }
+  ) => {
+    const { sessionId, addMessage, addToCommandHistory, setLoading, setError } = storeState;
+
     if (!sessionId) {
       setError('No session active');
       return;
@@ -69,7 +80,7 @@ export default function HybridTerminal({ className = '' }: HybridTerminalProps) 
     setLoading(true);
     setError(null);
 
-    // Clear input line
+    // Clear input line and rewrite prompt
     const terminal = xtermRef.current;
     if (terminal) {
       writePrompt(terminal);
@@ -136,10 +147,21 @@ export default function HybridTerminal({ className = '' }: HybridTerminalProps) 
       setError(errorMsg);
     } finally {
       setLoading(false);
+      // Rewrite prompt after completion
+      const terminal = xtermRef.current;
+      if (terminal) {
+        writePrompt(terminal);
+      }
     }
-  }, [sessionId, addMessage, addToCommandHistory, setLoading, setError, writePrompt]);
+  }, [writePrompt]);
 
-  // Initialize xterm.js for input only
+  // Execute command for external calls (e.g., from data handler)
+  const executeCommand = useCallback(async (command: string) => {
+    const storeState = useTerminalStore.getState();
+    await executeCommandWithStore(command, storeState);
+  }, [executeCommandWithStore]);
+
+  // Initialize xterm.js for input only (runs once)
   useLayoutEffect(() => {
     if (!terminalRef.current || xtermRef.current) return;
 
@@ -185,8 +207,10 @@ export default function HybridTerminal({ className = '' }: HybridTerminalProps) 
 
         window.addEventListener('resize', handleResize);
 
-        // Set up data handler
+        // Set up data handler - uses refs to always access latest values
         const handleData = (data: string) => {
+          const currentCommandHistory = useTerminalStore.getState().commandHistory;
+
           // Handle Enter key
           if (data === '\r') {
             const command = inputBufferRef.current.trim();
@@ -194,7 +218,11 @@ export default function HybridTerminal({ className = '' }: HybridTerminalProps) 
             commandHistoryIndexRef.current = -1;
 
             if (command) {
-              executeCommand(command);
+              // Get latest executeCommand from store
+              const { sessionId, addMessage, addToCommandHistory, setLoading, setError } = useTerminalStore.getState();
+
+              // Execute command inline with fresh store values
+              executeCommandWithStore(command, { sessionId, addMessage, addToCommandHistory, setLoading, setError });
             } else {
               // Empty command, just rewrite prompt
               writePrompt(terminal);
@@ -213,10 +241,10 @@ export default function HybridTerminal({ className = '' }: HybridTerminalProps) 
 
           // Handle Arrow Up (previous command)
           if (data === '\u001B[A') {
-            if (commandHistoryIndexRef.current < commandHistory.length - 1) {
+            if (commandHistoryIndexRef.current < currentCommandHistory.length - 1) {
               commandHistoryIndexRef.current++;
-              const newIndex = commandHistory.length - 1 - commandHistoryIndexRef.current;
-              const cmd = commandHistory[newIndex];
+              const newIndex = currentCommandHistory.length - 1 - commandHistoryIndexRef.current;
+              const cmd = currentCommandHistory[newIndex];
               inputBufferRef.current = cmd;
               writePrompt(terminal, cmd);
             }
@@ -227,8 +255,8 @@ export default function HybridTerminal({ className = '' }: HybridTerminalProps) 
           if (data === '\u001B[B') {
             if (commandHistoryIndexRef.current > 0) {
               commandHistoryIndexRef.current--;
-              const newIndex = commandHistory.length - 1 - commandHistoryIndexRef.current;
-              const cmd = commandHistory[newIndex];
+              const newIndex = currentCommandHistory.length - 1 - commandHistoryIndexRef.current;
+              const cmd = currentCommandHistory[newIndex];
               inputBufferRef.current = cmd;
               writePrompt(terminal, cmd);
             } else if (commandHistoryIndexRef.current === 0) {
@@ -257,10 +285,11 @@ export default function HybridTerminal({ className = '' }: HybridTerminalProps) 
 
         terminal.onData(handleData);
 
-        // Fit and write initial prompt
+        // Focus terminal on initialization
         requestAnimationFrame(() => {
           try {
             fitAddon.fit();
+            terminal.focus();
           } catch (e) {
             // Ignore fit errors
           }
@@ -287,7 +316,8 @@ export default function HybridTerminal({ className = '' }: HybridTerminalProps) 
         cleanupRef.current = null;
       }
     };
-  }, [writePrompt, executeCommand, commandHistory]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [writePrompt]); // Only depend on writePrompt. executeCommandWithStore is intentionally omitted to prevent re-initialization. It's accessed via closure from the data handler which calls useTerminalStore.getState() for fresh values.
 
   return (
     <div className={`flex flex-col h-full bg-[#1E1E1E] ${className}`}>
@@ -316,7 +346,12 @@ export default function HybridTerminal({ className = '' }: HybridTerminalProps) 
       </div>
 
       {/* Terminal input area */}
-      <div className="border-t border-[#333333] bg-[#1E1E1E]">
+      <div
+        className="border-t border-[#333333] bg-[#1E1E1E]"
+        onClick={() => {
+          xtermRef.current?.focus();
+        }}
+      >
         <div ref={terminalRef} className="w-full" style={{ minHeight: '80px', height: '80px' }} />
       </div>
     </div>
