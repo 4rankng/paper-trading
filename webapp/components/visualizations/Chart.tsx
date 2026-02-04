@@ -64,7 +64,7 @@ export default function Chart({ command }: ChartProps) {
       legend: {
         display: true,
         labels: {
-          color: '#E0E0E0',
+          color: '#E0E0E0', // Always use light color for legend text
           font: {
             family: "'Fira Code', monospace",
             size: 12,
@@ -74,7 +74,7 @@ export default function Chart({ command }: ChartProps) {
       tooltip: {
         backgroundColor: '#252526',
         titleColor: '#E0E0E0',
-        bodyColor: '#B3B3B3',
+        bodyColor: '#E0E0E0',
         borderColor: '#3E3E42',
         borderWidth: 1,
         titleFont: {
@@ -86,8 +86,68 @@ export default function Chart({ command }: ChartProps) {
           size: 11,
         },
       },
-      ...options?.plugins,
     },
+    scales: {
+      x: {
+        display: true,
+        ticks: {
+          color: '#E0E0E0',
+          font: {
+            family: "'Fira Code', monospace",
+            size: 11,
+          },
+        },
+        grid: {
+          color: '#333333',
+          drawBorder: false,
+        },
+      },
+      y: {
+        display: true,
+        ticks: {
+          color: '#E0E0E0',
+          font: {
+            family: "'Fira Code', monospace',
+            size: 11,
+          },
+        },
+        grid: {
+          color: '#333333',
+          drawBorder: false,
+        },
+        beginAtZero: true,
+      },
+    },
+    // Merge user options but preserve our color settings
+    ...options,
+    // Ensure colors are never overridden
+    plugins: {
+      ...options?.plugins,
+      legend: {
+        ...options?.plugins?.legend,
+        labels: {
+          ...options?.plugins?.legend?.labels,
+          color: '#E0E0E0', // Force light color for legend
+        },
+      },
+    },
+    scales: {
+      x: {
+        ...options?.scales?.x,
+        ticks: {
+          ...options?.scales?.x?.ticks,
+          color: '#E0E0E0', // Force light color for x-axis
+        },
+      },
+      y: {
+        ...options?.scales?.y,
+        ticks: {
+          ...options?.scales?.y?.ticks,
+          color: '#E0E0E0', // Force light color for y-axis
+        },
+      },
+    },
+  };
     scales: {
       x: {
         display: true,
