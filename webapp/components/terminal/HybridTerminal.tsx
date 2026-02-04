@@ -31,6 +31,7 @@ export default function HybridTerminal({ className = '' }: HybridTerminalProps) 
     error,
     commandHistory,
     addMessage,
+    updateLastMessage,
     addToCommandHistory,
     setLoading,
     setError,
@@ -126,13 +127,20 @@ export default function HybridTerminal({ className = '' }: HybridTerminalProps) 
                   const vizs = parseVizCommands(assistantMessage);
                   currentVizs = vizs.map(v => v.command);
 
-                  // Update message in real-time for streaming effect
-                  addMessage({
-                    role: 'assistant',
-                    content: assistantMessage,
-                    timestamp: new Date().toISOString(),
-                    visualizations: currentVizs,
-                  });
+                  // Update last message in real-time for streaming effect
+                  // (Use addMessage for first chunk, updateLastMessage for subsequent chunks)
+                  if (assistantMessage === parsed.text) {
+                    // First chunk - create new message
+                    addMessage({
+                      role: 'assistant',
+                      content: assistantMessage,
+                      timestamp: new Date().toISOString(),
+                      visualizations: currentVizs,
+                    });
+                  } else {
+                    // Subsequent chunks - update existing message
+                    updateLastMessage(assistantMessage, currentVizs);
+                  }
                 }
               } catch (e) {
                 // Ignore parse errors for incomplete chunks

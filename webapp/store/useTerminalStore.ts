@@ -12,6 +12,7 @@ interface TerminalStore extends TerminalState {
   // Actions
   setSessionId: (id: string) => void;
   addMessage: (message: Message) => void;
+  updateLastMessage: (content: string, visualizations?: VizCommand[]) => void;
   setLoading: (loading: boolean) => void;
   setError: (error: string | null) => void;
   addToCommandHistory: (command: string) => void;
@@ -46,6 +47,26 @@ export const useTerminalStore = create<TerminalStore>((set, get) => ({
         ? [...state.visualizations, ...message.visualizations]
         : state.visualizations,
     })),
+
+  updateLastMessage: (content, visualizations) =>
+    set((state) => {
+      const messages = [...state.messages];
+      const lastMessage = messages[messages.length - 1];
+
+      // Only update if last message is from assistant (streaming)
+      if (lastMessage && lastMessage.role === 'assistant') {
+        messages[messages.length - 1] = {
+          ...lastMessage,
+          content,
+          visualizations,
+        };
+      }
+
+      return {
+        messages,
+        visualizations: visualizations || [],
+      };
+    }),
 
   setLoading: (loading) => set({ isLoading: loading }),
 
