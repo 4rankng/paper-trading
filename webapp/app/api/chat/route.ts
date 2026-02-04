@@ -451,6 +451,7 @@ export async function POST(request: NextRequest) {
       async start(controller) {
         let fullResponse = '';
         let messages: Anthropic.MessageParam[] = [{ role: 'user', content: message }];
+        let hasError = false;
 
         try {
           // Main loop for handling tool use
@@ -527,12 +528,17 @@ export async function POST(request: NextRequest) {
           } catch (error) {
             console.error('Failed to store assistant message:', error);
           }
-
+        } catch (error: any) {
+          console.error('Chat API error:', error);
+          hasError = true;
+          // Send error as message instead of using controller.error()
+          const errorMsg = error?.message || 'An error occurred';
+          fullResponse += `\n\n[Error: ${errorMsg}]`;
+          controller.enqueue(encoder.encode(`data: ${JSON.stringify({ text: `\n\n[Error: ${errorMsg}]` })}\n\n`));
+        } finally {
+          // Always send DONE signal
           controller.enqueue(encoder.encode('data: [DONE]\n\n'));
           controller.close();
-        } catch (error) {
-          console.error('Streaming error:', error);
-          controller.error(error);
         }
       },
     });
