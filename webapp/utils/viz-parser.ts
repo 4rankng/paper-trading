@@ -35,6 +35,7 @@ export function parseVizCommands(text: string): ParsedViz[] {
           startIndex,
           endIndex,
         });
+        console.log('[viz-parser] Parsed chart alias:', typeStr, 'at', startIndex, '-', endIndex);
         continue;
       }
 
@@ -50,15 +51,19 @@ export function parseVizCommands(text: string): ParsedViz[] {
         startIndex,
         endIndex,
       });
+      console.log('[viz-parser] Parsed viz:', type, 'at', startIndex, '-', endIndex);
     } catch (error) {
       // Silently skip incomplete JSON during streaming - this is expected
       // Only log actual parsing errors, not incomplete chunks
       if (!(error instanceof SyntaxError)) {
         console.error('Failed to parse visualization command:', error);
+      } else {
+        console.log('[viz-parser] Incomplete JSON, skipping...');
       }
     }
   }
 
+  console.log('[viz-parser] Total viz commands found:', vizCommands.length);
   return vizCommands;
 }
 

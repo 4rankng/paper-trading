@@ -37,11 +37,10 @@ function UserMessage({ content }: { content: string }) {
 }
 
 function AssistantMessage({ message }: { message: Message }) {
-  // Prioritize stored visualizations from streaming, fall back to parsing
-  const vizCommands = message.visualizations && message.visualizations.length > 0
-    ? message.visualizations.map((cmd, i) => ({ command: cmd, startIndex: 0, endIndex: 0 }))
-    : parseVizCommands(message.content);
+  // Always parse viz commands from content to get correct positions for text splitting
+  const vizCommands = parseVizCommands(message.content);
 
+  // Split text by viz positions to remove markdown syntax
   const parts = splitTextByVizs(message.content, vizCommands);
 
   return (
