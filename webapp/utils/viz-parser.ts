@@ -83,6 +83,11 @@ export function parseVizCommands(text: string): ParsedViz[] {
       const data = JSON.parse(jsonStr);
       const typeStrLower = typeStr.toLowerCase();
 
+      // Validate that data is an object, not an array (common LLM mistake)
+      if (Array.isArray(data)) {
+        throw new Error('Visualization data must be an object, not an array. Check that "rows" is inside the object, not a separate element.');
+      }
+
       // Handle chart type aliases (bar, line, scatter -> chart)
       if (CHART_TYPE_ALIASES[typeStrLower]) {
         // Extract data but exclude 'type' field to prevent overwriting
@@ -115,7 +120,9 @@ export function parseVizCommands(text: string): ParsedViz[] {
         endIndex,
       });
     } catch (error) {
-      // Silently skip parse errors
+      // Log parse errors for debugging
+      console.error('[viz-parser] Failed to parse visualization:', error);
+      console.error('[viz-parser] JSON was:', jsonStr.substring(0, 200));
     }
   }
   return vizCommands;

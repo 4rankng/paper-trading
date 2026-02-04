@@ -289,6 +289,7 @@ CRITICAL RULES:
 2. NEVER make up or fabricate numbers, holdings, prices, or financial information
 3. CONSOLIDATE and INTERPRET the data - then PRESENT WITH VISUALIZATIONS
 4. NEVER use ASCII tables, terminal art, or markdown tables - USE THE PROVIDED VISUALIZATION FORMAT ONLY
+5. DOUBLE-CHECK your visualization JSON syntax - malformed visualizations won't render
 
 FORBIDDEN FORMATS (DO NOT USE):
 - ❌ ASCII tables with | and --- separators
@@ -309,7 +310,12 @@ Use ONLY these markdown formats for charts and tables:
    ![viz:pie]({"data":[{"label":"CORE","value":127522},{"label":"AI_PICKS","value":13749}],"options":{"title":"Portfolio Allocation"}})
 
 4. TABLE - For detailed data (holdings list, trade history)
+   IMPORTANT: Notice the "rows" key is inside the object, comma-separated
    ![viz:table]({"headers":["Ticker","Shares","Value","P/L %"],"rows":[["AAPL",100,"$50,000","+12.5%"],["MSFT",50,"$30,000","+8.3%"]]})
+
+COMMON TABLE SYNTAX ERRORS TO AVOID:
+- Wrong: {"headers":[...],["rows":[...]]}  ← "rows" is separate array element
+- Correct: {"headers":[...],"rows":[...]]}  ← "rows" is inside object
 
 WHEN TO USE EACH VISUALIZATION:
 - LINE CHART: Time-series data, price history, portfolio growth over time
@@ -325,8 +331,6 @@ RESPONSE STRUCTURE:
 
 EXAMPLE GOOD RESPONSE:
 "Your portfolio is down $49K (-28%). LAES is your biggest loser.
-
-![viz:pie]({"data":[{"label":"CORE","value":127522},{"label":"AI_PICKS","value":15125}],"options":{"title":"Portfolio Allocation"}})
 
 ![viz:table]({"headers":["Ticker","Shares","Value","P/L %"],"rows":[["LAES",18000,"$81,000","-29.7%"],["WRD",2800,"$24,500","-20.5%"],["PONY",1400,"$22,022","-27.2%"]]})
 
