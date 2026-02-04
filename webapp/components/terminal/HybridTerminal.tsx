@@ -38,6 +38,7 @@ export default function HybridTerminal({ className = '' }: HybridTerminalProps) 
 
   // Scroll to bottom when new messages arrive
   useEffect(() => {
+    console.log('[Scroll Effect] Messages length:', messages.length);
     if (outputContainerRef.current) {
       outputContainerRef.current.scrollTop = outputContainerRef.current.scrollHeight;
     }
@@ -46,12 +47,14 @@ export default function HybridTerminal({ className = '' }: HybridTerminalProps) 
   // Write prompt - bold, high-contrast for visual anchor
   const writePrompt = useCallback((terminal: Terminal, currentInput = '') => {
     console.log('[writePrompt] Called with input:', JSON.stringify(currentInput));
+    console.trace('[writePrompt] Call stack:');
     terminal.clear();
     // Bold green arrow, bold cyan username for clear visual hierarchy
     terminal.write('\r\n\x1b[1;32m➜\x1b[0m \x1b[1;36muser@termai\x1b[0m:\x1b[1;34m~\x1b[0m$ ');
     if (currentInput) {
       terminal.write(currentInput);
     }
+    console.log('[writePrompt] Completed');
   }, []);
 
   // Execute command - accepts store state to avoid closure staleness
