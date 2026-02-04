@@ -1,91 +1,258 @@
-# TermAI Explorer - Design Documentation
+# TermAI Explorer - Design Specification
 
-## Overview
+## Product Vision
 
-TermAI Explorer is a modern, web-based terminal emulator powered by xterm.js with a sleek, contemporary UI inspired by Warp and Hyper terminals. It provides an intelligent AI assistant interface with real-time streaming responses and interactive data visualizations.
+TermAI Explorer is a **modern AI-native terminal interface** that reimagines the command line for the age of intelligent assistants. It combines the power and efficiency of CLI workflows with the intelligence of Claude AI, featuring **inline visualizations that render directly in the terminal output stream**.
 
-## Architecture
+**Target Users**: Developers, data scientists, AI researchers, and power users who live in the terminal but want modern AI capabilities without leaving their workflow.
 
-### Hybrid Approach
+**Core Value Proposition**:
+- **Seamless AI Integration**: Chat with Claude directly in your terminal
+- **Native Visualizations**: Charts, tables, and data render inline within the message flow
+- **Persistent Knowledge**: RAG-powered conversation history that builds context over time
+- **Modern UX**: Smooth animations, keyboard-first navigation, dark/light modes
+- **Privacy-First**: Local-first storage with optional cloud sync
 
-The application uses a **hybrid architecture** similar to Warp terminal:
+---
 
-- **xterm.js**: Terminal emulator for command input/output rendering
-- **React panels**: Title bar, tabs, status bar, and visualizations sidebar
-- **Seamless integration**: Text streams to terminal, visualizations render in React panels
-
-### Technology Stack
-
-- **Frontend**: Next.js 14 with React 18
-- **Terminal**: xterm.js 5.3.0 with FitAddon and WebLinksAddon
-- **State Management**: Zustand
-- **Visualizations**: Chart.js with react-chartjs-2
-- **Styling**: Tailwind CSS with custom theme variables
-- **Font**: Fira Code (monospace)
-
-## Component Architecture
+## Architecture Overview
 
 ```
-app/
-├── page.tsx                    # Main layout with shell structure
-├── globals.css                 # Modern One Dark color scheme
-├── layout.tsx                  # Root layout with font imports
-└── api/                        # API routes (chat, session, RAG)
-
-components/
-├── terminal/
-│   ├── XtermTerminal.tsx      # xterm.js terminal emulator
-│   ├── TitleBar.tsx           # Window controls and session status
-│   ├── TabBar.tsx             # Multi-session tab management
-│   ├── StatusBar.tsx          # Session info, actions, clock
-│   └── VizPanel.tsx           # Visualization sidebar
-├── visualizations/
-│   ├── VizRenderer.tsx        # Visualization router
-│   ├── Chart.tsx              # Line/bar/scatter charts
-│   ├── Table.tsx              # Data tables
-│   └── PieChart.tsx           # Pie charts
-└── ui/
-    └── ErrorBoundary.tsx      # Error handling
-
-lib/
-├── themes.ts                  # Theme configurations (One Dark, Dracula, GitHub Dark)
-├── viz-parser.ts              # Visualization syntax parser
-├── storage.ts                 # Session persistence
-└── data-access.ts             # File I/O utilities
-
-store/
-└── useTerminalStore.ts        # Zustand state management
-
-types/
-├── index.ts                   # Message, Session, TerminalState
-└── visualizations.ts          # VizCommand types
+┌─────────────────────────────────────────────────────────────┐
+│                     TermAI Explorer                         │
+├─────────────────────────────────────────────────────────────┤
+│  Frontend Layer          │  Backend Layer                   │
+│  ──────────────          │  ─────────────                   │
+│  • Next.js 14 App Router │  • Next.js API Routes            │
+│  • React Server Comp     │  • Claude API Integration        │
+│  • Hybrid Terminal UI    │  • Ollama (Local Embeddings)     │
+│  • Tailwind CSS          │  • ChromaDB Vector Store         │
+│  • TypeScript            │  • File System Storage           │
+└─────────────────────────────────────────────────────────────┘
 ```
 
-## UI Layout
+**Monorepo Structure**:
+```
+paper-trading/
+├── webapp/                 # Next.js application
+│   ├── app/               # App Router pages
+│   ├── components/        # React components
+│   │   ├── terminal/      # Terminal components
+│   │   │   ├── HybridTerminal.tsx  # Main terminal (input + inline viz)
+│   │   │   ├── TerminalOutput.tsx  # Message renderer with viz
+│   │   │   ├── TitleBar.tsx        # Window controls
+│   │   │   ├── TabBar.tsx          # Session tabs
+│   │   │   └── StatusBar.tsx       # Session info
+│   │   └── visualizations/ # Inline viz components
+│   │       ├── Chart.tsx          # Line/bar/scatter charts
+│   │       ├── Table.tsx          # Data tables
+│   │       ├── PieChart.tsx       # Pie charts
+│   │       └── VizRenderer.tsx    # Viz router
+│   ├── lib/               # Utilities, API clients
+│   │   ├── themes.ts      # Theme configurations
+│   │   ├── viz-parser.ts  # Visualization syntax parser
+│   │   ├── storage.ts     # Session persistence
+│   │   └── data-access.ts # File I/O utilities
+│   ├── store/             # State management
+│   │   └── useTerminalStore.ts    # Zustand store
+│   └── types/             # TypeScript definitions
+├── filedb/                # Persistent data storage
+│   ├── embeddings/        # Vector embeddings
+│   ├── sessions/          # Conversation history
+│   └── cache/             # Response cache
+├── Makefile               # Dev orchestration
+└── DESIGN.md              # This file
+```
+
+---
+
+## UI Layout (Inline Visualization Design)
 
 ```
 ┌─────────────────────────────────────────────────────────────┐
 │ Title Bar (40px)                                            │
-│ [● ● ●]  TermAI Explorer                            Connected│
+│ [● ● ●]  TermAI Explorer                            [⚙] [☀] │
 ├─────────────────────────────────────────────────────────────┤
 │ Tab Bar (36px)                                              │
 │ [Session 1] [Session 2] [+]                                 │
-├──────────────────────────────────┬──────────────────────────┤
-│                                  │ VizPanel (384px)         │
-│                                  │ ┌────────────────────┐   │
-│                                  │ │ Visualizations     │   │
-│                                  │ ├────────────────────┤   │
-│                                  │ │ [Chart 1]          │   │
-│ Xterm Terminal                   │ │ [Table 2]          │   │
-│ (flexible)                       │ │ [Pie 3]            │   │
-│                                  │ └────────────────────┘   │
-│                                  │                          │
-│                                  │ 3 vizs | Scroll ↓       │
-├──────────────────────────────────┴──────────────────────────┤
+├─────────────────────────────────────────────────────────────┤
+│                                                              │
+│  ┌────────────────────────────────────────────────────────┐ │
+│  │ Message Output Area (flex-1, scrollable)              │ │
+│  │                                                        │ │
+│  │ ┌──────────────────────────────────────────────────┐  │ │
+│  │ │ ➜ user@termai:~$ analyze AAPL                    │  │ │
+│  │ └──────────────────────────────────────────────────┘  │ │
+│  │ ┌──────────────────────────────────────────────────┐  │ │
+│  │ │ → assistant: Analyzing Apple Inc...              │  │ │
+│  │ │                                                  │  │ │
+│  │ │ Based on recent data...                          │  │ │
+│  │ │                                                  │  │ │
+│  │ │ ┌────────────────────────────────────────────┐   │  │ │
+│  │ │ │ 📊 Price Chart (inline)                   │   │  │ │
+│  │ │ │ [Chart.js canvas rendered here]           │   │  │ │
+│  │ │ └────────────────────────────────────────────┘   │  │ │
+│  │ │                                                  │  │ │
+│  │ │ ┌────────────────────────────────────────────┐   │  │ │
+│  │ │ │ 📋 Financial Metrics (inline)             │   │  │ │
+│  │ │ │ [Table with sortable columns]             │   │  │ │
+│  │ │ └────────────────────────────────────────────┘   │  │ │
+│  │ │                                                  │  │ │
+│  │ └──────────────────────────────────────────────────┘  │ │
+│  │                                                        │ │
+│  └────────────────────────────────────────────────────────┘ │
+│                                                              │
+├─────────────────────────────────────────────────────────────┤
+│ Terminal Input Area (80px)                                   │
+│ [xterm.js terminal instance - 3 rows]                       │
+│ ➜ user@termai:~$ █                                          │
+├─────────────────────────────────────────────────────────────┤
 │ Status Bar (24px)                                            │
 │ Session: abc12345 | 12 messages | Clear | Settings | Ready │
 └─────────────────────────────────────────────────────────────┘
 ```
+
+### Key Design Principles
+
+1. **Single Column Layout**: No sidebar, no separate panels. Everything flows vertically.
+2. **Inline Visualizations**: Charts and tables appear directly in the message stream, mixed with text.
+3. **Native Terminal Feel**: Input area uses xterm.js for authentic terminal behavior.
+4. **Hybrid Rendering**: Text content rendered via React (for markdown + viz), input via xterm.js.
+
+---
+
+## Tech Stack
+
+### Frontend
+- **Framework**: Next.js 14 (App Router, Server Components)
+- **UI Library**: React 18 + Tailwind CSS v3
+- **Terminal**: xterm.js 5.3.0 (for input only)
+- **Visualizations**: Chart.js with react-chartjs-2
+- **State**: Zustand (lightweight, TypeScript-first)
+- **Icons**: Lucide React (consistent, tree-shakeable)
+
+### Backend
+- **API**: Next.js Route Handlers
+- **AI SDK**: Anthropic Claude SDK (@anthropic-ai/sdk)
+- **Vector DB**: ChromaDB (persistent, local-first)
+- **Embeddings**: Ollama (nomic-embed-text model)
+- **Storage**: JSON file system (./filedb/)
+
+### Developer Experience
+- **Language**: TypeScript 5.3+ (strict mode)
+- **Linting**: ESLint + Prettier
+- **Testing**: Vitest + Playwright
+- **CLI**: Turbo (monorepo orchestration)
+
+---
+
+## Component Architecture
+
+### HybridTerminal - Main Terminal Component
+
+**Purpose**: Combines xterm.js input with React-based message output.
+
+**Architecture**:
+```
+HybridTerminal
+├── [Scrollable Message Output]
+│   └── TerminalOutput
+│       └── MessageContent
+│           ├── Text (ReactMarkdown)
+│           └── Visualizations (VizRenderer)
+│               ├── Chart.tsx
+│               ├── Table.tsx
+│               └── PieChart.tsx
+│
+└── [xterm.js Input Area]
+    └── 3-row terminal for authentic typing
+```
+
+**Key Features**:
+- xterm.js configured with `scrollback: 0`, `rows: 3` (input only)
+- Messages rendered in React scrollable container above input
+- Auto-scroll to bottom on new messages
+- Real-time streaming updates
+
+**Props**:
+```typescript
+interface HybridTerminalProps {
+  className?: string;
+}
+```
+
+### TerminalOutput - Message Renderer
+
+**Purpose**: Renders messages with inline visualizations.
+
+**Flow**:
+1. Parse message content for visualization markers
+2. Split content into text and visualization parts
+3. Render text with ReactMarkdown
+4. Render visualizations inline via VizRenderer
+
+**Example Output**:
+```
+→ assistant: Here's your analysis
+
+Based on recent data, AAPL shows...
+
+┌─────────────────────────────────────────┐
+│ 📊 AAPL Price History (Last 30 Days)   │
+│ [Chart.js Line Chart]                   │
+└─────────────────────────────────────────┘
+
+Key metrics:
+
+┌─────────────────────────────────────────┐
+│ 📋 Financial Data                       │
+│ ┌───────┬──────┬───────┐               │
+│ │ Metric│ Value │ Change│               │
+│ ├───────┼──────┼───────┤               │
+│ │ Price │ $178  │ +2.3% │               │
+│ └───────┴──────┴───────┘               │
+└─────────────────────────────────────────┘
+
+Recommendation: BUY at $175-180
+```
+
+### VizRenderer - Visualization Router
+
+**Purpose**: Routes visualization commands to appropriate components.
+
+**Supported Types**:
+- `chart`: Line, bar, scatter, area charts
+- `table`: Sortable data tables
+- `pie`: Pie/donut charts
+
+---
+
+## Visualization Syntax
+
+### Markdown-like Syntax
+
+Visualizations use special markdown-like syntax in AI responses:
+
+```markdown
+Analyzing AAPL stock performance...
+
+![viz:chart]({"type":"chart","chartType":"line","data":{"labels":["1/1","1/2","1/3"],"datasets":[{"label":"Price","data":[175,178,180]}]},"options":{"plugins":{"title":{"display":true,"text":"AAPL Price"}}}})
+
+Key metrics:
+
+![viz:table]({"type":"table","headers":["Metric","Value","Change"],"rows":[["Price","$178","+2.3%"],["Volume","45M","-5%"]],"options":{"caption":"Financial Metrics","sortable":true}})
+
+Recommendation: Buy at $175-180
+```
+
+### Parsing & Rendering
+
+1. **Parser** (`lib/viz-parser.ts`) extracts viz commands from text
+2. **Split**: Content split into text and viz parts
+3. **Render**: Text → ReactMarkdown, Viz → VizRenderer
+4. **Inline**: Visualizations render directly in message flow
+
+---
 
 ## Color Scheme (One Dark Theme)
 
@@ -116,17 +283,21 @@ types/
 --info: #75BEFF;            /* Info blue */
 ```
 
+---
+
 ## Typography
 
-- **Primary Font**: Fira Code
+- **Primary Font**: Fira Code (monospace)
 - **Fallbacks**: Source Code Pro, Monaco, Courier New
 - **Terminal Size**: 14px
 - **UI Size**: 13-14px
 - **Anti-aliasing**: Enabled (-webkit-font-smoothing: antialiased)
 
+---
+
 ## Terminal Features
 
-### Command Input
+### Command Input (xterm.js)
 
 - Real-time character input rendering
 - Command history navigation (Up/Down arrows)
@@ -134,59 +305,32 @@ types/
 - Ctrl+C to cancel current input
 - Custom prompt: `➜ user@termai:~$`
 
-### Streaming Responses
-
-- Server-Sent Events (SSE) for real-time streaming
-- Text renders in dim color during streaming
-- Visualizations automatically extracted and routed to sidebar
-- Placeholder indicators: `[Visualization → panel]`
-
-### xterm.js Configuration
+### Configuration
 
 ```typescript
-{
+const terminal = new Terminal({
   theme: getXtermTheme('oneDark'),
   fontFamily: 'Fira Code',
   fontSize: 14,
   lineHeight: 1.2,
   cursorBlink: true,
   cursorStyle: 'block',
-  scrollback: 1000,
+  scrollback: 0,        // No scrollback - output in React
+  rows: 3,              // Just enough for input
   tabStopWidth: 4
-}
+});
 ```
 
-## Visualization System
+### Streaming Responses
 
-### Syntax
+- Server-Sent Events (SSE) for real-time streaming
+- Messages render in React container (not terminal)
+- Visualizations extracted and rendered inline
+- Auto-scroll to latest message
 
-Visualizations use markdown-like syntax in AI responses:
+---
 
-```
-![viz:chart]({"type":"chart","data":{...},"chartType":"line"})
-![viz:table]({"type":"table","headers":[...],"rows":[...]})
-![viz:pie]({"type":"pie","data":[...],"options":{...}})
-```
-
-### Detection & Routing
-
-1. **Parser** (`lib/viz-parser.ts`) extracts viz commands from text
-2. **Store** tracks visualizations in Zustand state
-3. **Terminal** shows placeholder: `[Visualization → panel]`
-4. **VizPanel** renders actual Chart.js components
-
-### VizPanel Features
-
-- Collapsible sidebar (384px wide)
-- Render charts, tables, pie charts via VizRenderer
-- Empty state with helpful message
-- Visualization counter in footer
-- Can be completely closed (floating reopen button appears)
-- Smooth animations and transitions
-
-## State Management
-
-### Zustand Store Structure
+## State Management (Zustand)
 
 ```typescript
 interface TerminalStore {
@@ -200,9 +344,6 @@ interface TerminalStore {
   commandHistory: string[];
   commandIndex: number;
 
-  // Visualizations
-  visualizations: VizCommand[];
-
   // Theme
   currentTheme: string;
 
@@ -214,11 +355,13 @@ interface TerminalStore {
   addToCommandHistory(command: string): void;
   navigateCommandHistory(direction: 'up' | 'down'): void;
   clearMessages(): void;
-  addVisualization(viz: VizCommand): void;
-  clearVisualizations(): void;
   setTheme(theme: string): void;
 }
 ```
+
+**Note**: Visualizations are stored within messages (`message.visualizations: VizCommand[]`), not as separate state.
+
+---
 
 ## Theme System
 
@@ -241,10 +384,15 @@ interface TerminalStore {
 
 ### Theme Switching
 
-Themes can be switched via:
-- Settings menu (planned)
-- Programmatic `setTheme()` store action
-- Direct `applyTheme(themeName)` function call
+```typescript
+// Via store action
+useTerminalStore.getState().setTheme('dracula');
+
+// Via direct function
+applyTheme('githubDark');
+```
+
+---
 
 ## API Integration
 
@@ -259,7 +407,7 @@ Themes can be switched via:
 }
 ```
 
-Returns SSE stream with chunks:
+Returns SSE stream:
 ```
 data: {"text": "Hello"}
 data: {"text": " world"}
@@ -277,22 +425,24 @@ Creates or retrieves session ID from localStorage.
 - **POST** `/api/rag/query` - Semantic search
 - **POST** `/api/rag/store` - Store message embeddings
 
+---
+
 ## Performance Optimizations
 
 ### Dynamic Imports
 
-XtermTerminal is dynamically imported with SSR disabled to prevent xterm.js server-side issues:
+xterm.js components are dynamically imported with SSR disabled:
 
 ```typescript
-const XtermTerminal = dynamic(
-  () => import('@/components/terminal/XtermTerminal'),
+const HybridTerminal = dynamic(
+  () => import('@/components/terminal/HybridTerminal'),
   { ssr: false }
 );
 ```
 
 ### useEffect Dependencies
 
-Terminal initialization only runs once using refs to track initialization state:
+Terminal initialization only runs once using refs:
 
 ```typescript
 useEffect(() => {
@@ -305,11 +455,17 @@ useEffect(() => {
 
 FitAddon automatically adjusts terminal size on window resize with debouncing.
 
+---
+
 ## Responsive Design
 
-- Mobile: VizPanel stacks below terminal, tabs become scrollable
-- Tablet: Side-by-side layout with narrower VizPanel (300px)
-- Desktop: Full 384px VizPanel side-by-side
+- **Mobile**: Full-width input, messages take 100% width
+- **Tablet**: Same layout, optimized touch targets
+- **Desktop**: Max-width container (1200px) centered
+
+**Visualizations** adapt to container width automatically via Chart.js `responsive: true`.
+
+---
 
 ## Accessibility
 
@@ -317,80 +473,120 @@ FitAddon automatically adjusts terminal size on window resize with debouncing.
 - Aria labels on all buttons
 - Focus indicators on interactive elements
 - Screen reader friendly text alternatives
+- Tables have proper headers for navigation
 
-## Future Enhancements
+---
 
-### Planned Features
+## Keyboard Shortcuts
 
-1. **Command Palette** (Ctrl+Shift+P)
-   - Fuzzy search through commands
-   - Recent commands history
-   - Quick action shortcuts
+| Shortcut | Action |
+|----------|--------|
+| `Enter` | Submit command |
+| `Shift + Enter` | New line (multiline input) |
+| `↑ / ↓` | Navigate command history |
+| `Ctrl + C` | Cancel input |
+| `Ctrl + L` | Clear messages (planned) |
 
-2. **Split Panes**
-   - Multiple terminals side-by-side
-   - Independent sessions per pane
-   - CSS Grid layout
+---
 
-3. **Autocomplete**
-   - Tab completion for commands
-   - Suggestions from history
-   - Dropdown with matches
+## Development Workflow
 
-4. **Settings Panel**
-   - Theme switcher UI
-   - Font size controls
-   - Keybinding customization
-   - Terminal preferences
+### Makefile Commands
 
-5. **Command History Sidebar**
-   - Full command history list
-   - Search and filter
-   - Click to re-execute
+```makefile
+# Start development environment
+dev:
+	@mkdir -p filedb/{embeddings,sessions,cache}
+	@cd webapp && npm run dev
 
-## Browser Compatibility
+# Build for production
+build:
+	@cd webapp && npm run build
 
-- Chrome/Edge: Full support
-- Firefox: Full support
-- Safari: Full support
-- Mobile browsers: Supported with responsive layout
+# Run tests
+test:
+	@cd webapp && npm run test
 
-## Development
+# Lint code
+lint:
+	@cd webapp && npm run lint
 
-### Run Dev Server
+# Clean artifacts
+clean:
+	@rm -rf webapp/.next webapp/node_modules
+```
+
+### Environment Variables
 
 ```bash
-npm run dev
-# Opens http://localhost:3000
+# .env.local
+ANTHROPIC_API_KEY=sk-ant-xxx
+NEXT_PUBLIC_APP_URL=http://localhost:3000
+OLLAMA_BASE_URL=http://localhost:11434
+CHROMADB_PATH=./filedb/embeddings
 ```
 
-### Build for Production
-
-```bash
-npm run build
-npm start
-```
-
-### Type Checking
-
-```typescript
-# All components fully typed
-npm run lint
-```
+---
 
 ## Design Principles
 
-1. **Modern Aesthetic**: Clean, contemporary design inspired by popular terminals
-2. **Hybrid Architecture**: Best of both xterm.js and React worlds
-3. **Performance**: Fast rendering with efficient state management
-4. **Accessibility**: Keyboard-first design with screen reader support
-5. **Extensibility**: Easy to add new visualizations and features
-6. **Developer Experience**: Well-typed, documented codebase
+1. **Content First**: UI recedes, conversation takes center stage
+2. **Native Visualizations**: Charts/tables inline, not in separate panels
+3. **Terminal Authenticity**: Real xterm.js for input, not a fake input field
+4. **Performance**: Fast rendering with efficient state management
+5. **Accessibility**: Keyboard-first, screen reader friendly
+6. **Extensibility**: Easy to add new visualization types
+
+---
+
+## Roadmap
+
+### Phase 1: MVP ✅
+- [x] Hybrid terminal with xterm.js input + React output
+- [x] Claude integration with streaming
+- [x] Session persistence (JSON)
+- [x] Inline visualizations (chart, table, pie)
+- [x] Dark mode (One Dark theme)
+
+### Phase 2: Enhanced 🚧
+- [ ] RAG with ChromaDB + Ollama embeddings
+- [ ] Light/dark mode toggle
+- [ ] Multi-session management
+- [ ] Export sessions (Markdown, JSON)
+- [ ] Command palette (Cmd+K)
+
+### Phase 3: Advanced 🔮
+- [ ] Multi-model support (GPT-4, Claude 3.5)
+- [ ] Voice input (Web Speech API)
+- [ ] Session sharing (public/private links)
+- [ ] More visualization types (heatmaps, treemaps)
+- [ ] Custom themes system
+
+### Phase 4: Platform 🌟
+- [ ] Cloud sync (optional)
+- [ ] Team workspaces
+- [ ] API access (webhooks)
+- [ ] Analytics dashboard
+- [ ] Self-hosted option
+
+---
+
+## Key Differences from Original Design
+
+| Aspect | Old Design (VizPanel) | New Design (Inline) |
+|--------|----------------------|---------------------|
+| Layout | Split pane (terminal + sidebar) | Single column |
+| Viz Placement | Separate 384px sidebar | Inline in message flow |
+| Terminal Usage | xterm.js for input + output | xterm.js for input only |
+| Message Rendering | xterm.js text stream | React components |
+| UX Flow | Text → placeholder → panel | Text + viz mixed naturally |
+
+---
 
 ## Resources
 
 - [xterm.js Documentation](https://xtermjs.org/)
-- [Warp Terminal](https://www.warp.dev/) - Design inspiration
-- [Hyper Terminal](https://hyper.is/) - UI component inspiration
+- [Next.js 14 App Router](https://nextjs.org/docs/app)
 - [Chart.js](https://www.chartjs.org/) - Visualization library
 - [Zustand](https://zustand-demo.pmnd.rs/) - State management
+- [Tailwind CSS](https://tailwindcss.com/) - Styling

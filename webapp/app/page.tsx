@@ -6,17 +6,16 @@ import dynamic from 'next/dynamic';
 import TitleBar from '@/components/terminal/TitleBar';
 import TabBar from '@/components/terminal/TabBar';
 import StatusBar from '@/components/terminal/StatusBar';
-import VizPanel from '@/components/terminal/VizPanel';
 import { Storage } from '@/lib/storage';
 
-// Dynamically import XtermTerminal with no SSR to avoid xterm.js server-side issues
-const XtermTerminal = dynamic(
-  () => import('@/components/terminal/XtermTerminal').then(mod => mod.default),
+// Dynamically import HybridTerminal with no SSR to avoid xterm.js server-side issues
+const HybridTerminal = dynamic(
+  () => import('@/components/terminal/HybridTerminal').then(mod => mod.default),
   { ssr: false }
 );
 
 export default function Home() {
-  const { sessionId, setSessionId, setLoading, visualizations, addVisualization } = useTerminalStore();
+  const { sessionId, setSessionId, setLoading } = useTerminalStore();
   const [isInitialized, setIsInitialized] = useState(false);
 
   useEffect(() => {
@@ -53,16 +52,9 @@ export default function Home() {
       <TitleBar />
       <TabBar />
 
-      <div className="flex-1 flex overflow-hidden">
-        {/* Terminal area */}
-        <div className="flex-1 overflow-hidden">
-          <XtermTerminal
-            onVisualization={(viz) => addVisualization(viz)}
-          />
-        </div>
-
-        {/* Visualization panel */}
-        <VizPanel visualizations={visualizations} />
+      {/* Terminal with inline visualizations */}
+      <div className="flex-1 overflow-hidden">
+        <HybridTerminal />
       </div>
 
       <StatusBar />

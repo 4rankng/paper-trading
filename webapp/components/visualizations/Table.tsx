@@ -49,41 +49,52 @@ export default function Table({ command }: TableProps) {
   }
 
   return (
-    <div className="my-4 border border-terminal-green overflow-x-auto">
+    <div className="my-4 border border-[#333333] rounded-lg overflow-hidden bg-[#1E1E1E]">
       {options?.caption && (
-        <caption className="block text-terminal-green mb-2 text-sm">
+        <div className="bg-[#252526] px-4 py-2 text-sm text-[#E0E0E0] font-medium border-b border-[#333333]">
           {options.caption}
-        </caption>
+        </div>
       )}
-      <table className="w-full text-left">
-        <thead>
-          <tr className="border-b border-terminal-green">
-            {headers.map((header, i) => (
-              <th
-                key={i}
-                onClick={() => handleSort(i)}
-                className={`p-2 text-terminal-green ${
-                  options?.sortable ? 'cursor-pointer hover:bg-terminal-dim' : ''
-                }`}
-              >
-                {header}
-                {sortColumn === i && (sortDirection === 'asc' ? ' ↑' : ' ↓')}
-              </th>
-            ))}
-          </tr>
-        </thead>
-        <tbody>
-          {sortedRows.map((row, i) => (
-            <tr key={i} className="border-b border-terminal-dim">
-              {row.map((cell, j) => (
-                <td key={j} className="p-2 text-terminal-green">
-                  {cell}
-                </td>
+      <div className="overflow-x-auto">
+        <table className="w-full text-left">
+          <thead>
+            <tr className="bg-[#252526] border-b border-[#333333]">
+              {headers.map((header, i) => (
+                <th
+                  key={i}
+                  onClick={() => handleSort(i)}
+                  className={`p-3 text-xs font-semibold text-[#E0E0E0] uppercase tracking-wide font-mono ${
+                    options?.sortable
+                      ? 'cursor-pointer hover:bg-[#2D2D2D] transition-colors'
+                      : ''
+                  }`}
+                >
+                  {header}
+                  {sortColumn === i && (
+                    <span className="ml-2 text-[#5C6AC4]">
+                      {sortDirection === 'asc' ? '↑' : '↓'}
+                    </span>
+                  )}
+                </th>
               ))}
             </tr>
-          ))}
-        </tbody>
-      </table>
+          </thead>
+          <tbody>
+            {sortedRows.map((row, i) => (
+              <tr
+                key={i}
+                className="border-b border-[#333333] hover:bg-[#252526] transition-colors"
+              >
+                {row.map((cell, j) => (
+                  <td key={j} className="p-3 text-sm text-[#B3B3B3] font-mono">
+                    {cell}
+                  </td>
+                ))}
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
     </div>
   );
 }

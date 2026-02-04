@@ -14,11 +14,15 @@ export default function TerminalOutput({ messages }: TerminalOutputProps) {
     <div className="space-y-4">
       {messages.map((msg, i) => (
         <div key={i} className="mb-4">
-          <div className="text-terminal-dim text-sm mb-1">
-            {msg.role === 'user' ? 'user@termai' : 'assistant@termai'}
+          <div className="text-[#858585] text-xs mb-2 font-mono">
+            {msg.role === 'user' ? (
+              <span className="text-[#89D185]">➜ user@termai</span>
+            ) : (
+              <span className="text-[#5C6AC4]">→ assistant</span>
+            )}
             {' '}@ {new Date(msg.timestamp).toLocaleTimeString()}
           </div>
-          <div className="text-terminal-green font-mono whitespace-pre-wrap">
+          <div className="text-[#E0E0E0] font-mono whitespace-pre-wrap">
             <MessageContent message={msg} />
           </div>
         </div>
@@ -38,13 +42,21 @@ function MessageContent({ message }: { message: Message }) {
           return (
             <ReactMarkdown
               key={i}
+              className="prose prose-invert max-w-none prose-sm"
               components={{
-                p: ({ children }) => <p className="mb-2">{children}</p>,
+                p: ({ children }) => <p className="mb-2 text-[#E0E0E0]">{children}</p>,
                 code: ({ children }) => (
-                  <code className="bg-terminal-dim px-1">{children}</code>
+                  <code className="bg-[#252526] text-[#4FC1FF] px-1.5 py-0.5 rounded text-sm">{children}</code>
                 ),
                 pre: ({ children }) => (
-                  <pre className="bg-terminal-dim p-2 overflow-x-auto">{children}</pre>
+                  <pre className="bg-[#252526] border border-[#333333] rounded p-3 overflow-x-auto text-sm">{children}</pre>
+                ),
+                ul: ({ children }) => <ul className="list-disc list-inside mb-2 space-y-1">{children}</ul>,
+                ol: ({ children }) => <ol className="list-decimal list-inside mb-2 space-y-1">{children}</ol>,
+                li: ({ children }) => <li className="text-[#B3B3B3]">{children}</li>,
+                strong: ({ children }) => <strong className="text-[#BB86FC] font-semibold">{children}</strong>,
+                a: ({ children, href }) => (
+                  <a href={href} className="text-[#5C6AC4] hover:text-[#75BEFF] underline" target="_blank" rel="noopener noreferrer">{children}</a>
                 ),
               }}
             >
@@ -53,7 +65,11 @@ function MessageContent({ message }: { message: Message }) {
           );
         } else if (part.type === 'viz') {
           const viz = vizCommands[part.index!];
-          return <VizRenderer key={i} command={viz.command} />;
+          return (
+            <div key={i} className="my-4">
+              <VizRenderer command={viz.command} />
+            </div>
+          );
         }
         return null;
       })}

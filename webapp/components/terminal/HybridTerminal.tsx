@@ -6,22 +6,21 @@ import { FitAddon } from 'xterm-addon-fit';
 import { WebLinksAddon } from '@xterm/addon-web-links';
 import { useTerminalStore } from '@/store/useTerminalStore';
 import { getXtermTheme, defaultTheme } from '@/lib/themes';
-import { parseVizCommands, splitTextByVizs } from '@/lib/viz-parser';
 import { VizCommand } from '@/types/visualizations';
+import TerminalOutput from './TerminalOutput';
 import 'xterm/css/xterm.css';
 
-interface XtermTerminalProps {
+interface HybridTerminalProps {
   className?: string;
-  onVisualization?: (viz: VizCommand) => void;
 }
 
-export default function XtermTerminal({ className = '', onVisualization }: XtermTerminalProps) {
+export default function HybridTerminal({ className = '' }: HybridTerminalProps) {
   const terminalRef = useRef<HTMLDivElement>(null);
   const xtermRef = useRef<Terminal | null>(null);
   const fitAddonRef = useRef<FitAddon | null>(null);
   const inputBufferRef = useRef('');
   const commandHistoryIndexRef = useRef(-1);
-  const [shouldMount, setShouldMount] = useState(false);
+  const outputContainerRef = useRef<HTMLDivElement>(null);
 
   const {
     sessionId,
@@ -36,17 +35,16 @@ export default function XtermTerminal({ className = '', onVisualization }: Xterm
     setError,
   } = useTerminalStore();
 
-  // Delay mounting to ensure container has dimensions
+  // Scroll to bottom when new messages arrive
   useEffect(() => {
-    const timer = setTimeout(() => {
-      setShouldMount(true);
-    }, 100);
-    return () => clearTimeout(timer);
-  }, []);
+    if (outputContainerRef.current) {
+      outputContainerRef.current.scrollTop = outputContainerRef.current.scrollHeight;
+    }
+  }, [messages.length]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Initialize xterm.js
+  // Initialize xterm.js for input only
   useLayoutEffect(() => {
-    if (!terminalRef.current || xtermRef.current || !shouldMount) return;
+    if (!terminalRef.current || xtermRef.current) return;
 
     const terminal = new Terminal({
       theme: getXtermTheme(defaultTheme),
@@ -55,8 +53,8 @@ export default function XtermTerminal({ className = '', onVisualization }: Xterm
       lineHeight: 1.2,
       cursorBlink: true,
       cursorStyle: 'block',
-      scrollback: 1000,
-      tabStopWidth: 4,
+      scrollback: 0, // No scrollback, messages render above
+      rows: 3, // Just enough for input line
     });
 
     const fitAddon = new FitAddon();
@@ -72,7 +70,6 @@ export default function XtermTerminal({ className = '', onVisualization }: Xterm
 
     // Handle window resize
     const handleResize = () => {
-      // Use requestAnimationFrame to ensure DOM is ready
       requestAnimationFrame(() => {
         try {
           fitAddon.fit();
@@ -84,22 +81,27 @@ export default function XtermTerminal({ className = '', onVisualization }: Xterm
 
     window.addEventListener('resize', handleResize);
 
-    // Defer initial fit and welcome message until terminal is ready
+    // Defer fit and initial prompt to ensure container has dimensions
+    // Use double requestAnimationFrame to ensure terminal viewport is ready
     requestAnimationFrame(() => {
-      try {
-        fitAddon.fit();
-      } catch (e) {
-        // Terminal might not be ready yet
-      }
+      requestAnimationFrame(() => {
+        try {
+          // Fit addon will handle terminal readiness internally
+          fitAddon.fit();
+        } catch (e) {
+          // Terminal might not be ready yet, try once more with timeout
+          setTimeout(() => {
+            try {
+              fitAddon.fit();
+            } catch (e2) {
+              // Give up silently
+            }
+          }, 50);
+        }
 
-      // Write initial welcome message
-      const welcome = [
-        '\r\n\x1b[1;34mWelcome to TermAI Explorer\x1b[0m',
-        '\x1b[90mModern terminal interface powered by xterm.js\x1b[0m',
-        '\r\nType your message and press Enter to start.\r\n',
-      ];
-      terminal.writeln(welcome.join('\r\n'));
-      writePrompt(terminal);
+        // Write initial prompt
+        writePrompt(terminal);
+      });
     });
 
     return () => {
@@ -111,9 +113,12 @@ export default function XtermTerminal({ className = '', onVisualization }: Xterm
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Write prompt
-  const writePrompt = useCallback((terminal: Terminal) => {
-    const prompt = '\r\n\x1b[1;32m➜\x1b[0m \x1b[1;36muser@termai\x1b[0m:\x1b[1;34m~\x1b[0m$ ';
-    terminal.write(prompt);
+  const writePrompt = useCallback((terminal: Terminal, currentInput = '') => {
+    terminal.clear();
+    terminal.write('\r\n\x1b[1;32m➜\x1b[0m \x1b[1;36muser@termai\x1b[0m:\x1b[1;34m~\x1b[0m$ ');
+    if (currentInput) {
+      terminal.write(currentInput);
+    }
   }, []);
 
   // Handle terminal input
@@ -122,23 +127,18 @@ export default function XtermTerminal({ className = '', onVisualization }: Xterm
     if (!terminal) return;
 
     const handleData = (data: string) => {
-      const charCode = data.charCodeAt(0);
-
       // Handle Enter key
       if (data === '\r') {
-        terminal.writeln('');
         const command = inputBufferRef.current.trim();
-
-        if (command) {
-          // Execute command
-          executeCommand(command);
-        } else {
-          // Empty command, just show prompt
-          writePrompt(terminal);
-        }
-
         inputBufferRef.current = '';
         commandHistoryIndexRef.current = -1;
+
+        if (command) {
+          executeCommand(command);
+        } else {
+          // Empty command, just rewrite prompt
+          writePrompt(terminal);
+        }
         return;
       }
 
@@ -146,7 +146,7 @@ export default function XtermTerminal({ className = '', onVisualization }: Xterm
       if (data === '\u007F') {
         if (inputBufferRef.current.length > 0) {
           inputBufferRef.current = inputBufferRef.current.slice(0, -1);
-          terminal.write('\b \b');
+          writePrompt(terminal, inputBufferRef.current);
         }
         return;
       }
@@ -154,18 +154,11 @@ export default function XtermTerminal({ className = '', onVisualization }: Xterm
       // Handle Arrow Up (previous command)
       if (data === '\u001B[A') {
         if (commandHistoryIndexRef.current < commandHistory.length - 1) {
-          // Clear current line
-          const promptLen = inputBufferRef.current.length;
-          terminal.write('\r\x1b[K'); // Clear line
-          writePrompt(terminal);
-
-          // Move to next command
           commandHistoryIndexRef.current++;
           const newIndex = commandHistory.length - 1 - commandHistoryIndexRef.current;
           const cmd = commandHistory[newIndex];
-
           inputBufferRef.current = cmd;
-          terminal.write(cmd);
+          writePrompt(terminal, cmd);
         }
         return;
       }
@@ -173,41 +166,29 @@ export default function XtermTerminal({ className = '', onVisualization }: Xterm
       // Handle Arrow Down (next command)
       if (data === '\u001B[B') {
         if (commandHistoryIndexRef.current > 0) {
-          // Clear current line
-          terminal.write('\r\x1b[K');
-          writePrompt(terminal);
-
           commandHistoryIndexRef.current--;
           const newIndex = commandHistory.length - 1 - commandHistoryIndexRef.current;
           const cmd = commandHistory[newIndex];
-
           inputBufferRef.current = cmd;
-          terminal.write(cmd);
+          writePrompt(terminal, cmd);
         } else if (commandHistoryIndexRef.current === 0) {
-          // Back to empty input
-          terminal.write('\r\x1b[K');
-          writePrompt(terminal);
           commandHistoryIndexRef.current = -1;
           inputBufferRef.current = '';
+          writePrompt(terminal, '');
         }
         return;
       }
 
       // Handle Ctrl+C
       if (data === '\u0003') {
-        terminal.writeln('^C');
+        terminal.clear();
         inputBufferRef.current = '';
         writePrompt(terminal);
         return;
       }
 
-      // Handle Tab (autocomplete placeholder)
-      if (data === '\t') {
-        // Future: implement autocomplete
-        return;
-      }
-
       // Regular character input (printable ASCII)
+      const charCode = data.charCodeAt(0);
       if (charCode >= 32 && charCode <= 126) {
         inputBufferRef.current += data;
         terminal.write(data);
@@ -224,15 +205,11 @@ export default function XtermTerminal({ className = '', onVisualization }: Xterm
   // Execute command
   const executeCommand = useCallback(async (command: string) => {
     if (!sessionId) {
-      xtermRef.current?.writeln('\x1b[31mError: No session active\x1b[0m');
-      writePrompt(xtermRef.current!);
+      setError('No session active');
       return;
     }
 
     addToCommandHistory(command);
-
-    // Display user command
-    xtermRef.current?.writeln(`\x1b[90m${command}\x1b[0m`);
 
     const userMessage = {
       role: 'user' as const,
@@ -242,6 +219,12 @@ export default function XtermTerminal({ className = '', onVisualization }: Xterm
     addMessage(userMessage);
     setLoading(true);
     setError(null);
+
+    // Clear input line
+    const terminal = xtermRef.current;
+    if (terminal) {
+      writePrompt(terminal);
+    }
 
     try {
       const response = await fetch('/api/chat', {
@@ -258,12 +241,9 @@ export default function XtermTerminal({ className = '', onVisualization }: Xterm
       const decoder = new TextDecoder();
 
       let assistantMessage = '';
-      const terminal = xtermRef.current;
+      let currentVizs: VizCommand[] = [];
 
-      if (reader && terminal) {
-        // Parse visualizations from stream
-        const vizCommands: VizCommand[] = [];
-
+      if (reader) {
         while (true) {
           const { done, value } = await reader.read();
           if (done) break;
@@ -279,28 +259,19 @@ export default function XtermTerminal({ className = '', onVisualization }: Xterm
               try {
                 const parsed = JSON.parse(data);
                 if (parsed.text) {
-                  const newText = parsed.text;
-                  assistantMessage += newText;
+                  assistantMessage += parsed.text;
 
-                  // Extract visualizations
-                  const vizs = parseVizCommands(newText);
-                  vizs.forEach(viz => {
-                    vizCommands.push(viz.command);
-                    if (onVisualization) {
-                      onVisualization(viz.command);
-                    }
-                  });
+                  // Parse visualizations from accumulated text
+                  const { parseVizCommands } = await import('@/lib/viz-parser');
+                  const vizs = parseVizCommands(assistantMessage);
+                  currentVizs = vizs.map(v => v.command);
 
-                  // Display text (replace viz markers with placeholders)
-                  const parts = splitTextByVizs(newText, vizs);
-                  parts.forEach(part => {
-                    if (part.type === 'text') {
-                      // Write text in dim color
-                      terminal.write(`\x1b[90m${part.content}\x1b[0m`);
-                    } else if (part.type === 'viz') {
-                      // Write placeholder
-                      terminal.write(`\x1b[36m[Visualization ${vizCommands.length} → panel]\x1b[0m`);
-                    }
+                  // Update message in real-time for streaming effect
+                  addMessage({
+                    role: 'assistant',
+                    content: assistantMessage,
+                    timestamp: new Date().toISOString(),
+                    visualizations: currentVizs,
                   });
                 }
               } catch (e) {
@@ -309,78 +280,46 @@ export default function XtermTerminal({ className = '', onVisualization }: Xterm
             }
           }
         }
-
-        // Store visualizations in message
-        const finalMessage = {
-          role: 'assistant' as const,
-          content: assistantMessage,
-          timestamp: new Date().toISOString(),
-          visualizations: vizCommands,
-        };
-        addMessage(finalMessage);
       }
     } catch (err) {
       console.error('Chat error:', err);
       const errorMsg = err instanceof Error ? err.message : 'Failed to send message';
-      xtermRef.current?.writeln(`\x1b[31mError: ${errorMsg}\x1b[0m`);
       setError(errorMsg);
     } finally {
       setLoading(false);
-      writePrompt(xtermRef.current!);
     }
-  }, [sessionId, addMessage, addToCommandHistory, setLoading, setError, onVisualization, writePrompt]);
-
-  // Display existing messages on mount
-  useEffect(() => {
-    const terminal = xtermRef.current;
-    if (!terminal || messages.length === 0) return;
-
-    // Clear and rewrite history
-    terminal.clear();
-    messages.forEach(msg => {
-      if (msg.role === 'user') {
-        terminal.writeln(`\x1b[90m${msg.content}\x1b[0m`);
-      } else {
-        // Parse and display assistant message
-        const vizs = parseVizCommands(msg.content);
-        const parts = splitTextByVizs(msg.content, vizs);
-        parts.forEach(part => {
-          if (part.type === 'text') {
-            terminal.write(`\x1b[90m${part.content}\x1b[0m`);
-          } else if (part.type === 'viz') {
-            terminal.write(`\x1b[36m[Visualization → panel]\x1b[0m`);
-          }
-        });
-        terminal.writeln('');
-      }
-    });
-
-    writePrompt(terminal);
-  }, [messages.length, writePrompt]); // eslint-disable-line react-hooks/exhaustive-deps
-
-  // Display loading state
-  useEffect(() => {
-    const terminal = xtermRef.current;
-    if (!terminal) return;
-
-    if (isLoading) {
-      // Show loading indicator
-    }
-  }, [isLoading]);
-
-  // Display errors
-  useEffect(() => {
-    const terminal = xtermRef.current;
-    if (!terminal || !error) return;
-
-    terminal.writeln(`\x1b[31mError: ${error}\x1b[0m`);
-  }, [error]);
+  }, [sessionId, addMessage, addToCommandHistory, setLoading, setError, writePrompt]);
 
   return (
-    <div
-      ref={terminalRef}
-      className={`bg-[#1E1E1E] ${className}`}
-      style={{ height: '100%', width: '100%' }}
-    />
+    <div className={`flex flex-col h-full bg-[#1E1E1E] ${className}`}>
+      {/* Message output area with inline visualizations */}
+      <div
+        ref={outputContainerRef}
+        className="flex-1 overflow-y-auto p-4 space-y-4"
+      >
+        {messages.length === 0 && (
+          <div className="text-center py-8">
+            <div className="text-[#5C6AC4] text-lg mb-2">Welcome to TermAI Explorer</div>
+            <div className="text-[#858585] text-sm">
+              Type a message and press Enter to start
+            </div>
+          </div>
+        )}
+        <TerminalOutput messages={messages} />
+        {isLoading && (
+          <div className="text-[#5C6AC4] animate-pulse">Thinking...</div>
+        )}
+        {error && (
+          <div className="text-[#F48771] bg-[#F48771]/10 border border-[#F48771] rounded p-3">
+            Error: {error}
+          </div>
+        )}
+      </div>
+
+      {/* Terminal input area */}
+      <div className="border-t border-[#333333] bg-[#1E1E1E]">
+        <div ref={terminalRef} className="w-full" style={{ minHeight: '80px', height: '80px' }} />
+      </div>
+    </div>
   );
 }

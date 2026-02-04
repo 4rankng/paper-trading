@@ -32,6 +32,16 @@ interface ChartProps {
   command: ChartVizCommand;
 }
 
+// Modern color palette for charts
+const DEFAULT_COLORS = [
+  '#5C6AC4', // Blue
+  '#BB86FC', // Purple
+  '#4FC1FF', // Cyan
+  '#89D185', // Green
+  '#DCDCAA', // Yellow
+  '#F48771', // Red
+];
+
 export default function Chart({ command }: ChartProps) {
   const { data, options, chartType = 'line' } = command;
 
@@ -42,22 +52,51 @@ export default function Chart({ command }: ChartProps) {
       legend: {
         display: true,
         labels: {
-          color: '#00ff00',
+          color: '#E0E0E0',
+          font: {
+            family: "'Fira Code', monospace",
+            size: 12,
+          },
         },
+      },
+      tooltip: {
+        backgroundColor: '#252526',
+        titleColor: '#E0E0E0',
+        bodyColor: '#B3B3B3',
+        borderColor: '#333333',
+        borderWidth: 1,
       },
       ...options?.plugins,
     },
     scales: {
       x: {
         display: true,
-        ticks: { color: '#00ff00' },
-        grid: { color: '#003300' },
+        ticks: {
+          color: '#858585',
+          font: {
+            family: "'Fira Code', monospace",
+            size: 11,
+          },
+        },
+        grid: {
+          color: '#333333',
+          drawBorder: false,
+        },
         ...options?.scales?.x,
       },
       y: {
         display: true,
-        ticks: { color: '#00ff00' },
-        grid: { color: '#003300' },
+        ticks: {
+          color: '#858585',
+          font: {
+            family: "'Fira Code', monospace",
+            size: 11,
+          },
+        },
+        grid: {
+          color: '#333333',
+          drawBorder: false,
+        },
         beginAtZero: true,
         ...options?.scales?.y,
       },
@@ -67,17 +106,21 @@ export default function Chart({ command }: ChartProps) {
 
   const chartData = {
     ...data,
-    datasets: data.datasets.map((ds) => ({
+    datasets: data.datasets.map((ds, index) => ({
       ...ds,
-      borderColor: ds.borderColor || '#00ff00',
-      backgroundColor: ds.backgroundColor || 'rgba(0, 255, 0, 0.2)',
+      borderColor: ds.borderColor || DEFAULT_COLORS[index % DEFAULT_COLORS.length],
+      backgroundColor: ds.backgroundColor || DEFAULT_COLORS[index % DEFAULT_COLORS.length] + '40',
+      borderWidth: 2,
+      tension: 0.3,
+      pointRadius: 3,
+      pointHoverRadius: 5,
     })),
   };
 
   const ChartComponent = chartType === 'bar' ? Bar : chartType === 'scatter' ? Scatter : Line;
 
   return (
-    <div className="w-full h-64 my-4 p-2 border border-terminal-green">
+    <div className="w-full h-72 my-4 p-4 bg-[#1E1E1E] border border-[#333333] rounded-lg">
       <ChartComponent data={chartData} options={chartOptions} />
     </div>
   );
