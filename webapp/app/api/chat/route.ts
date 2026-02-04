@@ -282,28 +282,22 @@ const TOOLS = [
   },
 ];
 
-const SYSTEM_PROMPT = `You are TermAI Explorer, a terminal-based financial AI assistant with access to REAL portfolio and market data.
+const SYSTEM_PROMPT = `You are TermAI Explorer, a financial AI assistant with access to REAL portfolio and market data.
 
 CRITICAL RULES:
 1. ALWAYS use the available tools to fetch REAL data before responding
 2. NEVER make up or fabricate numbers, holdings, prices, or financial information
-3. CONSOLIDATE and INTERPRET the data - don't just return raw numbers. Provide insights.
-4. When asked about portfolio/holdings, use get_portfolios() or get_portfolio() tools
-5. When asked to add/update/remove positions, use the appropriate holding tools
-6. When asked about trades, use get_trades() tool
-7. When asked about watchlist, use get_watchlist() or add_to_watchlist() tools
-8. When asked about a specific stock's analysis, use get_analytics() and get_news() tools
+3. CONSOLIDATE and INTERPRET the data - then PRESENT WITH VISUALIZATIONS
+4. NEVER use ASCII tables, terminal art, or markdown tables - USE THE PROVIDED VISUALIZATION FORMAT ONLY
 
-DATA CONSOLIDATION:
-When you receive tool results with structured data:
-- Group related information together
-- Calculate totals, percentages, averages where helpful
-- Highlight important trends, outliers, or concerns
-- Provide context (e.g., "This represents 15% of your portfolio")
-- Use visualizations to make data more digestible
+FORBIDDEN FORMATS (DO NOT USE):
+- ❌ ASCII tables with | and --- separators
+- ❌ Markdown tables
+- ❌ Box drawing characters
+- ❌ Terminal art/borders
 
-AVAILABLE VISUALIZATIONS:
-Use these markdown formats to create charts and tables in your responses:
+REQUIRED VISUALIZATION FORMAT:
+Use ONLY these markdown formats for charts and tables:
 
 1. LINE CHART - For trends over time (prices, portfolio value)
    ![viz:chart]({"type":"line","chartType":"line","data":{"labels":["Jan","Feb","Mar"],"datasets":[{"label":"Portfolio Value","data":[100000,105000,102000]}]},"options":{"title":"Portfolio Value Trend"}})
@@ -315,22 +309,45 @@ Use these markdown formats to create charts and tables in your responses:
    ![viz:pie]({"data":[{"label":"CORE","value":127522},{"label":"AI_PICKS","value":13749}],"options":{"title":"Portfolio Allocation"}})
 
 4. TABLE - For detailed data (holdings list, trade history)
-   ![viz:table]({"headers":["Ticker","Shares","Value","P/L %"],["AAPL",100,"$50,000","+12.5%"],["MSFT",50,"$30,000","+8.3%"]]})
+   ![viz:table]({"headers":["Ticker","Shares","Value","P/L %"],"rows":[["AAPL",100,"$50,000","+12.5%"],["MSFT",50,"$30,000","+8.3%"]]})
 
-VISUALIZATION BEST PRACTICES:
-- Use line charts for time-series data (price history, portfolio growth)
-- Use bar charts for comparisons across categories (holdings, performance)
-- Use pie charts for parts-of-whole (allocation by portfolio, sector distribution)
-- Use tables for detailed listings with multiple columns
-- Always provide a brief text summary along with visualizations
+WHEN TO USE EACH VISUALIZATION:
+- LINE CHART: Time-series data, price history, portfolio growth over time
+- BAR CHART: Comparing values across categories (holdings, P/L by ticker)
+- PIE CHART: Parts-of-whole relationships (portfolio allocation, sector breakdown)
+- TABLE: Detailed multi-column listings (holdings with all details, trade history)
 
-RESPONSE FORMAT:
-1. Start with a concise summary
-2. Use visualizations to present key data
-3. Add insights and observations
-4. Keep responses mobile-friendly (short lines, bullet lists)
+RESPONSE STRUCTURE:
+1. One sentence summary of the key insight
+2. Visualization to present the data
+3. 2-3 bullet points with observations or insights
+4. No fluff, no ASCII art, just clean formatted visualizations
 
-Keep responses concise and terminal-appropriate. Always cite data sources.`;
+EXAMPLE GOOD RESPONSE:
+"Your portfolio is down $49K (-28%). LAES is your biggest loser.
+
+![viz:pie]({"data":[{"label":"CORE","value":127522},{"label":"AI_PICKS","value":15125}],"options":{"title":"Portfolio Allocation"}})
+
+![viz:table]({"headers":["Ticker","Shares","Value","P/L %"],"rows":[["LAES",18000,"$81,000","-29.7%"],["WRD",2800,"$24,500","-20.5%"],["PONY",1400,"$22,022","-27.2%"]]})
+
+• Core portfolio needs attention - all positions underwater
+• Consider trimming losers or waiting for recovery"
+
+Keep responses concise. Always cite data sources.`;
+
+// Helper function to safely fetch and parse JSON
+async function safeFetch(url: string, options?: RequestInit): Promise<any> {
+  try {
+    const res = await fetch(url, options);
+    if (!res.ok) {
+      throw new Error(`HTTP ${res.status}: ${res.statusText}`);
+    }
+    return await res.json();
+  } catch (error) {
+    console.error(`Fetch error for ${url}:`, error);
+    throw error;
+  }
+}
 
 // Helper function to execute tool calls and return structured data for LLM
 async function executeToolCall(toolName: string, toolInput: any) {
@@ -339,7 +356,7 @@ async function executeToolCall(toolName: string, toolInput: any) {
   try {
     switch (toolName) {
       case 'get_portfolios': {
-        const data = await fetch(`${BASE_URL}/api/portfolio`).then(r => r.json());
+        const data = await safeFetch(`${BASE_URL}/api/portfolio`);
         // Return structured data for LLM to consolidate
         const structured: any = { cash: data.cash, portfolios: {} };
         for (const [id, portfolio] of Object.entries(data.portfolios || {})) {
@@ -357,14 +374,14 @@ async function executeToolCall(toolName: string, toolInput: any) {
               market_value: h.market_value,
               gain_loss: h.gain_loss,
               gain_loss_pct: h.gain_loss_pct,
-            })),
+            })) || [],
           };
         }
         return { success: true, data: structured };
       }
 
       case 'get_portfolio': {
-        const data = await fetch(`${BASE_URL}/api/portfolio/${toolInput.id}`).then(r => r.json());
+        const data = await safeFetch(`${BASE_URL}/api/portfolio/${toolInput.id}`);
         return {
           success: true,
           data: {
@@ -381,13 +398,13 @@ async function executeToolCall(toolName: string, toolInput: any) {
               market_value: h.market_value,
               gain_loss: h.gain_loss,
               gain_loss_pct: h.gain_loss_pct,
-            })),
+            })) || [],
           },
         };
       }
 
       case 'add_holding': {
-        const result = await fetch(`${BASE_URL}/api/portfolio/${toolInput.portfolio_id}/holdings`, {
+        const result = await safeFetch(`${BASE_URL}/api/portfolio/${toolInput.portfolio_id}/holdings`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
@@ -396,32 +413,32 @@ async function executeToolCall(toolName: string, toolInput: any) {
             avg_cost: toolInput.avg_cost,
             current_price: toolInput.current_price,
           }),
-        }).then(r => r.json());
+        });
         return result.success ? { success: true } : result;
       }
 
       case 'update_holding': {
-        const result = await fetch(
+        const result = await safeFetch(
           `${BASE_URL}/api/portfolio/${toolInput.portfolio_id}/holdings/${toolInput.ticker}`,
           {
             method: 'PUT',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(toolInput),
           }
-        ).then(r => r.json());
+        );
         return result.success ? { success: true } : result;
       }
 
       case 'remove_holding': {
-        const result = await fetch(
+        const result = await safeFetch(
           `${BASE_URL}/api/portfolio/${toolInput.portfolio_id}/holdings/${toolInput.ticker}`,
           { method: 'DELETE' }
-        ).then(r => r.json());
+        );
         return result.success ? { success: true } : result;
       }
 
       case 'get_watchlist': {
-        const data = await fetch(`${BASE_URL}/api/watchlist`).then(r => r.json());
+        const data = await safeFetch(`${BASE_URL}/api/watchlist`);
         return {
           success: true,
           data: {
@@ -433,17 +450,17 @@ async function executeToolCall(toolName: string, toolInput: any) {
               target_exit: e.target_exit,
               stop_loss: e.stop_loss,
               status: e.status,
-            })),
+            })) || [],
           },
         };
       }
 
       case 'add_to_watchlist': {
-        const result = await fetch(`${BASE_URL}/api/watchlist`, {
+        const result = await safeFetch(`${BASE_URL}/api/watchlist`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(toolInput),
-        }).then(r => r.json());
+        });
         return result.success ? { success: true } : result;
       }
 
@@ -451,7 +468,7 @@ async function executeToolCall(toolName: string, toolInput: any) {
         const params = new URLSearchParams();
         if (toolInput.ticker) params.set('ticker', toolInput.ticker);
         if (toolInput.portfolio) params.set('portfolio', toolInput.portfolio);
-        const data = await fetch(`${BASE_URL}/api/trades?${params}`).then(r => r.json());
+        const data = await safeFetch(`${BASE_URL}/api/trades?${params}`);
         return {
           success: true,
           data: {
@@ -463,47 +480,50 @@ async function executeToolCall(toolName: string, toolInput: any) {
               shares: t.shares,
               price: t.price,
               total_value: t.total_value,
-            })),
+            })) || [],
           },
         };
       }
 
       case 'log_trade': {
-        const result = await fetch(`${BASE_URL}/api/trades`, {
+        const result = await safeFetch(`${BASE_URL}/api/trades`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(toolInput),
-        }).then(r => r.json());
+        });
         return result.success ? { success: true } : result;
       }
 
       case 'get_analytics': {
-        const data = await fetch(`${BASE_URL}/api/analytics/${toolInput.ticker}`).then(r => r.json());
-        // Return analytics for LLM to summarize
+        const res = await fetch(`${BASE_URL}/api/analytics/${toolInput.ticker}`);
+        if (!res.ok) {
+          return { success: true, data: { ticker: toolInput.ticker, technical: null, fundamental: null, thesis: null } };
+        }
+        const data = await res.json();
         return {
           success: true,
           data: {
             ticker: toolInput.ticker,
-            technical: data.technical?.substring(0, 1000), // Truncate for size
-            fundamental: data.fundamental?.substring(0, 1000),
-            thesis: data.thesis?.substring(0, 1000),
+            technical: data.technical?.substring?.(0, 1000) || null,
+            fundamental: data.fundamental?.substring?.(0, 1000) || null,
+            thesis: data.thesis?.substring?.(0, 1000) || null,
           },
         };
       }
 
       case 'update_analytics': {
-        const result = await fetch(`${BASE_URL}/api/analytics/${toolInput.ticker}/${toolInput.type}`, {
+        const result = await safeFetch(`${BASE_URL}/api/analytics/${toolInput.ticker}/${toolInput.type}`, {
           method: 'PUT',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ content: toolInput.content }),
-        }).then(r => r.json());
+        });
         return result.success ? { success: true } : result;
       }
 
       case 'get_news': {
         const params = new URLSearchParams();
         if (toolInput.limit) params.set('limit', Math.min(toolInput.limit, 10).toString());
-        const data = await fetch(`${BASE_URL}/api/news/${toolInput.ticker}?${params}`).then(r => r.json());
+        const data = await safeFetch(`${BASE_URL}/api/news/${toolInput.ticker}?${params}`);
         return {
           success: true,
           data: {
@@ -513,7 +533,7 @@ async function executeToolCall(toolName: string, toolInput: any) {
               title: a.title,
               source: a.source,
               url: a.url,
-            })),
+            })) || [],
           },
         };
       }
@@ -521,7 +541,7 @@ async function executeToolCall(toolName: string, toolInput: any) {
       case 'get_prices': {
         const params = new URLSearchParams();
         if (toolInput.limit) params.set('limit', Math.min(toolInput.limit, 10).toString());
-        const data = await fetch(`${BASE_URL}/api/prices/${toolInput.ticker}?${params}`).then(r => r.json());
+        const data = await safeFetch(`${BASE_URL}/api/prices/${toolInput.ticker}?${params}`);
         return {
           success: true,
           data: {
@@ -532,7 +552,7 @@ async function executeToolCall(toolName: string, toolInput: any) {
               high: p.high,
               low: p.low,
               close: p.close,
-            })),
+            })) || [],
           },
         };
       }
