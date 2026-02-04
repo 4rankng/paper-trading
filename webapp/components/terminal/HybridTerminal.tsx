@@ -21,6 +21,7 @@ export default function HybridTerminal({ className = '' }: HybridTerminalProps) 
   const inputBufferRef = useRef('');
   const commandHistoryIndexRef = useRef(-1);
   const outputContainerRef = useRef<HTMLDivElement>(null);
+  const cleanupRef = useRef<(() => void) | null>(null);
 
   const {
     sessionId,
@@ -142,28 +143,34 @@ export default function HybridTerminal({ className = '' }: HybridTerminalProps) 
   useLayoutEffect(() => {
     if (!terminalRef.current || xtermRef.current) return;
 
-    try {
-      const terminal = new Terminal({
-          theme: getXtermTheme(defaultTheme),
-          fontFamily: "'Fira Code', 'Source Code Pro', monospace",
-          fontSize: 14,
-          lineHeight: 1.2,
-          cursorBlink: true,
-          cursorStyle: 'block',
-          scrollback: 0, // No scrollback, messages render above
-          rows: 3, // Just enough for input line
-        });
+    // Delay opening terminal until container has computed dimensions
+    // This prevents "Cannot read properties of undefined (reading 'dimensions')" error
+    const initTimer = setTimeout(() => {
+      if (!terminalRef.current || xtermRef.current) return;
 
-        const fitAddon = new FitAddon();
-        const webLinksAddon = new WebLinksAddon();
+      try {
+        const terminal = new Terminal({
+            theme: getXtermTheme(defaultTheme),
+            fontFamily: "'Fira Code', 'Source Code Pro', monospace",
+            fontSize: 14,
+            lineHeight: 1.2,
+            cursorBlink: true,
+            cursorStyle: 'block',
+            scrollback: 0, // No scrollback, messages render above
+            rows: 3, // Just enough for input line
+          });
 
-        terminal.loadAddon(fitAddon);
-        terminal.loadAddon(webLinksAddon);
+          const fitAddon = new FitAddon();
+          const webLinksAddon = new WebLinksAddon();
 
-        terminal.open(terminalRef.current);
+          terminal.loadAddon(fitAddon);
+          terminal.loadAddon(webLinksAddon);
 
-        xtermRef.current = terminal;
-        fitAddonRef.current = fitAddon;
+          // Open terminal after container has computed dimensions
+          terminal.open(terminalRef.current);
+
+          xtermRef.current = terminal;
+          fitAddonRef.current = fitAddon;
 
         // Handle window resize
         const handleResize = () => {
@@ -260,8 +267,8 @@ export default function HybridTerminal({ className = '' }: HybridTerminalProps) 
           writePrompt(terminal);
         });
 
-        // Cleanup
-        return () => {
+        // Store cleanup function
+        cleanupRef.current = () => {
           window.removeEventListener('resize', handleResize);
           terminal.dispose();
           xtermRef.current = null;
@@ -270,6 +277,16 @@ export default function HybridTerminal({ className = '' }: HybridTerminalProps) 
       } catch (error) {
         console.error('Failed to initialize xterm.js:', error);
       }
+    }, 0); // Zero timeout - just push to end of event loop, enough for layout computation
+
+    // Cleanup for the setTimeout
+    return () => {
+      clearTimeout(initTimer);
+      if (cleanupRef.current) {
+        cleanupRef.current();
+        cleanupRef.current = null;
+      }
+    };
   }, [writePrompt, executeCommand, commandHistory]);
 
   return (
