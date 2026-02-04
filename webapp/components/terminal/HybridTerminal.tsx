@@ -15,6 +15,10 @@ interface HybridTerminalProps {
 }
 
 export default function HybridTerminal({ className = '' }: HybridTerminalProps) {
+  const renderCountRef = useRef(0);
+  renderCountRef.current += 1;
+  console.log('[HybridTerminal] Render #', renderCountRef.current);
+
   const terminalRef = useRef<HTMLDivElement>(null);
   const xtermRef = useRef<Terminal | null>(null);
   const fitAddonRef = useRef<FitAddon | null>(null);
@@ -49,13 +53,14 @@ export default function HybridTerminal({ className = '' }: HybridTerminalProps) 
   const writePrompt = useCallback((terminal: Terminal, currentInput = '') => {
     console.log('[writePrompt] Called with input:', JSON.stringify(currentInput));
     console.trace('[writePrompt] Call stack:');
+
+    // Build complete prompt string first to avoid multiple writes
+    const promptStr = '\r\n\x1b[1;32m➜\x1b[0m \x1b[1;36muser@termai\x1b[0m:\x1b[1;34m~\x1b[0m$ ' + currentInput;
+
     terminal.clear();
-    // Bold green arrow, bold cyan username for clear visual hierarchy
-    terminal.write('\r\n\x1b[1;32m➜\x1b[0m \x1b[1;36muser@termai\x1b[0m:\x1b[1;34m~\x1b[0m$ ');
-    if (currentInput) {
-      terminal.write(currentInput);
-    }
-    console.log('[writePrompt] Completed');
+    terminal.write(promptStr);
+
+    console.log('[writePrompt] Completed, wrote:', JSON.stringify(promptStr));
   }, []);
 
   // Execute command - accepts store state to avoid closure staleness
@@ -154,11 +159,16 @@ export default function HybridTerminal({ className = '' }: HybridTerminalProps) 
       const errorMsg = err instanceof Error ? err.message : 'Failed to send message';
       setError(errorMsg);
     } finally {
+      console.log('[Finally] Command completed, calling writePrompt');
       setLoading(false);
       // Rewrite prompt after completion
       const terminal = xtermRef.current;
       if (terminal) {
+        console.log('[Finally] Terminal exists, calling writePrompt');
         writePrompt(terminal);
+        console.log('[Finally] writePrompt completed');
+      } else {
+        console.log('[Finally] Terminal does NOT exist!');
       }
     }
   }, [writePrompt]);

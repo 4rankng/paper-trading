@@ -24,13 +24,13 @@ export default function StatusBar() {
 
   return (
     <div className="h-6 bg-[#2D2D2D] flex items-center justify-between px-3 text-xs text-white select-none border-t border-[#333333]">
-      {/* Left: Session info - smaller, lower hierarchy */}
+      {/* Left: Session info - heavily dimmed, low priority */}
       <div className="flex items-center gap-4 text-[10px]">
-        <span className="text-[#858585]">
-          Session: {sessionId?.slice(0, 8) || '...'}
+        <span className="text-[#4a4a4a] opacity-50">
+          {sessionId?.slice(0, 8) || '...'}
         </span>
-        <span className="text-[#858585]">
-          {messages.length} message{messages.length !== 1 ? 's' : ''}
+        <span className="text-[#5a5a5a] opacity-60">
+          {messages.length} msg{messages.length !== 1 ? 's' : ''}
         </span>
       </div>
 
@@ -53,12 +53,12 @@ export default function StatusBar() {
         </button>
       </div>
 
-      {/* Right: Timestamp and status - prioritized */}
+      {/* Right: Status and time - bright, prioritized */}
       <div className="flex items-center gap-4">
-        <span className="text-[#89D185] font-medium">
+        <span className="text-[#89D185] font-semibold">
           {isLoading ? 'Processing...' : 'Ready'}
         </span>
-        <span className="text-[#858585] font-mono text-[10px]">
+        <span className="text-[#E0E0E0] font-mono text-[11px] opacity-90">
           {currentTime.toLocaleTimeString('en-US', {
             hour12: false,
             hour: '2-digit',
