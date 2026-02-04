@@ -57,6 +57,7 @@ function ensureLightColor(color?: string): string {
 export default function Chart({ command }: ChartProps) {
   const { data, options, chartType = 'line' } = command;
 
+  // Build chart options with forced light colors
   const chartOptions = {
     responsive: true,
     maintainAspectRatio: false,
@@ -64,7 +65,7 @@ export default function Chart({ command }: ChartProps) {
       legend: {
         display: true,
         labels: {
-          color: '#E0E0E0', // Always use light color for legend text
+          color: '#E0E0E0',
           font: {
             family: "'Fira Code', monospace",
             size: 12,
@@ -86,68 +87,17 @@ export default function Chart({ command }: ChartProps) {
           size: 11,
         },
       },
-    },
-    scales: {
-      x: {
-        display: true,
-        ticks: {
-          color: '#E0E0E0',
-          font: {
-            family: "'Fira Code', monospace",
-            size: 11,
-          },
-        },
-        grid: {
-          color: '#333333',
-          drawBorder: false,
-        },
-      },
-      y: {
-        display: true,
-        ticks: {
-          color: '#E0E0E0',
-          font: {
-            family: "'Fira Code', monospace',
-            size: 11,
-          },
-        },
-        grid: {
-          color: '#333333',
-          drawBorder: false,
-        },
-        beginAtZero: true,
-      },
-    },
-    // Merge user options but preserve our color settings
-    ...options,
-    // Ensure colors are never overridden
-    plugins: {
+      // Merge user plugins options
       ...options?.plugins,
+      // Ensure legend color is never overridden
       legend: {
         ...options?.plugins?.legend,
         labels: {
           ...options?.plugins?.legend?.labels,
-          color: '#E0E0E0', // Force light color for legend
+          color: '#E0E0E0',
         },
       },
     },
-    scales: {
-      x: {
-        ...options?.scales?.x,
-        ticks: {
-          ...options?.scales?.x?.ticks,
-          color: '#E0E0E0', // Force light color for x-axis
-        },
-      },
-      y: {
-        ...options?.scales?.y,
-        ticks: {
-          ...options?.scales?.y?.ticks,
-          color: '#E0E0E0', // Force light color for y-axis
-        },
-      },
-    },
-  };
     scales: {
       x: {
         display: true,
@@ -162,7 +112,12 @@ export default function Chart({ command }: ChartProps) {
           color: '#333333',
           drawBorder: false,
         },
+        // Merge user x-axis options
         ...options?.scales?.x,
+        ticks: {
+          ...options?.scales?.x?.ticks,
+          color: '#E0E0E0',
+        },
       },
       y: {
         display: true,
@@ -178,9 +133,15 @@ export default function Chart({ command }: ChartProps) {
           drawBorder: false,
         },
         beginAtZero: true,
+        // Merge user y-axis options
         ...options?.scales?.y,
+        ticks: {
+          ...options?.scales?.y?.ticks,
+          color: '#E0E0E0',
+        },
       },
     },
+    // Merge any remaining user options
     ...options,
   };
 
