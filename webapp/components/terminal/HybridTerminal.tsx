@@ -21,7 +21,6 @@ export default function HybridTerminal({ className = '' }: HybridTerminalProps) 
   const inputBufferRef = useRef('');
   const commandHistoryIndexRef = useRef(-1);
   const outputContainerRef = useRef<HTMLDivElement>(null);
-  const isInitializedRef = useRef(false);
 
   const {
     sessionId,
@@ -139,100 +138,12 @@ export default function HybridTerminal({ className = '' }: HybridTerminalProps) 
     }
   }, [sessionId, addMessage, addToCommandHistory, setLoading, setError, writePrompt]);
 
-  // Set up data handler when terminal is ready
-  useEffect(() => {
-    const terminal = xtermRef.current;
-    if (!terminal || isInitializedRef.current) return;
-
-    isInitializedRef.current = true;
-
-    const handleData = (data: string) => {
-      // Handle Enter key
-      if (data === '\r') {
-        const command = inputBufferRef.current.trim();
-        inputBufferRef.current = '';
-        commandHistoryIndexRef.current = -1;
-
-        if (command) {
-          executeCommand(command);
-        } else {
-          // Empty command, just rewrite prompt
-          writePrompt(terminal);
-        }
-        return;
-      }
-
-      // Handle Backspace
-      if (data === '\u007F') {
-        if (inputBufferRef.current.length > 0) {
-          inputBufferRef.current = inputBufferRef.current.slice(0, -1);
-          writePrompt(terminal, inputBufferRef.current);
-        }
-        return;
-      }
-
-      // Handle Arrow Up (previous command)
-      if (data === '\u001B[A') {
-        if (commandHistoryIndexRef.current < commandHistory.length - 1) {
-          commandHistoryIndexRef.current++;
-          const newIndex = commandHistory.length - 1 - commandHistoryIndexRef.current;
-          const cmd = commandHistory[newIndex];
-          inputBufferRef.current = cmd;
-          writePrompt(terminal, cmd);
-        }
-        return;
-      }
-
-      // Handle Arrow Down (next command)
-      if (data === '\u001B[B') {
-        if (commandHistoryIndexRef.current > 0) {
-          commandHistoryIndexRef.current--;
-          const newIndex = commandHistory.length - 1 - commandHistoryIndexRef.current;
-          const cmd = commandHistory[newIndex];
-          inputBufferRef.current = cmd;
-          writePrompt(terminal, cmd);
-        } else if (commandHistoryIndexRef.current === 0) {
-          commandHistoryIndexRef.current = -1;
-          inputBufferRef.current = '';
-          writePrompt(terminal, '');
-        }
-        return;
-      }
-
-      // Handle Ctrl+C
-      if (data === '\u0003') {
-        terminal.clear();
-        inputBufferRef.current = '';
-        writePrompt(terminal);
-        return;
-      }
-
-      // Regular character input (printable ASCII)
-      const charCode = data.charCodeAt(0);
-      if (charCode >= 32 && charCode <= 126) {
-        inputBufferRef.current += data;
-        terminal.write(data);
-      }
-    };
-
-    terminal.onData(handleData);
-
-    return () => {
-      terminal.onData(() => {});
-      isInitializedRef.current = false;
-    };
-  }, [commandHistory, executeCommand, writePrompt]);
-
   // Initialize xterm.js for input only
   useLayoutEffect(() => {
     if (!terminalRef.current || xtermRef.current) return;
 
-    // Small delay to ensure container is rendered with dimensions
-    const initTimer = setTimeout(() => {
-      if (!terminalRef.current || xtermRef.current) return;
-
-      try {
-        const terminal = new Terminal({
+    try {
+      const terminal = new Terminal({
           theme: getXtermTheme(defaultTheme),
           fontFamily: "'Fira Code', 'Source Code Pro', monospace",
           fontSize: 14,
@@ -267,6 +178,78 @@ export default function HybridTerminal({ className = '' }: HybridTerminalProps) 
 
         window.addEventListener('resize', handleResize);
 
+        // Set up data handler
+        const handleData = (data: string) => {
+          // Handle Enter key
+          if (data === '\r') {
+            const command = inputBufferRef.current.trim();
+            inputBufferRef.current = '';
+            commandHistoryIndexRef.current = -1;
+
+            if (command) {
+              executeCommand(command);
+            } else {
+              // Empty command, just rewrite prompt
+              writePrompt(terminal);
+            }
+            return;
+          }
+
+          // Handle Backspace
+          if (data === '\u007F') {
+            if (inputBufferRef.current.length > 0) {
+              inputBufferRef.current = inputBufferRef.current.slice(0, -1);
+              writePrompt(terminal, inputBufferRef.current);
+            }
+            return;
+          }
+
+          // Handle Arrow Up (previous command)
+          if (data === '\u001B[A') {
+            if (commandHistoryIndexRef.current < commandHistory.length - 1) {
+              commandHistoryIndexRef.current++;
+              const newIndex = commandHistory.length - 1 - commandHistoryIndexRef.current;
+              const cmd = commandHistory[newIndex];
+              inputBufferRef.current = cmd;
+              writePrompt(terminal, cmd);
+            }
+            return;
+          }
+
+          // Handle Arrow Down (next command)
+          if (data === '\u001B[B') {
+            if (commandHistoryIndexRef.current > 0) {
+              commandHistoryIndexRef.current--;
+              const newIndex = commandHistory.length - 1 - commandHistoryIndexRef.current;
+              const cmd = commandHistory[newIndex];
+              inputBufferRef.current = cmd;
+              writePrompt(terminal, cmd);
+            } else if (commandHistoryIndexRef.current === 0) {
+              commandHistoryIndexRef.current = -1;
+              inputBufferRef.current = '';
+              writePrompt(terminal, '');
+            }
+            return;
+          }
+
+          // Handle Ctrl+C
+          if (data === '\u0003') {
+            terminal.clear();
+            inputBufferRef.current = '';
+            writePrompt(terminal);
+            return;
+          }
+
+          // Regular character input (printable ASCII)
+          const charCode = data.charCodeAt(0);
+          if (charCode >= 32 && charCode <= 126) {
+            inputBufferRef.current += data;
+            terminal.write(data);
+          }
+        };
+
+        terminal.onData(handleData);
+
         // Fit and write initial prompt
         requestAnimationFrame(() => {
           try {
@@ -287,12 +270,7 @@ export default function HybridTerminal({ className = '' }: HybridTerminalProps) 
       } catch (error) {
         console.error('Failed to initialize xterm.js:', error);
       }
-    }, 100);
-
-    return () => {
-      clearTimeout(initTimer);
-    };
-  }, [writePrompt]);
+  }, [writePrompt, executeCommand, commandHistory]);
 
   return (
     <div className={`flex flex-col h-full bg-[#1E1E1E] ${className}`}>
