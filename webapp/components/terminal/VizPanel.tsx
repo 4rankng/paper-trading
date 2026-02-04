@@ -94,7 +94,7 @@ export default function VizPanel({ visualizations, className = '' }: VizPanelPro
           {visualizations.length === 0 ? (
             <div className="text-center py-8">
               <svg
-                className="w-12 h-12 mx-auto mb-3 text-[#333333]"
+                className="w-12 h-12 mx-auto mb-3 text-[#858585]"
                 fill="none"
                 viewBox="0 0 24 24"
                 stroke="currentColor"

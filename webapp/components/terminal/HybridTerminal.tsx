@@ -175,7 +175,7 @@ export default function HybridTerminal({ className = '' }: HybridTerminalProps) 
             <div className="text-white font-bold text-xl mb-3 tracking-wide font-['Fira_Code',monospace]">
               TermAI Explorer
             </div>
-            <div className="text-[#5a5a5a] text-sm font-['Fira_Code',monospace]">
+            <div className="text-[#858585] text-sm font-['Fira_Code',monospace]">
               Type a command and press Enter
             </div>
           </div>
