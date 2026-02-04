@@ -49,7 +49,7 @@ function AssistantMessage({ message }: { message: Message }) {
   const parts = splitTextByVizs(contentWithErrors, vizs);
 
   return (
-    <div className="bg-[#252526] px-4 py-4 rounded-r border-l-3 border-[#BB86FC] border-l-[3px] break-words overflow-wrap-anywhere">
+    <div className="bg-[#252526] px-4 py-4 pb-[100px] rounded-r border-l-3 border-[#BB86FC] border-l-[3px] break-words overflow-wrap-anywhere">
       {/* Content with inline visualizations */}
       <div className="text-[#E0E0E0] text-sm leading-relaxed break-words overflow-wrap-anywhere">
         {parts.map((part, i) => {

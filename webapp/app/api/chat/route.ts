@@ -11,6 +11,8 @@ config({ path: envPath });
 // Support both direct Anthropic API and Z.AI proxy
 const apiKey = process.env.ANTHROPIC_API_KEY || process.env.ANTHROPIC_AUTH_TOKEN || '';
 const baseUrl = process.env.ANTHROPIC_BASE_URL;
+// Model selection: support GLM models via Z.AI proxy or default to Claude
+const model = process.env.LLM_MODEL || (baseUrl?.includes('z.ai') ? 'glm-4.7' : 'claude-sonnet-4-20250514');
 
 const anthropic = new Anthropic({
   apiKey,
@@ -280,6 +282,65 @@ const TOOLS = [
       required: ['ticker'],
     },
   },
+  {
+    name: 'web_search',
+    description: 'Search the web for current news, events, and information. Uses DuckDuckGo (free, no API key). Great for breaking news, government announcements, market events.',
+    input_schema: {
+      type: 'object' as const,
+      properties: {
+        query: {
+          type: 'string' as const,
+          description: 'Search query (e.g., "government shutdown impact", "AAPL news today", "Fed interest rate decision")',
+        },
+        limit: {
+          type: 'number' as const,
+          description: 'Max results to return (default: 5, max: 10)',
+        },
+      },
+      required: ['query'],
+    },
+  },
+  {
+    name: 'fetch_news',
+    description: 'Fetch news for a specific stock ticker using yfinance. Use this for stock-specific news.',
+    input_schema: {
+      type: 'object' as const,
+      properties: {
+        ticker: {
+          type: 'string' as const,
+          description: 'Stock ticker symbol (e.g., NVDA, AAPL)',
+        },
+        limit: {
+          type: 'number' as const,
+          description: 'Max articles to return (default: 20)',
+        },
+      },
+      required: ['ticker'],
+    },
+  },
+  {
+    name: 'invoke_skill',
+    description: 'Invoke a Python skill script with access to full data access layer and tools. Use GET /api/skill?name=portfolio_manager to list available scripts for a skill. Common examples: portfolio_manager/get_portfolio.py, news_fetcher/fetch_news.py --ticker NVDA, trading_plan/generate_plan_template.py NVDA 1d.',
+    input_schema: {
+      type: 'object' as const,
+      properties: {
+        skill: {
+          type: 'string' as const,
+          description: 'Skill name (portfolio_manager, watchlist_manager, news_fetcher, trading_plan, analytics_generator, macro_fetcher, trading_debate, signal_formatter, read_csv, read_pdf)',
+        },
+        script: {
+          type: 'string' as const,
+          description: 'Script name within the skill (e.g., "get_portfolio.py", "fetch_news.py", "trading_plan.py")',
+        },
+        args: {
+          type: 'array' as const,
+          description: 'Command-line arguments for the script',
+          items: { type: 'string' as const },
+        },
+      },
+      required: ['skill', 'script', 'args'],
+    },
+  },
 ];
 
 const SYSTEM_PROMPT = `You are TermAI Explorer, a financial AI assistant with access to REAL portfolio and market data.
@@ -290,21 +351,43 @@ CRITICAL RULES:
 3. CONSOLIDATE and INTERPRET the data - then PRESENT WITH VISUALIZATIONS
 4. NEVER use ASCII tables, terminal art, or markdown tables - USE THE PROVIDED VISUALIZATION FORMAT ONLY
 5. DOUBLE-CHECK your visualization JSON syntax - malformed visualizations won't render
+6. CRITICAL: For charts, ALWAYS use type="chart" with chartType="line/bar" inside - NEVER use type="line" or type="bar" directly
 
-FORBIDDEN FORMATS (DO NOT USE):
-- ❌ ASCII tables with | and --- separators
-- ❌ Markdown tables
-- ❌ Box drawing characters
-- ❌ Terminal art/borders
+FORBIDDEN FORMATS (NEVER USE THESE):
+❌ MARKDOWN TABLES (these will NOT render properly):
+| Issue | Status |
+|-------|--------|
+| Item 1 | Value 1 |
+| Item 2 | Value 2 |
 
-REQUIRED VISUALIZATION FORMAT:
-Use ONLY these markdown formats for charts and tables:
+❌ ASCII/TERMINAL ART:
++-------+--------+
+| Issue | Status |
++-------+--------+
+
+❌ BOX DRAWING:
+┌───────┬────────┐
+│ Issue │ Status │
+└───────┴────────┘
+
+❌ WRONG CHART TYPES (these will fail to render):
+![viz:line]({"data":{...}})        ← WRONG: "line" is not a valid type
+![viz:bar]({"data":{...}})         ← WRONG: "bar" is not a valid type
+![viz:chart]({"type":"line",...})  ← WRONG: type must be "chart", not "line"
+
+REQUIRED VISUALIZATION FORMAT (USE THIS INSTEAD):
+For tabular data, ALWAYS use the viz:table format:
+![viz:table]({"headers":["Issue","Status"],"rows":[["Shutdown Duration","4 days (brief)"],["DHS Funding","2-week continuing resolution"]]})
+
+AVAILABLE VISUALIZATION TYPES:
 
 1. LINE CHART - For trends over time (prices, portfolio value)
-   ![viz:chart]({"type":"line","chartType":"line","data":{"labels":["Jan","Feb","Mar"],"datasets":[{"label":"Portfolio Value","data":[100000,105000,102000]}]},"options":{"title":"Portfolio Value Trend"}})
+   IMPORTANT: Use type="chart" with chartType="line" inside
+   ![viz:chart]({"type":"chart","chartType":"line","data":{"labels":["Jan","Feb","Mar"],"datasets":[{"label":"Portfolio Value","data":[100000,105000,102000]}]},"options":{"title":"Portfolio Value Trend"}})
 
 2. BAR CHART - For comparisons (holdings by value, P/L by stock)
-   ![viz:chart]({"type":"bar","chartType":"bar","data":{"labels":["AAPL","MSFT","GOOGL"],"datasets":[{"label":"Holdings Value","data":[50000,30000,20000]}]},"options":{"title":"Holdings by Stock"}})
+   IMPORTANT: Use type="chart" with chartType="bar" inside
+   ![viz:chart]({"type":"chart","chartType":"bar","data":{"labels":["AAPL","MSFT","GOOGL"],"datasets":[{"label":"Holdings Value","data":[50000,30000,20000]}]},"options":{"title":"Holdings by Stock"}})
 
 3. PIE CHART - For distributions (asset allocation, sector breakdown)
    ![viz:pie]({"data":[{"label":"CORE","value":127522},{"label":"AI_PICKS","value":13749}],"options":{"title":"Portfolio Allocation"}})
@@ -313,15 +396,43 @@ Use ONLY these markdown formats for charts and tables:
    IMPORTANT: Notice the "rows" key is inside the object, comma-separated
    ![viz:table]({"headers":["Ticker","Shares","Value","P/L %"],"rows":[["AAPL",100,"$50,000","+12.5%"],["MSFT",50,"$30,000","+8.3%"]]})
 
-COMMON TABLE SYNTAX ERRORS TO AVOID:
-- Wrong: {"headers":[...],["rows":[...]]}  ← "rows" is separate array element
-- Correct: {"headers":[...],"rows":[...]]}  ← "rows" is inside object
+CRITICAL SYNTAX RULES:
+- Line/Bar charts: type="chart" (NOT type="line" or type="bar")
+- chartType="line" or chartType="bar" goes INSIDE the data object
+- Pie charts: type="pie"
+- Tables: type="table"
+- NEVER use type="line" or type="bar" directly - this will fail to render!
+
+COMMON CHART SYNTAX ERRORS:
+❌ WRONG - This will NOT render:
+![viz:chart]({"type":"line","data":{...}})
+![viz:line]({"data":{...}})
+
+✅ CORRECT - This WILL render:
+![viz:chart]({"type":"chart","chartType":"line","data":{...}})
+
+❌ WRONG - This will NOT render:
+![viz:chart]({"type":"bar","data":{...}})
+
+✅ CORRECT - This WILL render:
+![viz:chart]({"type":"chart","chartType":"bar","data":{...}})
 
 WHEN TO USE EACH VISUALIZATION:
 - LINE CHART: Time-series data, price history, portfolio growth over time
 - BAR CHART: Comparing values across categories (holdings, P/L by ticker)
 - PIE CHART: Parts-of-whole relationships (portfolio allocation, sector breakdown)
-- TABLE: Detailed multi-column listings (holdings with all details, trade history)
+- TABLE: Detailed multi-column listings (holdings with all details, trade history, event summaries)
+
+IMPORTANT - TABLE USAGE:
+When you need to show tabular data (issues, comparisons, summaries), ALWAYS use viz:table format.
+
+WRONG (markdown table - will NOT render):
+| Issue | Status |
+|-------|--------|
+| Item 1 | Value 1 |
+
+CORRECT (viz:table - WILL render):
+![viz:table]({"headers":["Issue","Status"],"rows":[["Item 1","Value 1"]]})
 
 RESPONSE STRUCTURE:
 1. One sentence summary of the key insight
@@ -443,10 +554,16 @@ async function executeToolCall(toolName: string, toolInput: any) {
 
       case 'get_watchlist': {
         const data = await safeFetch(`${BASE_URL}/api/watchlist`);
+        const entries = Array.isArray(data?.entries) ? data.entries :
+                         (data?.tickers ? Object.keys(data.tickers).map((ticker: string) => ({
+                           ticker,
+                           ...data.tickers[ticker],
+                         })) : []);
+
         return {
           success: true,
           data: {
-            entries: data.entries?.map((e: any) => ({
+            entries: entries.map((e: any) => ({
               ticker: e.ticker,
               strategy: e.strategy,
               notes: e.notes,
@@ -454,7 +571,8 @@ async function executeToolCall(toolName: string, toolInput: any) {
               target_exit: e.target_exit,
               stop_loss: e.stop_loss,
               status: e.status,
-            })) || [],
+            })),
+            total_count: entries.length,
           },
         };
       }
@@ -545,20 +663,168 @@ async function executeToolCall(toolName: string, toolInput: any) {
       case 'get_prices': {
         const params = new URLSearchParams();
         if (toolInput.limit) params.set('limit', Math.min(toolInput.limit, 10).toString());
-        const data = await safeFetch(`${BASE_URL}/api/prices/${toolInput.ticker}?${params}`);
+        try {
+          const data = await safeFetch(`${BASE_URL}/api/prices/${toolInput.ticker}?${params}`);
+          // If 404 (no price data), return empty array instead of error
+          if (!data || data.error === 'HTTP 404: Not Found' || !data.prices) {
+            return {
+              success: true,
+              data: {
+                ticker: toolInput.ticker,
+                prices: [],
+                note: 'No price data available - fetch first using invoke_skill with analytics_generator/fetch_prices',
+              },
+            };
+          }
+          return {
+            success: true,
+            data: {
+              ticker: toolInput.ticker,
+              prices: data.prices?.map((p: any) => ({
+                date: p.date,
+                open: p.open,
+                high: p.high,
+                low: p.low,
+                close: p.close,
+              })) || [],
+            },
+          };
+        } catch (e: any) {
+          // Handle fetch errors (404, network issues, etc) gracefully
+          const errorMsg = e?.message || 'Unknown error';
+          if (errorMsg.includes('404') || errorMsg.includes('Not Found')) {
+            return {
+              success: true,
+              data: {
+                ticker: toolInput.ticker,
+                prices: [],
+                note: 'No price data available - fetch first using invoke_skill with analytics_generator/fetch_prices',
+              },
+            };
+          }
+          // For other errors, still return gracefully
+          return {
+            success: true,
+            data: {
+              ticker: toolInput.ticker,
+              prices: [],
+              note: `Price fetch error: ${errorMsg}`,
+            },
+          };
+        }
+      }
+
+      case 'web_search': {
+        const params = new URLSearchParams();
+        params.set('q', toolInput.query);
+        if (toolInput.limit) params.set('limit', Math.min(toolInput.limit, 10).toString());
+        const data = await safeFetch(`${BASE_URL}/api/search?${params}`);
         return {
           success: true,
           data: {
-            ticker: toolInput.ticker,
-            prices: data.prices?.map((p: any) => ({
-              date: p.date,
-              open: p.open,
-              high: p.high,
-              low: p.low,
-              close: p.close,
+            query: toolInput.query,
+            results: data.results?.map((r: any) => ({
+              title: r.title,
+              url: r.url,
+              snippet: r.snippet,
+              source: r.source,
             })) || [],
+            count: data.count || 0,
           },
         };
+      }
+
+      case 'fetch_news': {
+        // Use news_fetcher skill as reliable alternative
+        const limit = toolInput.limit || 20;
+        try {
+          const data = await safeFetch(`${BASE_URL}/api/skill`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              skill: 'news_fetcher',
+              script: 'fetch_news.py',
+              args: ['--ticker', toolInput.ticker, '--limit', String(limit)],
+              session_id: 'webapp',
+            }),
+          });
+          if (data.error) {
+            return {
+              success: true,
+              data: {
+                ticker: toolInput.ticker,
+                source: 'news_fetcher skill (yfinance)',
+                output: `Error fetching news: ${data.error}`,
+                error: data.error,
+              },
+            };
+          }
+          // Parse news from Python script output
+          return {
+            success: true,
+            data: {
+              ticker: toolInput.ticker,
+              source: 'news_fetcher skill (yfinance)',
+              output: data.output || 'No articles found',
+            },
+          };
+        } catch (e: any) {
+          return {
+            success: true,
+            data: {
+              ticker: toolInput.ticker,
+              source: 'news_fetcher skill (yfinance)',
+              output: `Failed to fetch news: ${e.message}`,
+              error: e.message,
+            },
+          };
+        }
+      }
+
+      case 'invoke_skill': {
+        try {
+          const data = await safeFetch(`${BASE_URL}/api/skill`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              skill: toolInput.skill,
+              script: toolInput.script,
+              args: toolInput.args || [],
+              session_id: 'webapp',
+            }),
+          });
+          if (data.error) {
+            // Return success with error info instead of failing
+            return {
+              success: true,
+              data: {
+                skill: toolInput.skill,
+                script: toolInput.script,
+                output: `Error: ${data.error}`,
+                error: data.error,
+              },
+            };
+          }
+          return {
+            success: true,
+            data: {
+              skill: toolInput.skill,
+              script: toolInput.script,
+              output: data.output || 'Skill executed successfully',
+            },
+          };
+        } catch (e: any) {
+          // Handle fetch errors gracefully
+          return {
+            success: true,
+            data: {
+              skill: toolInput.skill,
+              script: toolInput.script,
+              output: `Failed to execute skill: ${e.message}`,
+              error: e.message,
+            },
+          };
+        }
       }
 
       default:
@@ -630,9 +896,9 @@ export async function POST(request: NextRequest) {
           // Main loop for handling tool use
           let maxIterations = 5; // Prevent infinite loops
           while (maxIterations-- > 0) {
-            // Call Claude API
+            // Call LLM API
             const response = await anthropic.messages.create({
-              model: 'claude-sonnet-4-20250514',
+              model,
               max_tokens: 4096,
               system: enhancedPrompt,
               messages,
@@ -660,6 +926,18 @@ export async function POST(request: NextRequest) {
             const toolResults: Anthropic.ToolResultBlockParam[] = [];
 
             for (const toolUse of toolUseBlocks) {
+              // Send tool start notification to client
+              controller.enqueue(
+                encoder.encode(
+                  `data: ${JSON.stringify({
+                    tool_start: {
+                      name: toolUse.name,
+                      input: toolUse.input,
+                    },
+                  })}\n\n`
+                )
+              );
+
               const result = await executeToolCall(toolUse.name, toolUse.input);
 
               // Format result content for LLM
