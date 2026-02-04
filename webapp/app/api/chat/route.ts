@@ -19,18 +19,383 @@ const anthropic = new Anthropic({
 
 export const runtime = 'nodejs';
 
-const SYSTEM_PROMPT = `You are TermAI Explorer, a terminal-based AI assistant with access to REAL financial data from the filedb folder.
+const BASE_URL = process.env.NEXT_PUBLIC_WEBAPP_URL || 'http://localhost:3000';
 
-IMPORTANT: You have access to the user's actual portfolio data, price history, and analytics. ALWAYS use the real data provided in context. NEVER make up or fabricate numbers, holdings, or financial information.
+// Define tools for the LLM
+const TOOLS = [
+  {
+    name: 'get_portfolios',
+    description: 'Fetch all portfolio data including holdings, values, and P/L',
+    input_schema: {
+      type: 'object' as const,
+      properties: {},
+    },
+  },
+  {
+    name: 'get_portfolio',
+    description: 'Fetch a specific portfolio by ID with its holdings',
+    input_schema: {
+      type: 'object' as const,
+      properties: {
+        id: {
+          type: 'string' as const,
+          description: 'Portfolio ID (e.g., CORE, AI_PICKS)',
+        },
+      },
+      required: ['id'],
+    },
+  },
+  {
+    name: 'add_holding',
+    description: 'Add a new holding to a portfolio',
+    input_schema: {
+      type: 'object' as const,
+      properties: {
+        portfolio_id: {
+          type: 'string' as const,
+          description: 'Portfolio ID (e.g., CORE, AI_PICKS)',
+        },
+        ticker: {
+          type: 'string' as const,
+          description: 'Stock ticker symbol',
+        },
+        shares: {
+          type: 'number' as const,
+          description: 'Number of shares',
+        },
+        avg_cost: {
+          type: 'number' as const,
+          description: 'Average cost per share',
+        },
+        current_price: {
+          type: 'number' as const,
+          description: 'Current market price (optional)',
+        },
+      },
+      required: ['portfolio_id', 'ticker', 'shares', 'avg_cost'],
+    },
+  },
+  {
+    name: 'update_holding',
+    description: 'Update an existing holding (shares, avg_cost, current_price)',
+    input_schema: {
+      type: 'object' as const,
+      properties: {
+        portfolio_id: {
+          type: 'string' as const,
+          description: 'Portfolio ID',
+        },
+        ticker: {
+          type: 'string' as const,
+          description: 'Stock ticker symbol',
+        },
+        shares: { type: 'number' as const },
+        avg_cost: { type: 'number' as const },
+        current_price: { type: 'number' as const },
+      },
+      required: ['portfolio_id', 'ticker'],
+    },
+  },
+  {
+    name: 'remove_holding',
+    description: 'Remove a holding from a portfolio',
+    input_schema: {
+      type: 'object' as const,
+      properties: {
+        portfolio_id: {
+          type: 'string' as const,
+          description: 'Portfolio ID',
+        },
+        ticker: {
+          type: 'string' as const,
+          description: 'Stock ticker symbol',
+        },
+      },
+      required: ['portfolio_id', 'ticker'],
+    },
+  },
+  {
+    name: 'get_watchlist',
+    description: 'Fetch all watchlist entries',
+    input_schema: {
+      type: 'object' as const,
+      properties: {},
+    },
+  },
+  {
+    name: 'add_to_watchlist',
+    description: 'Add a ticker to the watchlist',
+    input_schema: {
+      type: 'object' as const,
+      properties: {
+        ticker: {
+          type: 'string' as const,
+          description: 'Stock ticker symbol',
+        },
+        notes: {
+          type: 'string' as const,
+          description: 'Notes about the position',
+        },
+        tags: {
+          type: 'array' as const,
+          items: { type: 'string' as const },
+          description: 'Tags for categorization',
+        },
+        strategy: {
+          type: 'string' as const,
+          description: 'Trading strategy',
+        },
+        target_entry: {
+          type: 'number' as const,
+          description: 'Target entry price',
+        },
+        target_exit: {
+          type: 'number' as const,
+          description: 'Target exit price',
+        },
+      },
+      required: ['ticker'],
+    },
+  },
+  {
+    name: 'get_trades',
+    description: 'Fetch trade history with optional filters',
+    input_schema: {
+      type: 'object' as const,
+      properties: {
+        ticker: { type: 'string' as const, description: 'Filter by ticker' },
+        portfolio: { type: 'string' as const, description: 'Filter by portfolio' },
+        limit: {
+          type: 'number' as const,
+          description: 'Max number of trades to return (default: all)',
+        },
+      },
+    },
+  },
+  {
+    name: 'log_trade',
+    description: 'Log a new trade (BUY, SELL, or TRIM)',
+    input_schema: {
+      type: 'object' as const,
+      properties: {
+        ticker: {
+          type: 'string' as const,
+          description: 'Stock ticker symbol',
+        },
+        action: {
+          type: 'string' as const,
+          description: 'Trade action: BUY, SELL, or TRIM',
+          enum: ['BUY', 'SELL', 'TRIM'],
+        },
+        shares: {
+          type: 'number' as const,
+          description: 'Number of shares traded',
+        },
+        price: {
+          type: 'number' as const,
+          description: 'Price per share',
+        },
+        portfolio: {
+          type: 'string' as const,
+          description: 'Portfolio ID (default: CORE)',
+        },
+        notes: {
+          type: 'string' as const,
+          description: 'Trade notes or reasoning',
+        },
+      },
+      required: ['ticker', 'action', 'shares', 'price'],
+    },
+  },
+  {
+    name: 'get_analytics',
+    description: 'Fetch analytics data (technical, fundamental, thesis) for a ticker',
+    input_schema: {
+      type: 'object' as const,
+      properties: {
+        ticker: {
+          type: 'string' as const,
+          description: 'Stock ticker symbol',
+        },
+      },
+      required: ['ticker'],
+    },
+  },
+  {
+    name: 'update_analytics',
+    description: 'Update analytics data for a ticker',
+    input_schema: {
+      type: 'object' as const,
+      properties: {
+        ticker: {
+          type: 'string' as const,
+          description: 'Stock ticker symbol',
+        },
+        type: {
+          type: 'string' as const,
+          description: 'Type of analytics',
+          enum: ['technical', 'fundamental', 'thesis'],
+        },
+        content: {
+          type: 'string' as const,
+          description: 'Analytics content in markdown format',
+        },
+      },
+      required: ['ticker', 'type', 'content'],
+    },
+  },
+  {
+    name: 'get_news',
+    description: 'Fetch news articles for a ticker',
+    input_schema: {
+      type: 'object' as const,
+      properties: {
+        ticker: {
+          type: 'string' as const,
+          description: 'Stock ticker symbol',
+        },
+        limit: {
+          type: 'number' as const,
+          description: 'Max articles to return (default: 50)',
+        },
+      },
+      required: ['ticker'],
+    },
+  },
+  {
+    name: 'get_prices',
+    description: 'Fetch historical price data for a ticker',
+    input_schema: {
+      type: 'object' as const,
+      properties: {
+        ticker: {
+          type: 'string' as const,
+          description: 'Stock ticker symbol',
+        },
+        limit: {
+          type: 'number' as const,
+          description: 'Max days to return (default: 365)',
+        },
+      },
+      required: ['ticker'],
+    },
+  },
+];
 
-When the user asks about their portfolio, holdings, or positions, the system will automatically fetch their REAL data from filedb/portfolios.json. Use this data to create accurate visualizations and responses.
+const SYSTEM_PROMPT = `You are TermAI Explorer, a terminal-based financial AI assistant with access to REAL portfolio and market data.
 
-To create a visualization, use this format:
-![viz:chart]({"type":"line","data":{"labels":["A","B","C"],"datasets":[{"label":"Data","data":[1,2,3]}]}})
-![viz:table]({"headers":["Name","Value"],"rows":[["Item 1",100],["Item 2",200]]})
-![viz:pie]({"data":[{"label":"A","value":10},{"label":"B","value":20}],"options":{"title":"Distribution"}})
+CRITICAL RULES:
+1. ALWAYS use the available tools to fetch REAL data before responding
+2. NEVER make up or fabricate numbers, holdings, prices, or financial information
+3. When asked about portfolio/holdings, use get_portfolios() or get_portfolio() tools
+4. When asked to add/update/remove positions, use the appropriate holding tools
+5. When asked about trades, use get_trades() tool
+6. When asked about watchlist, use get_watchlist() or add_to_watchlist() tools
+7. When asked about a specific stock's analysis, use get_analytics() and get_news() tools
 
-Keep responses concise and terminal-appropriate. Use monospace-friendly formatting.`;
+VISUALIZATION FORMAT:
+To create visualizations, use this markdown format:
+- Line chart: ![viz:chart]({"type":"line","chartType":"line","data":{"labels":["A","B","C"],"datasets":[{"label":"Data","data":[1,2,3]}]}})
+- Bar chart: ![viz:chart]({"type":"bar","chartType":"bar","data":{"labels":["A","B","C"],"datasets":[{"label":"Data","data":[1,2,3]}]}})
+- Pie chart: ![viz:pie]({"data":[{"label":"A","value":10},{"label":"B","value":20}],"options":{"title":"Distribution"}})
+- Table: ![viz:table]({"headers":["Name","Value"],"rows":[["Item 1",100],["Item 2",200]]})
+
+Keep responses concise and terminal-appropriate. Always cite data sources.`;
+
+// Helper function to execute tool calls
+async function executeToolCall(toolName: string, toolInput: any) {
+  console.log('[Chat API] Executing tool:', toolName, 'with input:', toolInput);
+
+  try {
+    switch (toolName) {
+      case 'get_portfolios':
+        return await fetch(`${BASE_URL}/api/portfolio`).then(r => r.json());
+
+      case 'get_portfolio':
+        return await fetch(`${BASE_URL}/api/portfolio/${toolInput.id}`).then(r => r.json());
+
+      case 'add_holding':
+        return await fetch(`${BASE_URL}/api/portfolio/${toolInput.portfolio_id}/holdings`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            ticker: toolInput.ticker,
+            shares: toolInput.shares,
+            avg_cost: toolInput.avg_cost,
+            current_price: toolInput.current_price,
+          }),
+        }).then(r => r.json());
+
+      case 'update_holding':
+        return await fetch(
+          `${BASE_URL}/api/portfolio/${toolInput.portfolio_id}/holdings/${toolInput.ticker}`,
+          {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(toolInput),
+          }
+        ).then(r => r.json());
+
+      case 'remove_holding':
+        return await fetch(
+          `${BASE_URL}/api/portfolio/${toolInput.portfolio_id}/holdings/${toolInput.ticker}`,
+          { method: 'DELETE' }
+        ).then(r => r.json());
+
+      case 'get_watchlist':
+        return await fetch(`${BASE_URL}/api/watchlist`).then(r => r.json());
+
+      case 'add_to_watchlist':
+        return await fetch(`${BASE_URL}/api/watchlist`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(toolInput),
+        }).then(r => r.json());
+
+      case 'get_trades': {
+        const params = new URLSearchParams();
+        if (toolInput.ticker) params.set('ticker', toolInput.ticker);
+        if (toolInput.portfolio) params.set('portfolio', toolInput.portfolio);
+        return await fetch(`${BASE_URL}/api/trades?${params}`).then(r => r.json());
+      }
+
+      case 'log_trade':
+        return await fetch(`${BASE_URL}/api/trades`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(toolInput),
+        }).then(r => r.json());
+
+      case 'get_analytics':
+        return await fetch(`${BASE_URL}/api/analytics/${toolInput.ticker}`).then(r => r.json());
+
+      case 'update_analytics':
+        return await fetch(`${BASE_URL}/api/analytics/${toolInput.ticker}/${toolInput.type}`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ content: toolInput.content }),
+        }).then(r => r.json());
+
+      case 'get_news': {
+        const params = new URLSearchParams();
+        if (toolInput.limit) params.set('limit', toolInput.limit.toString());
+        return await fetch(`${BASE_URL}/api/news/${toolInput.ticker}?${params}`).then(r => r.json());
+      }
+
+      case 'get_prices': {
+        const params = new URLSearchParams();
+        if (toolInput.limit) params.set('limit', toolInput.limit.toString());
+        return await fetch(`${BASE_URL}/api/prices/${toolInput.ticker}?${params}`).then(r => r.json());
+      }
+
+      default:
+        return { error: `Unknown tool: ${toolName}` };
+    }
+  } catch (error: any) {
+    console.error(`[Chat API] Tool execution error for ${toolName}:`, error);
+    return { error: error.message || 'Tool execution failed' };
+  }
+}
 
 export async function POST(request: NextRequest) {
   try {
@@ -47,7 +412,7 @@ export async function POST(request: NextRequest) {
     let context = '';
     try {
       const ragResponse = await fetch(
-        `${process.env.NEXT_PUBLIC_WEBAPP_URL || 'http://localhost:3000'}/api/rag/query?session_id=${encodeURIComponent(session_id)}&query=${encodeURIComponent(message)}&limit=3`
+        `${BASE_URL}/api/rag/query?session_id=${encodeURIComponent(session_id)}&query=${encodeURIComponent(message)}&limit=3`
       );
       if (ragResponse.ok) {
         const ragData = await ragResponse.json();
@@ -57,46 +422,15 @@ export async function POST(request: NextRequest) {
       console.error('Failed to fetch RAG context:', error);
     }
 
-    // Fetch real data from filedb
-    let dataContext = '';
-    try {
-      console.log('[Chat API] Fetching data context for query:', message);
-      const dataResponse = await fetch(
-        `${process.env.NEXT_PUBLIC_WEBAPP_URL || 'http://localhost:3000'}/api/data/query`,
-        {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ query: message }),
-        }
-      );
-      if (dataResponse.ok) {
-        const dataData = await dataResponse.json();
-        dataContext = dataData.context || '';
-        console.log('[Chat API] Data context received, length:', dataContext.length);
-        if (dataContext) {
-          console.log('[Chat API] Data context preview:', dataContext.substring(0, 200));
-        }
-      } else {
-        console.error('[Chat API] Data query failed with status:', dataResponse.status);
-      }
-    } catch (error) {
-      console.error('Failed to fetch data context:', error);
-    }
-
     // Build system prompt with context
     let enhancedPrompt = SYSTEM_PROMPT;
-
     if (context) {
       enhancedPrompt += `\n\nRelevant context from conversation history:\n${context}`;
     }
 
-    if (dataContext) {
-      enhancedPrompt += `\n\nRelevant data from filedb:\n${dataContext}\n\nIMPORTANT: Use this REAL data in your response. Do NOT make up or fabricate any numbers or holdings.`;
-    }
-
     // Store user message
     try {
-      await fetch(`${process.env.NEXT_PUBLIC_WEBAPP_URL || 'http://localhost:3000'}/api/rag/store`, {
+      await fetch(`${BASE_URL}/api/rag/store`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -112,32 +446,73 @@ export async function POST(request: NextRequest) {
       console.error('Failed to store user message:', error);
     }
 
-    // Stream Claude response
-    const stream = await anthropic.messages.create({
-      model: 'claude-sonnet-4-20250514',
-      max_tokens: 4096,
-      system: enhancedPrompt,
-      messages: [{ role: 'user', content: message }],
-      stream: true,
-    });
-
     const encoder = new TextEncoder();
     const readable = new ReadableStream({
       async start(controller) {
         let fullResponse = '';
+        let messages: Anthropic.MessageParam[] = [{ role: 'user', content: message }];
 
         try {
-          for await (const event of stream) {
-            if (event.type === 'content_block_delta' && event.delta.type === 'text_delta') {
-              const text = event.delta.text;
-              fullResponse += text;
-              controller.enqueue(encoder.encode(`data: ${JSON.stringify({ text })}\n\n`));
+          // Main loop for handling tool use
+          let maxIterations = 5; // Prevent infinite loops
+          while (maxIterations-- > 0) {
+            // Call Claude API
+            const response = await anthropic.messages.create({
+              model: 'claude-sonnet-4-20250514',
+              max_tokens: 4096,
+              system: enhancedPrompt,
+              messages,
+              tools: TOOLS,
+            });
+
+            // Check if Claude wants to use tools
+            const toolUseBlocks = response.content.filter(
+              (block): block is Anthropic.ToolUseBlock => block.type === 'tool_use'
+            );
+
+            if (toolUseBlocks.length === 0) {
+              // No tool use, stream the text response
+              for (const block of response.content) {
+                if (block.type === 'text') {
+                  const text = block.text;
+                  fullResponse += text;
+                  controller.enqueue(encoder.encode(`data: ${JSON.stringify({ text })}\n\n`));
+                }
+              }
+              break;
             }
+
+            // Execute tools and get results
+            const toolResults: Anthropic.ToolResultBlockParam[] = [];
+
+            for (const toolUse of toolUseBlocks) {
+              const result = await executeToolCall(toolUse.name, toolUse.input);
+              toolResults.push({
+                tool_use_id: toolUse.id,
+                content: JSON.stringify(result, null, 2),
+              });
+
+              // Send tool use notification to client
+              controller.enqueue(
+                encoder.encode(
+                  `data: ${JSON.stringify({
+                    tool_use: {
+                      name: toolUse.name,
+                      input: toolUse.input,
+                    },
+                  })}\n\n`
+                )
+              );
+            }
+
+            // Add assistant response and tool results to conversation
+            messages.push({ role: 'assistant', content: response.content });
+            messages.push({ role: 'user', content: toolResults });
           }
 
           // Store assistant response
           try {
-            await fetch(`${process.env.NEXT_PUBLIC_WEBAPP_URL || 'http://localhost:3000'}/api/rag/store`, {
+            await fetch(`${BASE_URL}/api/rag/store`, {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
               body: JSON.stringify({
