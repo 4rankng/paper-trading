@@ -22,6 +22,7 @@ export default function HybridTerminal({ className = '' }: HybridTerminalProps) 
   const commandHistoryIndexRef = useRef(-1);
   const outputContainerRef = useRef<HTMLDivElement>(null);
   const cleanupRef = useRef<(() => void) | null>(null);
+  const handlerAttachedRef = useRef(false);
 
   const {
     sessionId,
@@ -276,14 +277,18 @@ export default function HybridTerminal({ className = '' }: HybridTerminalProps) 
           }
 
           // Regular character input (printable ASCII)
-          // xterm.js handles display automatically, so we just track the buffer
           const charCode = data.charCodeAt(0);
           if (charCode >= 32 && charCode <= 126) {
             inputBufferRef.current += data;
+            terminal.write(data);
           }
         };
 
-        terminal.onData(handleData);
+        // Only attach handler once (prevents React Strict Mode double attachment)
+        if (!handlerAttachedRef.current) {
+          terminal.onData(handleData);
+          handlerAttachedRef.current = true;
+        }
 
         // Focus terminal on initialization
         requestAnimationFrame(() => {
@@ -302,6 +307,7 @@ export default function HybridTerminal({ className = '' }: HybridTerminalProps) 
           terminal.dispose();
           xtermRef.current = null;
           fitAddonRef.current = null;
+          handlerAttachedRef.current = false;
         };
       } catch (error) {
         console.error('Failed to initialize xterm.js:', error);
