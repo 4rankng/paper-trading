@@ -276,10 +276,10 @@ export default function HybridTerminal({ className = '' }: HybridTerminalProps) 
           }
 
           // Regular character input (printable ASCII)
+          // xterm.js handles display automatically, so we just track the buffer
           const charCode = data.charCodeAt(0);
           if (charCode >= 32 && charCode <= 126) {
             inputBufferRef.current += data;
-            terminal.write(data);
           }
         };
 
