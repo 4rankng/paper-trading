@@ -5,7 +5,7 @@ const VIZ_REGEX = /!\[viz:(\w+)\]\(/g;
 
 // Extract complete JSON by matching parentheses
 function extractJSON(text: string, startIndex: number): { json: string; endIndex: number } | null {
-  let parenCount = 0;
+  let parenCount = 1; // Start at 1 because we've already seen the opening (
   let i = startIndex;
   let inString = false;
   let escapeNext = false;
