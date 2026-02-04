@@ -70,6 +70,8 @@ export function parseVizCommands(text: string): ParsedViz[] {
     const startIndex = match.index;
     const openParenIndex = startIndex + match[0].length;
 
+    console.log('[viz-parser] Found viz type:', typeStr, 'at', startIndex);
+
     // Extract JSON by matching parentheses
     const result = extractJSON(text, openParenIndex);
 
@@ -97,7 +99,7 @@ export function parseVizCommands(text: string): ParsedViz[] {
           startIndex,
           endIndex,
         });
-        console.log('[viz-parser] Parsed chart alias:', typeStr, 'at', startIndex, '-', endIndex);
+        console.log('[viz-parser] Parsed chart alias:', typeStr, '-> type=chart, chartType=', CHART_TYPE_ALIASES[typeStrLower], 'at', startIndex, '-', endIndex);
         continue;
       }
 
