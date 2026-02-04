@@ -36,7 +36,7 @@ export default class ErrorBoundary extends Component<Props, State> {
             </p>
             <button
               onClick={() => window.location.reload()}
-              className="bg-terminal-green text-terminal-black px-4 py-2 hover:bg-terminal-dim"
+              className="bg-terminal-green text-[#1E1E1E] px-4 py-2 hover:bg-terminal-dim"
             >
               Reload Terminal
             </button>

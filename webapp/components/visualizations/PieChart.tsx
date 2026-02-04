@@ -51,7 +51,7 @@ export default function PieChart({ command }: PieChartProps) {
         display: options?.showLegend !== false,
         position: 'right' as const,
         labels: {
-          color: '#B3B3B3',
+          color: '#E0E0E0',
           font: {
             family: "'Fira Code', monospace",
             size: 12,

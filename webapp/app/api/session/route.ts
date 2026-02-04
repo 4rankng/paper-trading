@@ -1,8 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { writeFile, mkdir, readFile, access } from 'fs/promises';
 import { join } from 'path';
+import { config } from 'dotenv';
 
-const FILEDB_BASE = process.env.FILEDB_PATH || './filedb';
+// Load environment variables from project root .env
+const envPath = join(process.cwd(), '../.env');
+config({ path: envPath });
+
+const FILEDB_BASE = process.env.FILEDB_PATH || join(process.cwd(), '../filedb');
 const SESSIONS_DIR = join(FILEDB_BASE, 'webapp', 'sessions');
 
 async function ensureDir(dir: string) {

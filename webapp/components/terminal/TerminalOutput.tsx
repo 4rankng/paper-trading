@@ -37,16 +37,15 @@ function UserMessage({ content }: { content: string }) {
 }
 
 function AssistantMessage({ message }: { message: Message }) {
-  const vizCommands = parseVizCommands(message.content);
+  // Prioritize stored visualizations from streaming, fall back to parsing
+  const vizCommands = message.visualizations && message.visualizations.length > 0
+    ? message.visualizations.map((cmd, i) => ({ command: cmd, startIndex: 0, endIndex: 0 }))
+    : parseVizCommands(message.content);
+
   const parts = splitTextByVizs(message.content, vizCommands);
 
   return (
     <div className="bg-[#252526] px-4 py-4 rounded-r border-l-3 border-[#BB86FC] border-l-[3px] break-words overflow-wrap-anywhere">
-      {/* Header */}
-      <div className="text-[#BB86FC] font-semibold mb-3 text-sm font-['Fira_Code',monospace]">
-        → assistant:
-      </div>
-
       {/* Content with inline visualizations */}
       <div className="text-[#E0E0E0] text-sm leading-relaxed break-words overflow-wrap-anywhere">
         {parts.map((part, i) => {

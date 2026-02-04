@@ -41,6 +41,19 @@ const DEFAULT_COLORS = [
   '#F48771', // Red
 ];
 
+// Filter out black or very dark colors
+function ensureLightColor(color?: string): string {
+  if (!color) return DEFAULT_COLORS[0];
+
+  // Check if color is black or very dark
+  const darkColorPattern = /#000000|#0[0-9a-f]{5}|black/i;
+  if (darkColorPattern.test(color)) {
+    return DEFAULT_COLORS[0];
+  }
+
+  return color;
+}
+
 export default function Chart({ command }: ChartProps) {
   const { data, options, chartType = 'line' } = command;
 
@@ -51,7 +64,7 @@ export default function Chart({ command }: ChartProps) {
       legend: {
         display: true,
         labels: {
-          color: '#B3B3B3',
+          color: '#E0E0E0',
           font: {
             family: "'Fira Code', monospace",
             size: 12,
@@ -79,7 +92,7 @@ export default function Chart({ command }: ChartProps) {
       x: {
         display: true,
         ticks: {
-          color: '#B3B3B3',
+          color: '#E0E0E0',
           font: {
             family: "'Fira Code', monospace",
             size: 11,
@@ -94,7 +107,7 @@ export default function Chart({ command }: ChartProps) {
       y: {
         display: true,
         ticks: {
-          color: '#B3B3B3',
+          color: '#E0E0E0',
           font: {
             family: "'Fira Code', monospace",
             size: 11,
@@ -115,12 +128,12 @@ export default function Chart({ command }: ChartProps) {
     ...data,
     datasets: data.datasets.map((ds, index) => ({
       ...ds,
-      borderColor: ds.borderColor || DEFAULT_COLORS[index % DEFAULT_COLORS.length],
-      backgroundColor: ds.backgroundColor || DEFAULT_COLORS[index % DEFAULT_COLORS.length] + '20',
+      borderColor: ensureLightColor(ds.borderColor) || DEFAULT_COLORS[index % DEFAULT_COLORS.length],
+      backgroundColor: ensureLightColor(ds.backgroundColor) || DEFAULT_COLORS[index % DEFAULT_COLORS.length] + '20',
       borderWidth: 2,
       tension: 0.4,
       pointRadius: 3,
-      pointBackgroundColor: ds.borderColor || DEFAULT_COLORS[index % DEFAULT_COLORS.length],
+      pointBackgroundColor: ensureLightColor(ds.borderColor) || DEFAULT_COLORS[index % DEFAULT_COLORS.length],
       pointHoverRadius: 5,
     })),
   };

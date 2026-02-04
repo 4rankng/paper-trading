@@ -59,6 +59,10 @@ export default function Table({ command }: TableProps) {
     return 'text-[#E0E0E0]';
   };
 
+  const getHeaderClass = () => {
+    return 'text-[#4FC1FF]';
+  };
+
   return (
     <div className="overflow-x-auto">
       <table className="w-full text-left font-['Fira_Code',monospace]">
@@ -70,10 +74,9 @@ export default function Table({ command }: TableProps) {
                 onClick={() => handleSort(i)}
                 className={`px-3 py-2.5 text-xs font-semibold uppercase tracking-wider border-b-2 border-[#3E3E42] ${
                   options?.sortable
-                    ? 'cursor-pointer hover:text-[#4FC1FF] transition-colors'
+                    ? 'cursor-pointer hover:text-[#75BEFF] transition-colors'
                     : ''
-                }`}
-                style={{ color: '#4FC1FF' }}
+                } ${getHeaderClass()}`}
               >
                 {header}
                 {sortColumn === i && (

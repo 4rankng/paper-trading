@@ -12,15 +12,31 @@ config({ path: envPath });
 const FILEDB_BASE = process.env.FILEDB_PATH || join(process.cwd(), '../filedb');
 
 interface PortfolioData {
+  cash?: {
+    amount: number;
+    target_buffer_pct: number;
+  };
   portfolios: Record<string, {
     name: string;
-    positions: Array<{
-      symbol: string;
+    description?: string;
+    holdings: Array<{
+      ticker: string;
       shares: number;
       avg_cost: number;
+      current_price?: number;
+      status?: string;
     }>;
-    cash: number;
+    summary?: {
+      holdings_value: number;
+      total_cost_basis: number;
+      total_gain_loss: number;
+      total_gain_loss_pct: number;
+      holdings_count: number;
+    };
   }>;
+  metadata?: {
+    default_portfolio: string;
+  };
 }
 
 interface PriceData {
@@ -38,11 +54,14 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    console.log('[Data API] Received query:', query);
+
     const context: string[] = [];
     const queryLower = query.toLowerCase();
 
     // Check for portfolio-related queries
     if (queryLower.match(/\b(portfolio|holdings|positions|my portfolio|show portfolio)\b/)) {
+      console.log('[Data API] Portfolio query detected');
       try {
         const portfolioPath = join(FILEDB_BASE, 'portfolios.json');
         console.log('[Data API] Looking for portfolio at:', portfolioPath);
@@ -55,13 +74,39 @@ export async function POST(request: NextRequest) {
 
         // Format portfolio data for LLM
         const portfolioEntries = Object.entries(portfolioData.portfolios);
-        if (portfolioEntries.length > 0) {
-          const [name, portfolio] = portfolioEntries[0];
-          const holdings = portfolio.positions.map(pos =>
-            `- ${pos.symbol}: ${pos.shares} shares @ $${pos.avg_cost.toFixed(2)}`
-          ).join('\n');
 
-          context.push(`PORTFOLIO DATA (${name}):\n${holdings}\nCash: $${portfolio.cash.toFixed(2)}`);
+        // Get default portfolio or first one
+        const defaultPortfolioId = portfolioData.metadata?.default_portfolio;
+        const portfolioId = defaultPortfolioId || portfolioEntries[0]?.[0];
+        const portfolio = portfolioId ? portfolioData.portfolios[portfolioId] : null;
+
+        if (portfolio && portfolio.holdings) {
+          const holdings = portfolio.holdings.map(holding => {
+            const pl = holding.current_price
+              ? ((holding.current_price - holding.avg_cost) * holding.shares).toFixed(2)
+              : 'N/A';
+            const plPct = holding.current_price
+              ? (((holding.current_price - holding.avg_cost) / holding.avg_cost) * 100).toFixed(2)
+              : 'N/A';
+            return `- ${holding.ticker}: ${holding.shares} shares @ $${holding.avg_cost.toFixed(2)}` +
+              (holding.current_price ? ` | Current: $${holding.current_price.toFixed(2)} | P/L: $${pl} (${plPct}%)` : '');
+          }).join('\n');
+
+          const cash = portfolioData.cash?.amount || 0;
+          const summary = portfolio.summary;
+
+          let portfolioText = `PORTFOLIO: ${portfolio.name} (${portfolioId})\n`;
+          portfolioText += `${holdings}\n\n`;
+          portfolioText += `Cash: $${cash.toFixed(2)}`;
+
+          if (summary) {
+            portfolioText += `\nTotal Holdings Value: $${summary.holdings_value.toFixed(2)}`;
+            portfolioText += `\nTotal P/L: $${summary.total_gain_loss.toFixed(2)} (${summary.total_gain_loss_pct.toFixed(2)}%)`;
+          }
+
+          context.push(portfolioText);
+        } else {
+          context.push('No portfolio holdings found');
         }
       } catch (error) {
         context.push('No portfolio data found in filedb/portfolios.json');
@@ -140,8 +185,12 @@ export async function POST(request: NextRequest) {
       }
     }
 
+    const result = context.join('\n\n---\n\n');
+    console.log('[Data API] Returning context length:', result.length);
+    console.log('[Data API] Context preview:', result.substring(0, 200));
+
     return NextResponse.json({
-      context: context.join('\n\n---\n\n'),
+      context: result,
       sources: [],
     });
   } catch (error) {

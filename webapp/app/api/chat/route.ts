@@ -1,6 +1,12 @@
 import { NextRequest } from 'next/server';
 import Anthropic from '@anthropic-ai/sdk';
 import { Message } from '@/types';
+import { config } from 'dotenv';
+import { join } from 'path';
+
+// Load environment variables from project root .env
+const envPath = join(process.cwd(), '../.env');
+config({ path: envPath });
 
 // Support both direct Anthropic API and Z.AI proxy
 const apiKey = process.env.ANTHROPIC_API_KEY || process.env.ANTHROPIC_AUTH_TOKEN || '';
@@ -13,7 +19,11 @@ const anthropic = new Anthropic({
 
 export const runtime = 'nodejs';
 
-const SYSTEM_PROMPT = `You are TermAI Explorer, a terminal-based AI assistant. You can respond with text and generate visualizations using a special syntax.
+const SYSTEM_PROMPT = `You are TermAI Explorer, a terminal-based AI assistant with access to REAL financial data from the filedb folder.
+
+IMPORTANT: You have access to the user's actual portfolio data, price history, and analytics. ALWAYS use the real data provided in context. NEVER make up or fabricate numbers, holdings, or financial information.
+
+When the user asks about their portfolio, holdings, or positions, the system will automatically fetch their REAL data from filedb/portfolios.json. Use this data to create accurate visualizations and responses.
 
 To create a visualization, use this format:
 ![viz:chart]({"type":"line","data":{"labels":["A","B","C"],"datasets":[{"label":"Data","data":[1,2,3]}]}})
@@ -50,6 +60,7 @@ export async function POST(request: NextRequest) {
     // Fetch real data from filedb
     let dataContext = '';
     try {
+      console.log('[Chat API] Fetching data context for query:', message);
       const dataResponse = await fetch(
         `${process.env.NEXT_PUBLIC_WEBAPP_URL || 'http://localhost:3000'}/api/data/query`,
         {
@@ -61,6 +72,12 @@ export async function POST(request: NextRequest) {
       if (dataResponse.ok) {
         const dataData = await dataResponse.json();
         dataContext = dataData.context || '';
+        console.log('[Chat API] Data context received, length:', dataContext.length);
+        if (dataContext) {
+          console.log('[Chat API] Data context preview:', dataContext.substring(0, 200));
+        }
+      } else {
+        console.error('[Chat API] Data query failed with status:', dataResponse.status);
       }
     } catch (error) {
       console.error('Failed to fetch data context:', error);

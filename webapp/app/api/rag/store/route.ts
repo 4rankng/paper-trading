@@ -2,13 +2,18 @@ import { NextRequest, NextResponse } from 'next/server';
 import { writeFile, mkdir, readFile } from 'fs/promises';
 import { join } from 'path';
 import { Message } from '@/types';
+import { config } from 'dotenv';
 
-const FILEDB_BASE = process.env.FILEDB_PATH || './filedb';
+// Load environment variables from project root .env
+const envPath = join(process.cwd(), '../.env');
+config({ path: envPath });
+
+const FILEDB_BASE = process.env.FILEDB_PATH || join(process.cwd(), '../filedb');
 const CONVERSATIONS_DIR = join(FILEDB_BASE, 'webapp', 'conversations');
 
 async function ensureDir(dir: string) {
   try {
-    await writeFile(dir, '');
+    await access(dir);
   } catch {
     await mkdir(dir, { recursive: true });
   }
