@@ -10,6 +10,32 @@ allowed-tools:
 
 Manage portfolio holdings, execute trades, and track investment history.
 
+## CRITICAL: Visualization Output Format
+
+**NEVER use markdown tables for data output.** Use the visualization format specified in [references/visualization-guide.md](../references/visualization-guide.md).
+
+### Quick Reference
+
+**For holdings data - USE viz:table:**
+```
+![viz:table]({"headers":["Ticker","Shares","Value","P/L %"],"rows":[["AAPL",100,"$50,000","+12.5%"]]})
+```
+
+**For comparisons (P/L by ticker) - USE viz:bar:**
+```
+![viz:chart]({"type":"chart","chartType":"bar","data":{"labels":["AAPL","MSFT"],"datasets":[{"label":"P/L %","data":[12.5,8.3]}]}})
+```
+
+**For portfolio allocation - USE viz:pie:**
+```
+![viz:pie]({"data":[{"label":"AAPL","value":50000},{"label":"MSFT","value":30000}]})
+```
+
+### FORBIDDEN (Do NOT use):
+❌ Markdown tables: `| Ticker | Value |`
+❌ ASCII art: `+-------+-------+`
+❌ Box drawing: `┌───────┬───────┐`
+
 ## Multi-Portfolio Architecture (v3.0 Minimal)
 
 **CRITICAL:** `portfolios.json` stores ONLY minimal position data. All analysis data (thesis, sector, machine_type, etc.) MUST be stored in `analytics/[TICKER]/` folder.

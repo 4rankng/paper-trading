@@ -475,7 +475,16 @@ EXAMPLE GOOD RESPONSE:
 • Core portfolio needs attention - all positions underwater
 • Consider trimming losers or waiting for recovery"
 
-Keep responses concise. Always cite data sources.`;
+Keep responses concise. Always cite data sources.
+
+CONVERSATION HISTORY:
+You have access to our previous conversation through RAG (Retrieval Augmented Generation). When I ask "what did I tell earlier" or similar questions:
+- Reference the conversation context provided
+- Summarize what we discussed previously
+- Build upon earlier analysis instead of starting fresh
+- If no history is available, politely acknowledge this is a new session
+
+This makes our conversation more coherent and contextual.`;
 
 // Helper function to safely fetch and parse JSON
 async function safeFetch(url: string, options?: RequestInit): Promise<any> {
@@ -906,16 +915,41 @@ export async function POST(request: NextRequest) {
 
     // Fetch RAG context (conversation history)
     let context = '';
+    let hasHistory = false;
+
+    // First, try semantic RAG search
     try {
       const ragResponse = await fetch(
-        `${BASE_URL}/api/rag/query?session_id=${encodeURIComponent(session_id)}&query=${encodeURIComponent(message)}&limit=3`
+        `${BASE_URL}/api/rag/query?session_id=${encodeURIComponent(session_id)}&query=${encodeURIComponent(message)}&limit=5`
       );
       if (ragResponse.ok) {
         const ragData = await ragResponse.json();
         context = ragData.context || '';
+        hasHistory = context.length > 0;
       }
     } catch (error) {
       console.error('Failed to fetch RAG context:', error);
+    }
+
+    // Fallback: if no context from RAG, fetch recent messages directly
+    if (!hasHistory) {
+      try {
+        const recentResponse = await fetch(
+          `${BASE_URL}/api/rag/recent?session_id=${encodeURIComponent(session_id)}&limit=10`
+        );
+        if (recentResponse.ok) {
+          const recentData = await recentResponse.json();
+          if (recentData.messages && recentData.messages.length > 0) {
+            context = recentData.messages.map((m: any) => {
+              const role = m.role === 'user' ? 'User' : 'Assistant';
+              return `${role}: ${m.content}`;
+            }).join('\n\n');
+            hasHistory = true;
+          }
+        }
+      } catch (error) {
+        console.error('Failed to fetch recent messages:', error);
+      }
     }
 
     // Auto-RAG search for news queries
@@ -941,25 +975,33 @@ export async function POST(request: NextRequest) {
 
     // Build system prompt with context
     let enhancedPrompt = SYSTEM_PROMPT;
-    if (context) {
-      enhancedPrompt += `\n\nRelevant context from conversation history:\n${context}`;
+
+    // Always include conversation history if available (RAG + recent messages fallback)
+    if (hasHistory && context) {
+      enhancedPrompt += `\n\nCONVERSATION HISTORY:\n${context}`;
     }
+
     if (ragSearchResults) {
       enhancedPrompt += ragSearchResults;
     }
 
     // Store user message
     try {
+      const messageId = crypto.randomUUID();
       await fetch(`${BASE_URL}/api/rag/store`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           session_id,
-          message: {
-            role: 'user',
-            content: message,
-            timestamp: new Date().toISOString(),
-          } as Message,
+          type: 'conversation',
+          document: {
+            id: messageId,
+            text: message,
+            metadata: {
+              role: 'user',
+              timestamp: new Date().toISOString(),
+            },
+          },
         }),
       });
     } catch (error) {
@@ -1062,16 +1104,21 @@ export async function POST(request: NextRequest) {
 
           // Store assistant response
           try {
+            const messageId = crypto.randomUUID();
             await fetch(`${BASE_URL}/api/rag/store`, {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
               body: JSON.stringify({
                 session_id,
-                message: {
-                  role: 'assistant',
-                  content: fullResponse,
-                  timestamp: new Date().toISOString(),
-                } as Message,
+                type: 'conversation',
+                document: {
+                  id: messageId,
+                  text: fullResponse,
+                  metadata: {
+                    role: 'assistant',
+                    timestamp: new Date().toISOString(),
+                  },
+                },
               }),
             });
           } catch (error) {

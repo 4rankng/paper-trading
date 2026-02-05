@@ -12,6 +12,26 @@ allowed-tools:
 
 Generate concise, actionable trading plans with clear entry/exit/stop levels and confidence.
 
+## CRITICAL: Visualization Output Format
+
+**NEVER use markdown tables for data output.** Use the visualization format specified in [../references/visualization-guide.md](../references/visualization-guide.md).
+
+### Quick Reference for Trading Plans
+
+**For entry/exit levels - USE viz:table:**
+```
+![viz:table]({"headers":["Level","Price","Action"],"rows":[["Entry","$150.00","BUY limit"],["Target","$165.00","SELL 50%"],["Stop","$142.50","STOP loss"]]})
+```
+
+**For R:R comparison - USE viz:bar:**
+```
+![viz:chart]({"type":"chart","chartType":"bar","data":{"labels":["NVDA","AAPL","MSFT"],"datasets":[{"label":"R:R Ratio","data":[3.5,2.8,4.2]}]}})
+```
+
+### FORBIDDEN (Do NOT use):
+❌ Markdown tables: `| Level | Price |`
+❌ ASCII art: `+-------+-------+`
+
 ## Quick Start
 
 ```

@@ -46,9 +46,17 @@ function extractJSON(text: string, startIndex: number): { json: string; endIndex
       } else if (char === ')') {
         parenCount--;
         if (parenCount === 0) {
-          // Found matching closing parenthesis
+          // Found matching closing parenthesis - validate JSON is complete
           const json = text.substring(startIndex, i);
-          return { json, endIndex: i + 1 };
+
+          // Validate JSON is parseable before returning
+          try {
+            JSON.parse(json);
+            return { json, endIndex: i + 1 };
+          } catch {
+            // JSON is incomplete (e.g., unclosed string during streaming)
+            // Continue searching for next closing paren
+          }
         }
       }
     }
@@ -56,7 +64,8 @@ function extractJSON(text: string, startIndex: number): { json: string; endIndex
     i++;
   }
 
-  // No matching closing parenthesis found
+  // No matching closing parenthesis found or JSON incomplete
+  // This is OK during streaming - just return null to indicate "not ready yet"
   return null;
 }
 

@@ -10,6 +10,26 @@ allowed-tools:
 
 Lean JSON-based watchlist for tracking potential investments.
 
+## CRITICAL: Visualization Output Format
+
+**NEVER use markdown tables for data output.** Use the visualization format specified in [../references/visualization-guide.md](../references/visualization-guide.md).
+
+### Quick Reference for Watchlist Display
+
+**For watchlist summary - USE viz:table:**
+```
+![viz:table]({"headers":["Ticker","Strategy","Fit","Status"],"rows":[["NVDA","MEAN_REVERSION",85,"WATCH"],["AAPL","EARNINGS_MACHINE",92,"BUY"]]})
+```
+
+**For strategy distribution - USE viz:pie:**
+```
+![viz:pie]({"data":[{"label":"EARNINGS_MACHINE","value":5},{"label":"MEAN_REVERSION","value":3},{"label":"HYPE_MACHINE","value":2}]})
+```
+
+### FORBIDDEN (Do NOT use):
+❌ Markdown tables: `| Ticker | Strategy |`
+❌ ASCII art: `+-------+----------+`
+
 ## v3.0 Minimal Schema
 
 **CRITICAL:** `watchlist.json` stores ONLY minimal tracking data. All analysis data (name, sector, notes, scores, etc.) MUST be in `analytics/[TICKER]/` folder.

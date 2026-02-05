@@ -11,6 +11,26 @@ allowed-tools:
 
 Review existing holdings using Inertia Principle and machine-specific exit logic.
 
+## CRITICAL: Visualization Output Format
+
+**NEVER use markdown tables for data output.** Use the visualization format specified in [../references/visualization-guide.md](../references/visualization-guide.md).
+
+### Quick Reference for Exit Decisions
+
+**For position comparison - USE viz:bar:**
+```
+![viz:chart]({"type":"chart","chartType":"bar","data":{"labels":["AAPL","MSFT"],"datasets":[{"label":"P/L %","data":[12.5,-8.3]}]}})
+```
+
+**For detailed position data - USE viz:table:**
+```
+![viz:table]({"headers":["Ticker","Status","Action","Reason"],"rows":[["AAPL","VALID","HOLD","Thesis intact"],["MSFT","WARNING","TRIM","Technical breakdown"]]})
+```
+
+### FORBIDDEN (Do NOT use):
+❌ Markdown tables: `| Ticker | Value |`
+❌ ASCII art: `+-------+-------+`
+
 ## Multi-Portfolio Support
 
 When reviewing positions, specify which portfolio to review:

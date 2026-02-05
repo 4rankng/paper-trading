@@ -13,8 +13,9 @@ config({ path: envPath });
 const FILEDB_BASE = process.env.FILEDB_PATH || join(process.cwd(), '../../filedb');
 const CONVERSATIONS_DIR = join(FILEDB_BASE, 'webapp', 'conversations');
 
-// Python script for adding documents to vector store
+// Python scripts for vector store operations
 const VECTOR_ADD_SCRIPT = join(process.cwd(), '../../.claude/shared/vector_store.py');
+const ADD_CONVERSATION_SCRIPT = join(process.cwd(), '../../.claude/shared/add_conversation.py');
 
 interface StoreRequest {
   session_id?: string;
@@ -94,7 +95,6 @@ export async function POST(request: NextRequest) {
 
     // Handle different document types
     if (type === 'conversation') {
-      // Legacy conversation storage
       const { session_id } = body;
       if (!session_id) {
         return NextResponse.json(
@@ -103,21 +103,44 @@ export async function POST(request: NextRequest) {
         );
       }
 
+      // Extract role from document metadata (user or assistant)
+      const role = (document.metadata as any)?.role || 'user';
+      const timestamp = (document.metadata as any)?.timestamp || new Date().toISOString();
+      const messageId = document.id || crypto.randomUUID();
+
+      // 1. Save to file (legacy storage)
       const sessionDir = join(CONVERSATIONS_DIR, session_id);
       await ensureDir(sessionDir);
 
-      const timestamp = Date.now();
-      const filename = `${timestamp}.json`;
+      const filename = `${Date.now()}.json`;
       const filepath = join(sessionDir, filename);
 
+      // Format expected by /api/rag/recent endpoint
       const conversationEntry = {
-        id: crypto.randomUUID(),
-        timestamp: new Date().toISOString(),
-        message: document,
+        id: messageId,
+        timestamp,
+        message: {
+          role: role,
+          content: document.text,
+          timestamp: timestamp,
+        },
       };
 
       await writeFile(filepath, JSON.stringify(conversationEntry, null, 2));
-      return NextResponse.json({ success: true, id: conversationEntry.id });
+
+      // 2. Vectorize for semantic search (async, don't wait)
+      spawn('python3', [
+        ADD_CONVERSATION_SCRIPT,
+        '--session-id', session_id,
+        '--role', role,
+        '--content', document.text,
+        '--timestamp', timestamp,
+        '--message-id', messageId,
+      ]).on('error', (err) => {
+        console.error('[RAG Store] Failed to vectorize conversation:', err);
+      });
+
+      return NextResponse.json({ success: true, id: messageId });
     }
 
     // Handle news, web_search, analytics types
