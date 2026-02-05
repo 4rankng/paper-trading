@@ -341,6 +341,33 @@ const TOOLS = [
       required: ['skill', 'script', 'args'],
     },
   },
+  {
+    name: 'rag_search',
+    description: 'Search stored news articles, research analytics, and web searches using semantic search. Use this to find relevant historical data, news, and analysis about stocks or market conditions.',
+    input_schema: {
+      type: 'object' as const,
+      properties: {
+        query: {
+          type: 'string' as const,
+          description: 'Search query for finding relevant documents',
+        },
+        collection: {
+          type: 'string' as const,
+          enum: ['news', 'analytics', 'web_searches', 'all'],
+          description: 'Collection to search (default: all)',
+        },
+        limit: {
+          type: 'number' as const,
+          description: 'Max results to return (default: 5)',
+        },
+        ticker: {
+          type: 'string' as const,
+          description: 'Filter by ticker symbol (optional)',
+        },
+      },
+      required: ['query'],
+    },
+  },
 ];
 
 const SYSTEM_PROMPT = `You are TermAI Explorer, a financial AI assistant with access to REAL portfolio and market data.
@@ -462,6 +489,13 @@ async function safeFetch(url: string, options?: RequestInit): Promise<any> {
     console.error(`Fetch error for ${url}:`, error);
     throw error;
   }
+}
+
+// Helper function to detect if query is news-related
+function isNewsQuery(query: string): boolean {
+  const newsKeywords = ['news', 'latest', 'recent', 'headline', 'breaking', 'update', 'what\'s new', 'what is happening'];
+  const queryLower = query.toLowerCase();
+  return newsKeywords.some(kw => queryLower.includes(kw));
 }
 
 // Helper function to execute tool calls and return structured data for LLM
@@ -827,6 +861,29 @@ async function executeToolCall(toolName: string, toolInput: any) {
         }
       }
 
+      case 'rag_search': {
+        const params = new URLSearchParams();
+        params.set('query', toolInput.query);
+        params.set('collection', toolInput.collection || 'all');
+        if (toolInput.limit) params.set('limit', toolInput.limit.toString());
+        if (toolInput.ticker) params.set('ticker', toolInput.ticker);
+
+        const data = await safeFetch(`${BASE_URL}/api/rag/search?${params}`);
+        return {
+          success: true,
+          data: {
+            query: toolInput.query,
+            results: data.results?.map((r: any) => ({
+              text: r.text?.substring(0, 500) || '',  // Truncate for LLM
+              metadata: r.metadata,
+              score: r.score,
+              collection: r.collection,
+            })) || [],
+            count: data.count || 0,
+          },
+        };
+      }
+
       default:
         return { error: `Unknown tool: ${toolName}` };
     }
@@ -861,10 +918,34 @@ export async function POST(request: NextRequest) {
       console.error('Failed to fetch RAG context:', error);
     }
 
+    // Auto-RAG search for news queries
+    let ragSearchResults = '';
+    if (isNewsQuery(message)) {
+      try {
+        const searchResponse = await fetch(
+          `${BASE_URL}/api/rag/search?query=${encodeURIComponent(message)}&collection=news&limit=5`
+        );
+        if (searchResponse.ok) {
+          const searchData = await searchResponse.json();
+          if (searchData.results && searchData.results.length > 0) {
+            ragSearchResults = '\n\nRelevant news from RAG search:\n';
+            searchData.results.forEach((r: any, i: number) => {
+              ragSearchResults += `\n[${i + 1}] ${r.metadata?.title || r.metadata?.ticker || 'Unknown'} (Score: ${r.score?.toFixed(2) || 'N/A'})\n${r.text?.substring(0, 300) || ''}...\n`;
+            });
+          }
+        }
+      } catch (error) {
+        console.error('Failed to fetch RAG search results:', error);
+      }
+    }
+
     // Build system prompt with context
     let enhancedPrompt = SYSTEM_PROMPT;
     if (context) {
       enhancedPrompt += `\n\nRelevant context from conversation history:\n${context}`;
+    }
+    if (ragSearchResults) {
+      enhancedPrompt += ragSearchResults;
     }
 
     // Store user message
