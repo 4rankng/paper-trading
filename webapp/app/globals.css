@@ -5,6 +5,14 @@
 /* Import Fira Code font */
 @import url('https://fonts.googleapis.com/css2?family=Fira+Code:wght@400;500;600&display=swap');
 
+/* Mobile viewport handling */
+:root {
+  --safe-area-inset-top: env(safe-area-inset-top, 0px);
+  --safe-area-inset-bottom: env(safe-area-inset-bottom, 0px);
+  --safe-area-inset-left: env(safe-area-inset-left, 0px);
+  --safe-area-inset-right: env(safe-area-inset-right, 0px);
+}
+
 :root {
   /* Modern One Dark-inspired color scheme */
   --bg-primary: #1E1E1E;
@@ -38,6 +46,16 @@ body {
   /* Enhanced typography for readability */
   line-height: 1.6;
   letter-spacing: 0.02em;
+  /* Mobile: no margin, prevent bounce */
+  margin: 0;
+  /* Use dynamic viewport height for mobile */
+  height: 100dvh;
+  /* Prevent rubber-band scrolling on iOS */
+  overscroll-behavior-y: none;
+  padding: 0;
+  overflow: hidden; /* Prevent body scroll, handle in containers */
+  height: 100vh;
+  height: 100dvh; /* Mobile viewport height */
 }
 
 * {
@@ -126,4 +144,102 @@ body {
 /* Chart.js dark mode fix */
 canvas {
   color-scheme: dark !important;
+}
+
+/* ===== MOBILE-FIRST UTILITIES ===== */
+
+/* Fixed bottom input with safe area */
+.fixed-bottom-input {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  padding-bottom: var(--safe-area-inset-bottom);
+  padding-left: var(--safe-area-inset-left);
+  padding-right: var(--safe-area-inset-right);
+  z-index: 50;
+}
+
+/* Scrollable area above fixed input - updated for input+statusbar */
+.scroll-area-above-input {
+  height: 100%;
+  padding-bottom: calc(6rem + var(--safe-area-inset-bottom));
+}
+
+/* Smooth scrolling for mobile */
+.smooth-scroll-touch {
+  -webkit-overflow-scrolling: touch;
+  scroll-behavior: smooth;
+}
+
+/* Safe area padding for top-fixed elements */
+.safe-top {
+  padding-top: var(--safe-area-inset-top);
+}
+
+/* Safe area padding for bottom elements (mobile browser toolbars) */
+.safe-bottom {
+  padding-bottom: calc(0.5rem + var(--safe-area-inset-bottom));
+}
+
+.pb-safe-area {
+  padding-bottom: var(--safe-area-inset-bottom);
+}
+
+/* Safe area padding for bottom-fixed elements */
+.safe-bottom {
+  padding-bottom: var(--safe-area-inset-bottom);
+}
+
+/* Hide on mobile, show on desktop */
+.hidden-mobile {
+  display: none;
+}
+
+@media (min-width: 768px) {
+  .hidden-mobile {
+    display: flex;
+  }
+  .hidden-desktop {
+    display: none;
+  }
+}
+
+/* Touch-friendly sizing - minimum 44px tap target */
+.touch-target {
+  min-height: 44px;
+  min-width: 44px;
+}
+
+/* Mobile header - compact version */
+.mobile-header {
+  display: flex;
+}
+
+@media (min-width: 768px) {
+  .mobile-header {
+    display: none;
+  }
+}
+
+/* Prevent pull-to-refresh on mobile */
+body {
+  overscroll-behavior-y: contain;
+}
+
+/* Better text selection on touch */
+* {
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* Mobile-specific scrollbar - thinner */
+@media (max-width: 767px) {
+  ::-webkit-scrollbar {
+    width: 4px;
+    height: 4px;
+  }
+
+  ::-webkit-scrollbar-thumb {
+    border-radius: 2px;
+  }
 }

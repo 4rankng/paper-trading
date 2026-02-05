@@ -62,6 +62,15 @@ function ensureLightColor(color?: string | string[]): string {
 export default function Chart({ command }: ChartProps) {
   const { data, options, chartType = 'line' } = command;
 
+  // Validate data structure
+  if (!data || !data.datasets || !Array.isArray(data.datasets)) {
+    return (
+      <div className="text-[#F48771] text-sm font-['Fira_Code',monospace]">
+        Invalid chart data: missing or malformed datasets
+      </div>
+    );
+  }
+
   // Build chart options with forced light colors
   const userPlugins = (options?.plugins as any) || {};
   const userScales = (options?.scales as any) || {};

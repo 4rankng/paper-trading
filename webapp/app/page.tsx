@@ -5,7 +5,6 @@ import { useTerminalStore } from '@/store/useTerminalStore';
 import dynamic from 'next/dynamic';
 import TitleBar from '@/components/terminal/TitleBar';
 import TabBar from '@/components/terminal/TabBar';
-import StatusBar from '@/components/terminal/StatusBar';
 import { Storage } from '@/utils/storage';
 
 // Dynamically import HybridTerminal with no SSR to avoid xterm.js server-side issues
@@ -35,6 +34,7 @@ export default function Home() {
 
   return (
     <main className="h-screen flex flex-col bg-[#1E1E1E] overflow-hidden">
+      {/* TitleBar and TabBar */}
       <TitleBar />
       <TabBar />
 
@@ -42,8 +42,6 @@ export default function Home() {
       <div className="flex-1 overflow-hidden">
         <HybridTerminal />
       </div>
-
-      <StatusBar />
     </main>
   );
 }

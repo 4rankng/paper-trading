@@ -58,7 +58,7 @@ export default function TabBar({ onNewTab, onTabClose, onTabSwitch }: TabBarProp
   };
 
   return (
-    <div className="h-9 bg-[#252526] border-b border-[#333333] flex items-center px-2 gap-1.5">
+    <div className="h-9 bg-[#252526] flex items-center px-2 gap-1.5">
       {tabs.map(tab => (
         <div
           key={tab.id}
