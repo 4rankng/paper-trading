@@ -55,13 +55,21 @@ export const useTerminalStore = create<TerminalStore>((set, get) => ({
       const messages = [...state.messages];
       const lastMessage = messages[messages.length - 1];
 
-      // Only update if last message is from assistant (streaming)
+      // If last message is from assistant, update it (streaming)
       if (lastMessage && lastMessage.role === 'assistant') {
         messages[messages.length - 1] = {
           ...lastMessage,
           content,
           visualizations,
         };
+      } else {
+        // Otherwise add a new assistant message (first chunk of response)
+        messages.push({
+          role: 'assistant',
+          content,
+          timestamp: new Date().toISOString(),
+          visualizations,
+        });
       }
 
       return {

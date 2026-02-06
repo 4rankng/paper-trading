@@ -1060,6 +1060,8 @@ ${context}`;
               tools: TOOLS,
             });
 
+            console.log(`[Chat API] LLM API returned ${response.content.length} content blocks`);
+
             // Check if Claude wants to use tools
             const toolUseBlocks = response.content.filter(
               (block): block is Anthropic.ToolUseBlock => block.type === 'tool_use'
@@ -1072,6 +1074,8 @@ ${context}`;
                   finalTextResponse += block.text;
                 }
               }
+              console.log(`[Chat API] No tools used - collected ${finalTextResponse.length} characters of text`);
+              console.log(`[Chat API] Response preview: ${finalTextResponse.substring(0, 100)}...`);
               break;
             }
 
@@ -1164,8 +1168,8 @@ ${context}`;
           }
 
           if (!validationResult.isValid) {
-            // Has errors - stream with warning
-            console.warn(`[Chat API] Found ${validationResult.errors.length} visualization error(s) - streaming with errors`);
+            // Has errors - stream with warning (but continue streaming)
+            console.log(`[Chat API] Note: ${validationResult.errors.length} visualization(s) have errors - error markers will be shown in response`);
             controller.enqueue(
               encoder.encode(
                 `data: ${JSON.stringify({
@@ -1179,6 +1183,9 @@ ${context}`;
 
           validatedResponse = validationResult.fixedText;
 
+          console.log(`[Chat API] About to stream ${validatedResponse.length} characters to client`);
+          console.log(`[Chat API] Response preview: ${validatedResponse.substring(0, 100)}...`);
+
           // Stream the final validated response character by character for smooth UX
           for (const char of validatedResponse) {
             controller.enqueue(encoder.encode(`data: ${JSON.stringify({ text: char })}\n\n`));
@@ -1186,6 +1193,8 @@ ${context}`;
             await new Promise(resolve => setTimeout(resolve, 5));
           }
           fullResponse = validatedResponse;
+
+          console.log(`[Chat API] Finished streaming ${fullResponse.length} characters`);
 
           // Store assistant response
           try {

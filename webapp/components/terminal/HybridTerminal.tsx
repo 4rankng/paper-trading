@@ -5,29 +5,20 @@ import { useTerminalStore } from '@/store/useTerminalStore';
 import { VizCommand } from '@/types/visualizations';
 import TerminalOutput from './TerminalOutput';
 import StatusBar from './StatusBar';
+import { PulsingDots } from './PulsingDots';
+import { useCommandHistory } from '@/hooks/terminal/useCommandHistory';
+import { useChatStreaming, ToolExecution } from '@/hooks/terminal/useChatStreaming';
 
 interface HybridTerminalProps {
   className?: string;
 }
 
-export interface ToolExecution {
-  name: string;
-  status: 'running' | 'success' | 'error';
-  result?: string;
-}
-
-export interface ValidationProgress {
-  message: string;
-}
+export { type ToolExecution };
 
 export default function HybridTerminal({ className = '' }: HybridTerminalProps) {
   const [input, setInput] = useState('');
-  const [historyIndex, setHistoryIndex] = useState(-1);
-  const [activeTool, setActiveTool] = useState<ToolExecution | null>(null);
-  const [validationProgress, setValidationProgress] = useState<string | null>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const outputContainerRef = useRef<HTMLDivElement>(null);
-  const toolTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   const {
     sessionId,
@@ -43,6 +34,8 @@ export default function HybridTerminal({ className = '' }: HybridTerminalProps) 
     clearMessages,
   } = useTerminalStore();
 
+  const { navigateUp, navigateDown, resetIndex } = useCommandHistory(commandHistory);
+
   // Scroll to bottom when new messages arrive or loading state changes
   useEffect(() => {
     if (outputContainerRef.current) {
@@ -50,182 +43,68 @@ export default function HybridTerminal({ className = '' }: HybridTerminalProps) 
     }
   }, [messages.length, isLoading]);
 
-  // Cleanup tool timeout on unmount
-  useEffect(() => {
-    return () => {
-      if (toolTimeoutRef.current) {
-        clearTimeout(toolTimeoutRef.current);
-      }
-    };
-  }, []);
+  const onMessage = useCallback((content: string, vizs: VizCommand[]) => {
+    updateLastMessage(content, vizs);
+  }, [updateLastMessage]);
 
-  // Execute command
-  const executeCommand = useCallback(async (command: string) => {
-    if (!sessionId) {
-      setError('No session active');
-      return;
-    }
-
-    const trimmedCommand = command.trim();
-    if (!trimmedCommand) return;
-
-    addToCommandHistory(trimmedCommand);
-    setInput('');
-    setHistoryIndex(-1);
-
-    // Add user message
+  const onNewMessage = useCallback((content: string) => {
     addMessage({
       role: 'user',
-      content: trimmedCommand,
+      content,
       timestamp: new Date().toISOString(),
     });
+  }, [addMessage]);
 
-    setLoading(true);
-    setError(null);
+  const onAssistantMessage = useCallback((content: string, vizs: VizCommand[]) => {
+    addMessage({
+      role: 'assistant',
+      content,
+      visualizations: vizs,
+      timestamp: new Date().toISOString(),
+    });
+  }, [addMessage]);
 
-    try {
-      const response = await fetch('/api/chat', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ message: trimmedCommand, session_id: sessionId }),
-      });
+  const streamingReturn = useChatStreaming({
+    sessionId,
+    onMessage,
+    onNewMessage,
+    onAssistantMessage,
+    setLoading,
+    setError,
+  });
+  const executeCommand: (command: string) => Promise<void> = streamingReturn.executeCommand;
+  const getActiveTool: () => ToolExecution | undefined = streamingReturn.getActiveTool;
+  const getValidationProgress: () => string | undefined = streamingReturn.getValidationProgress;
+  const cleanup: () => void = streamingReturn.cleanup;
 
-      if (!response.ok) {
-        throw new Error('Failed to send message');
-      }
+  // Cleanup on unmount
+  useEffect(() => {
+    return cleanup;
+  }, [cleanup]);
 
-      const reader = response.body?.getReader();
-      const decoder = new TextDecoder();
-
-      let assistantMessage = '';
-      let currentVizs: VizCommand[] = [];
-
-      if (reader) {
-        while (true) {
-          const { done, value } = await reader.read();
-          if (done) break;
-
-          const chunk = decoder.decode(value);
-          const lines = chunk.split('\n');
-
-          for (const line of lines) {
-            if (line.startsWith('data: ')) {
-              const data = line.slice(6);
-              if (data === '[DONE]') continue;
-
-              try {
-                const parsed = JSON.parse(data);
-
-                // Handle tool start event - set running immediately
-                if (parsed.tool_start) {
-                  setActiveTool({
-                    name: parsed.tool_start.name,
-                    status: 'running',
-                  });
-                  continue;
-                }
-
-                // Handle tool execution completion events
-                if (parsed.tool_use) {
-                  setActiveTool({
-                    name: parsed.tool_use.name,
-                    status: parsed.tool_use.result === 'Success' ? 'success' : 'error',
-                    result: parsed.tool_use.result,
-                  });
-                  // Clear the tool status after 2 seconds
-                  if (toolTimeoutRef.current) clearTimeout(toolTimeoutRef.current);
-                  toolTimeoutRef.current = setTimeout(() => setActiveTool(null), 2000);
-                  continue;
-                }
-
-                // Handle validation progress events
-                if (parsed.validation_start) {
-                  setValidationProgress(parsed.validation_start.message);
-                  continue;
-                }
-
-                if (parsed.validation_progress) {
-                  setValidationProgress(parsed.validation_progress.message);
-                  continue;
-                }
-
-                if (parsed.validation_warning) {
-                  setValidationProgress(parsed.validation_warning.message);
-                  // Clear warning after 3 seconds
-                  if (toolTimeoutRef.current) clearTimeout(toolTimeoutRef.current);
-                  toolTimeoutRef.current = setTimeout(() => setValidationProgress(null), 3000);
-                  continue;
-                }
-
-                if (parsed.text) {
-                  assistantMessage += parsed.text;
-
-                  // Clear validation progress once text starts streaming
-                  if (validationProgress) {
-                    setValidationProgress(null);
-                  }
-
-                  // Parse visualizations from accumulated text
-                  const { parseVizCommands } = await import('@/utils/viz-parser');
-                  const { vizs } = parseVizCommands(assistantMessage);
-                  currentVizs = vizs.map(v => v.command);
-
-                  // Update last message in real-time
-                  if (assistantMessage === parsed.text) {
-                    addMessage({
-                      role: 'assistant',
-                      content: assistantMessage,
-                      timestamp: new Date().toISOString(),
-                      visualizations: currentVizs,
-                    });
-                  } else {
-                    updateLastMessage(assistantMessage, currentVizs);
-                  }
-                }
-              } catch (e) {
-                // Ignore parse errors for incomplete chunks
-              }
-            }
-          }
-        }
-      }
-    } catch (err) {
-      console.error('Chat error:', err);
-      const errorMsg = err instanceof Error ? err.message : 'Failed to send message';
-      setError(errorMsg);
-    } finally {
-      setLoading(false);
-      setActiveTool(null);
-    }
-  }, [sessionId, addMessage, updateLastMessage, addToCommandHistory, setLoading, setError]);
+  const handleExecuteCommand = useCallback(async (command: string) => {
+    addToCommandHistory(command);
+    setInput('');
+    resetIndex();
+    await executeCommand(command);
+  }, [addToCommandHistory, resetIndex, executeCommand]);
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault();
-      executeCommand(input);
+      handleExecuteCommand(input);
     } else if (e.key === 'ArrowUp') {
       e.preventDefault();
-      if (historyIndex < commandHistory.length - 1) {
-        const newIndex = historyIndex + 1;
-        setHistoryIndex(newIndex);
-        const cmdIndex = commandHistory.length - 1 - newIndex;
-        setInput(commandHistory[cmdIndex] || '');
-      }
+      const cmd = navigateUp();
+      if (cmd !== null) setInput(cmd);
     } else if (e.key === 'ArrowDown') {
       e.preventDefault();
-      if (historyIndex > 0) {
-        const newIndex = historyIndex - 1;
-        setHistoryIndex(newIndex);
-        const cmdIndex = commandHistory.length - 1 - newIndex;
-        setInput(commandHistory[cmdIndex] || '');
-      } else if (historyIndex === 0) {
-        setHistoryIndex(-1);
-        setInput('');
-      }
+      const cmd = navigateDown();
+      if (cmd !== null) setInput(cmd);
     } else if (e.key === 'c' && e.ctrlKey) {
       e.preventDefault();
       setInput('');
-      setHistoryIndex(-1);
+      resetIndex();
     }
   };
 
@@ -233,6 +112,9 @@ export default function HybridTerminal({ className = '' }: HybridTerminalProps) 
     clearMessages();
     setError(null);
   };
+
+  const activeTool = getActiveTool();
+  const validationProgress = getValidationProgress();
 
   return (
     <div className={`flex flex-col h-full bg-[#1E1E1E] ${className}`}>
@@ -251,7 +133,12 @@ export default function HybridTerminal({ className = '' }: HybridTerminalProps) 
             </div>
           </div>
         )}
-        <TerminalOutput messages={messages} isLoading={isLoading} activeTool={activeTool} validationProgress={validationProgress} />
+        <TerminalOutput
+          messages={messages}
+          isLoading={isLoading}
+          activeTool={activeTool || null}
+          validationProgress={validationProgress}
+        />
         {isLoading && messages.length === 0 && (
           <div className="flex items-center gap-3 mt-6 py-3 px-4 bg-[#252526]/50 rounded-lg border border-[#3E3E42] animate-fadeIn">
             <PulsingDots size="md" />
@@ -290,17 +177,6 @@ export default function HybridTerminal({ className = '' }: HybridTerminalProps) 
         {/* StatusBar */}
         <StatusBar />
       </div>
-    </div>
-  );
-}
-
-function PulsingDots({ size = 'sm' }: { size?: 'sm' | 'md' }) {
-  const dotSize = size === 'sm' ? 'w-1.5 h-1.5' : 'w-2 h-2';
-  return (
-    <div className="flex gap-1">
-      <span className={`${dotSize} bg-[#BB86FC] rounded-full animate-pulse`} style={{ animationDelay: '0ms' }}></span>
-      <span className={`${dotSize} bg-[#BB86FC] rounded-full animate-pulse`} style={{ animationDelay: '150ms' }}></span>
-      <span className={`${dotSize} bg-[#BB86FC] rounded-full animate-pulse`} style={{ animationDelay: '300ms' }}></span>
     </div>
   );
 }
