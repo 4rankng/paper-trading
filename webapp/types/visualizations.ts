@@ -80,4 +80,8 @@ export interface ParsedViz {
   command: VizCommand;
   startIndex: number;
   endIndex: number;
+  /** True if the visualization was auto-fixed from malformed syntax */
+  autoFixed?: boolean;
+  /** Description of what was fixed (for debugging/logging) */
+  fixDescription?: string;
 }

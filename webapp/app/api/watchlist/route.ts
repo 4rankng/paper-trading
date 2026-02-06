@@ -1,13 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { readFile, writeFile } from 'fs/promises';
-import { join } from 'path';
+import { join, resolve } from 'path';
 import { config } from 'dotenv';
 import { existsSync } from 'fs';
 
 const envPath = join(process.cwd(), '../.env');
 config({ path: envPath });
 
-const FILEDB_BASE = process.env.FILEDB_PATH || join(process.cwd(), '../filedb');
+const FILEDB_BASE = resolve(process.cwd(), process.env.FILEDB_PATH || '../filedb');
 const WATCHLIST_PATH = join(FILEDB_BASE, 'watchlist.json');
 
 interface WatchlistEntry {
@@ -37,8 +37,19 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ entries: [], metadata: { total_count: 0 } });
     }
 
-    const data: WatchlistData = JSON.parse(await readFile(WATCHLIST_PATH, 'utf-8'));
-    return NextResponse.json(data);
+    const raw = await readFile(WATCHLIST_PATH, 'utf-8');
+    const parsed = JSON.parse(raw);
+
+    // Handle legacy array format: convert to new format
+    if (Array.isArray(parsed)) {
+      return NextResponse.json({
+        entries: parsed,
+        metadata: { total_count: parsed.length }
+      });
+    }
+
+    // Handle new object format
+    return NextResponse.json(parsed);
   } catch (error) {
     console.error('Failed to read watchlist:', error);
     return NextResponse.json({ error: 'Failed to read watchlist' }, { status: 500 });
@@ -54,14 +65,18 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'ticker is required' }, { status: 400 });
     }
 
-    const data: WatchlistData = existsSync(WATCHLIST_PATH)
-      ? JSON.parse(await readFile(WATCHLIST_PATH, 'utf-8'))
-      : { entries: [] };
+    const raw = existsSync(WATCHLIST_PATH)
+      ? await readFile(WATCHLIST_PATH, 'utf-8')
+      : null;
+    const parsed = raw ? JSON.parse(raw) : null;
+
+    // Handle legacy array format or new object format
+    let entries = Array.isArray(parsed) ? parsed : (parsed?.entries || []);
 
     const tickerUpper = body.ticker.toUpperCase();
 
     // Check if already exists
-    if (data.entries.find((e) => e.ticker === tickerUpper)) {
+    if (entries.find((e: any) => e.ticker === tickerUpper)) {
       return NextResponse.json({ error: 'Ticker already in watchlist' }, { status: 409 });
     }
 
@@ -77,10 +92,15 @@ export async function POST(request: NextRequest) {
       status: body.status || 'tracking',
     };
 
-    data.entries.push(newEntry);
-    data.metadata = {
-      last_updated: new Date().toISOString(),
-      total_count: data.entries.length,
+    entries.push(newEntry);
+
+    // Write in new format
+    const data: WatchlistData = {
+      entries,
+      metadata: {
+        last_updated: new Date().toISOString(),
+        total_count: entries.length,
+      }
     };
 
     await writeFile(WATCHLIST_PATH, JSON.stringify(data, null, 2));

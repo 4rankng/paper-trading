@@ -475,16 +475,7 @@ EXAMPLE GOOD RESPONSE:
 • Core portfolio needs attention - all positions underwater
 • Consider trimming losers or waiting for recovery"
 
-Keep responses concise. Always cite data sources.
-
-CONVERSATION HISTORY:
-You have access to our previous conversation through RAG (Retrieval Augmented Generation). When I ask "what did I tell earlier" or similar questions:
-- Reference the conversation context provided
-- Summarize what we discussed previously
-- Build upon earlier analysis instead of starting fresh
-- If no history is available, politely acknowledge this is a new session
-
-This makes our conversation more coherent and contextual.`;
+Keep responses concise. Always cite data sources.`;
 
 // Helper function to safely fetch and parse JSON
 async function safeFetch(url: string, options?: RequestInit): Promise<any> {
@@ -976,9 +967,15 @@ export async function POST(request: NextRequest) {
     // Build system prompt with context
     let enhancedPrompt = SYSTEM_PROMPT;
 
-    // Always include conversation history if available (RAG + recent messages fallback)
+    // Include conversation history if available (RAG + recent messages fallback)
     if (hasHistory && context) {
-      enhancedPrompt += `\n\nCONVERSATION HISTORY:\n${context}`;
+      enhancedPrompt += `\n\nCONVERSATION HISTORY:
+Below is our previous conversation context. Use this to:
+- Reference what we discussed earlier when I ask about it
+- Build upon previous analysis instead of starting fresh
+- Maintain continuity in our discussion
+
+${context}`;
     }
 
     if (ragSearchResults) {

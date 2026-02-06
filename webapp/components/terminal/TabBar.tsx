@@ -1,6 +1,7 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import { useTerminalStore } from '@/store/useTerminalStore';
 
 interface Tab {
   id: string;
@@ -14,10 +15,23 @@ interface TabBarProps {
   onTabSwitch?: (tabId: string) => void;
 }
 
+// Helper to shorten session ID for display (first 8 chars)
+function formatSessionId(sessionId: string | null): string {
+  if (!sessionId) return 'Loading...';
+  // Return first 8 characters of session ID
+  return sessionId.slice(0, 8);
+}
+
 export default function TabBar({ onNewTab, onTabClose, onTabSwitch }: TabBarProps) {
-  const [tabs, setTabs] = useState<Tab[]>([
-    { id: 'session-1', label: 'Session 1', isActive: true },
-  ]);
+  const sessionId = useTerminalStore(state => state.sessionId);
+  const [tabs, setTabs] = useState<Tab[]>([]);
+
+  // Initialize tabs with the actual session ID once available
+  useEffect(() => {
+    if (sessionId && tabs.length === 0) {
+      setTabs([{ id: sessionId, label: formatSessionId(sessionId), isActive: true }]);
+    }
+  }, [sessionId]);
 
   const handleTabClick = (tabId: string) => {
     setTabs(prev =>
@@ -56,6 +70,15 @@ export default function TabBar({ onNewTab, onTabClose, onTabSwitch }: TabBarProp
     ]);
     onNewTab?.();
   };
+
+  // Don't render tabs until sessionId is loaded
+  if (tabs.length === 0) {
+    return (
+      <div className="h-9 bg-[#252526] flex items-center px-2">
+        <span className="text-sm text-[#858585]">Loading...</span>
+      </div>
+    );
+  }
 
   return (
     <div className="h-9 bg-[#252526] flex items-center px-2 gap-1.5">

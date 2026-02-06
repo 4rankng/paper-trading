@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import { Message, TerminalState } from '@/types';
 import { VizCommand } from '@/types/visualizations';
+import { Storage } from '@/utils/storage';
 
 interface TerminalStore extends TerminalState {
   // Visualization state
@@ -28,7 +29,8 @@ interface TerminalStore extends TerminalState {
 }
 
 export const useTerminalStore = create<TerminalStore>((set, get) => ({
-  sessionId: null,
+  // Initialize sessionId from localStorage for persistence across refreshes
+  sessionId: typeof window !== 'undefined' ? Storage.getSessionId() : null,
   messages: [],
   isLoading: false,
   error: null,

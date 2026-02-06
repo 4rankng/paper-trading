@@ -1,13 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { readFile, writeFile } from 'fs/promises';
-import { join } from 'path';
+import { join, resolve } from 'path';
 import { config } from 'dotenv';
 import { existsSync } from 'fs';
 
 const envPath = join(process.cwd(), '../.env');
 config({ path: envPath });
 
-const FILEDB_BASE = process.env.FILEDB_PATH || join(process.cwd(), '../filedb');
+const FILEDB_BASE = resolve(process.cwd(), process.env.FILEDB_PATH || '../filedb');
 const WATCHLIST_PATH = join(FILEDB_BASE, 'watchlist.json');
 
 interface WatchlistEntry {
@@ -44,15 +44,18 @@ export async function PUT(
       return NextResponse.json({ error: 'Watchlist not found' }, { status: 404 });
     }
 
-    const data: WatchlistData = JSON.parse(await readFile(WATCHLIST_PATH, 'utf-8'));
+    const raw = await readFile(WATCHLIST_PATH, 'utf-8');
+    const parsed = JSON.parse(raw);
 
-    const entryIndex = data.entries.findIndex((e) => e.ticker === tickerUpper);
+    // Handle legacy array format or new object format
+    let entries = Array.isArray(parsed) ? parsed : (parsed?.entries || []);
+    const entryIndex = entries.findIndex((e: any) => e.ticker === tickerUpper);
 
     if (entryIndex === -1) {
       return NextResponse.json({ error: 'Ticker not in watchlist' }, { status: 404 });
     }
 
-    const entry = data.entries[entryIndex];
+    const entry = entries[entryIndex];
 
     // Update allowed fields
     if (body.notes !== undefined) entry.notes = body.notes;
@@ -63,9 +66,14 @@ export async function PUT(
     if (typeof body.stop_loss === 'number') entry.stop_loss = body.stop_loss;
     if (body.status !== undefined) entry.status = body.status;
 
-    const metadata: any = data.metadata || {};
-    metadata.last_updated = new Date().toISOString();
-    data.metadata = metadata;
+    // Write in new format
+    const data: WatchlistData = {
+      entries,
+      metadata: {
+        last_updated: new Date().toISOString(),
+        total_count: entries.length,
+      }
+    };
 
     await writeFile(WATCHLIST_PATH, JSON.stringify(data, null, 2));
 
@@ -89,19 +97,27 @@ export async function DELETE(
       return NextResponse.json({ error: 'Watchlist not found' }, { status: 404 });
     }
 
-    const data: WatchlistData = JSON.parse(await readFile(WATCHLIST_PATH, 'utf-8'));
+    const raw = await readFile(WATCHLIST_PATH, 'utf-8');
+    const parsed = JSON.parse(raw);
 
-    const entryIndex = data.entries.findIndex((e) => e.ticker === tickerUpper);
+    // Handle legacy array format or new object format
+    let entries = Array.isArray(parsed) ? parsed : (parsed?.entries || []);
+    const entryIndex = entries.findIndex((e: any) => e.ticker === tickerUpper);
 
     if (entryIndex === -1) {
       return NextResponse.json({ error: 'Ticker not in watchlist' }, { status: 404 });
     }
 
-    data.entries.splice(entryIndex, 1);
-    const metadata: any = data.metadata || {};
-    metadata.total_count = data.entries.length;
-    metadata.last_updated = new Date().toISOString();
-    data.metadata = metadata;
+    entries.splice(entryIndex, 1);
+
+    // Write in new format
+    const data: WatchlistData = {
+      entries,
+      metadata: {
+        last_updated: new Date().toISOString(),
+        total_count: entries.length,
+      }
+    };
 
     await writeFile(WATCHLIST_PATH, JSON.stringify(data, null, 2));
 

@@ -284,6 +284,7 @@ logs/
 *.tmp
 temp/
 *.bak
+=9.5.0
 
 # ============================================================
 # Project data directories (centralized in filedb/)
