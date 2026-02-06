@@ -91,6 +91,82 @@ function parseMarkdownTable(text: string, startIndex: number): {
   return { headers, rows, endIndex };
 }
 
+/**
+ * Pre-process JSON string to fix common LLM mistakes
+ * - Removes duplicate keys (keeps last occurrence)
+ * - Removes trailing commas
+ * - Fixes malformed structures
+ */
+function preprocessJSON(jsonStr: string): string {
+  let processed = jsonStr.trim();
+
+  // Remove duplicate keys by keeping the last occurrence
+  // This regex matches patterns like "key": value, ... "key": value2
+  // and removes the first occurrence
+  const keyPattern = /"([^"]+)"\s*:/g;
+  const seenKeys = new Set<string>();
+  const keysToRemove: Array<{ key: string; start: number; end: number }> = [];
+
+  let match;
+  while ((match = keyPattern.exec(processed)) !== null) {
+    const key = match[1];
+    const keyStart = match.index;
+    const keyEnd = keyPattern.lastIndex;
+
+    if (seenKeys.has(key)) {
+      // Found duplicate - mark the first occurrence for removal
+      keysToRemove.push({ key, start: keyStart, end: keyEnd });
+    } else {
+      seenKeys.add(key);
+    }
+  }
+
+  // Remove duplicate key-value pairs from end to start (to preserve indices)
+  // We need to find the complete value for each duplicate key
+  for (const dup of keysToRemove.reverse()) {
+    // Find the end of this key's value (comma or closing brace)
+    let valueEnd = dup.end;
+    let braceDepth = 0;
+    let inString = false;
+    let escapeNext = false;
+
+    for (let i = dup.end; i < processed.length; i++) {
+      const char = processed[i];
+
+      if (escapeNext) {
+        escapeNext = false;
+        continue;
+      }
+
+      if (char === '\\') {
+        escapeNext = true;
+        continue;
+      }
+
+      if (char === '"') {
+        inString = !inString;
+        continue;
+      }
+
+      if (!inString) {
+        if (char === '{' || char === '[') {
+          braceDepth++;
+        } else if (char === '}' || char === ']') {
+          braceDepth--;
+        } else if (braceDepth === 0 && (char === ',' || char === '}' || char === ']')) {
+          valueEnd = i;
+          break;
+        }
+      }
+    }
+
+    // Remove the duplicate key-value pair
+    processed = processed.substring(0, dup.start) + processed.substring(valueEnd);
+  }
+
+  return processed;
+}
+
 // Extract complete JSON by matching parentheses
 // Returns { json, endIndex } on success, { json: null, endIndex } on error (to capture full range for error display)
 function extractJSON(text: string, startIndex: number): { json: string | null; endIndex: number } | null {
@@ -130,7 +206,10 @@ function extractJSON(text: string, startIndex: number): { json: string | null; e
 
         if (parenCount === 0) {
           // Found matching closing parenthesis - validate JSON is complete
-          const json = text.substring(startIndex, i);
+          let json = text.substring(startIndex, i);
+
+          // Pre-process JSON to fix common LLM mistakes (duplicate keys, etc.)
+          json = preprocessJSON(json);
 
           // Validate JSON is parseable before returning
           try {
@@ -395,6 +474,29 @@ function attemptAutoFix(
       };
     } catch (e) {
       // Auto-fix pattern 7 failed
+    }
+  }
+
+  // Pattern 8: Wrong type in viz:chart (type="line" or type="bar" should be type="chart" with chartType)
+  if ((trimmed.includes('"type":"line"') || trimmed.includes('"type":"bar"') || trimmed.includes('"type": "line"') || trimmed.includes('"type": "bar"')) && (trimmed.includes('"datasets"') || trimmed.includes('"labels"'))) {
+    try {
+      const parsed = JSON.parse(trimmed);
+      if (parsed.type === 'line' || parsed.type === 'bar') {
+        const chartType = parsed.type;
+        const { type, ...rest } = parsed;
+        const fixed = {
+          type: 'chart',
+          chartType: chartType,
+          ...rest
+        };
+
+        return {
+          fixed: JSON.stringify(fixed),
+          fixDescription: `Fixed: Changed type="${chartType}" to type="chart" with chartType="${chartType}"`
+        };
+      }
+    } catch (e) {
+      // Auto-fix pattern 8 failed
     }
   }
 

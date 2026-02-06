@@ -419,7 +419,8 @@ AVAILABLE VISUALIZATION TYPES:
    ![viz:chart]({"type":"chart","chartType":"bar","data":{"labels":["AAPL","MSFT","GOOGL"],"datasets":[{"label":"Holdings Value","data":[50000,30000,20000]}]},"options":{"title":"Holdings by Stock"}})
 
 3. PIE CHART - For distributions (asset allocation, sector breakdown)
-   ![viz:pie]({"data":[{"label":"CORE","value":127522},{"label":"AI_PICKS","value":13749}],"options":{"title":"Portfolio Allocation"}})
+   IMPORTANT: ALWAYS use raw dollar amounts, NEVER percentages - the system auto-converts to %
+   ![viz:pie]({"data":[{"label":"CORE","value":127522},{"label":"AI_PICKS","value":13749},{"label":"Cash","value":22000}],"options":{"title":"Portfolio Allocation"}}})
 
 4. TABLE - For detailed data (holdings list, trade history)
    IMPORTANT: Notice the "rows" key is inside the object, comma-separated
@@ -428,9 +429,11 @@ AVAILABLE VISUALIZATION TYPES:
 CRITICAL SYNTAX RULES:
 - Line/Bar charts: type="chart" (NOT type="line" or type="bar")
 - chartType="line" or chartType="bar" goes INSIDE the data object
-- Pie charts: type="pie"
+- Pie charts: type="pie" with RAW dollar amounts (not percentages)
 - Tables: type="table"
 - NEVER use type="line" or type="bar" directly - this will fail to render!
+- NEVER repeat the same key twice in JSON (e.g., don't use "data" twice)
+- ALWAYS use proper JSON syntax - no trailing commas, all keys quoted
 
 COMMON CHART SYNTAX ERRORS:
 ❌ WRONG - This will NOT render:
