@@ -2,9 +2,31 @@
 
 import { useState } from 'react';
 import { TableVizCommand } from '@/types/visualizations';
+import ReactMarkdown from 'react-markdown';
+import remarkGfm from 'remark-gfm';
 
 interface TableProps {
   command: TableVizCommand;
+}
+
+// Helper component to render markdown in table cells
+function MarkdownCell({ content }: { content: string }) {
+  return (
+    <ReactMarkdown
+      className="prose prose-invert prose-sm max-w-none"
+      remarkPlugins={[remarkGfm]}
+      components={{
+        p: ({ children }) => <span>{children}</span>,
+        strong: ({ children }) => <span className="font-bold text-white">{children}</span>,
+        em: ({ children }) => <span className="italic">{children}</span>,
+        code: ({ children }) => (
+          <code className="bg-[#2D2D2D] text-[#4FC1FF] px-1 py-0.5 rounded text-xs">{children}</code>
+        ),
+      }}
+    >
+      {content}
+    </ReactMarkdown>
+  );
 }
 
 export default function Table({ command }: TableProps) {
@@ -78,7 +100,7 @@ export default function Table({ command }: TableProps) {
                     : ''
                 } ${getHeaderClass()}`}
               >
-                {header}
+                <MarkdownCell content={header} />
                 {sortColumn === i && (
                   <span className="ml-2">
                     {sortDirection === 'asc' ? '↑' : '↓'}
@@ -99,7 +121,7 @@ export default function Table({ command }: TableProps) {
                   key={j}
                   className={`px-3 py-2.5 text-sm ${getCellClass(cell.toString())}`}
                 >
-                  {cell}
+                  <MarkdownCell content={cell.toString()} />
                 </td>
               ))}
             </tr>
