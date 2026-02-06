@@ -87,7 +87,7 @@ export default function Table({ command }: TableProps) {
 
   return (
     <div className="overflow-x-auto">
-      <table className="w-full text-left font-['Fira_Code',monospace]">
+      <table className="min-w-full text-left font-['Fira_Code',monospace]">
         <thead>
           <tr>
             {headers.map((header, i) => (
