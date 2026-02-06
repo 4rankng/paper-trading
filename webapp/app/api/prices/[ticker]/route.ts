@@ -78,10 +78,10 @@ async function ensureFreshPrices(ticker: string): Promise<boolean> {
 // GET /api/prices/[ticker] - Fetch price data for a ticker
 export async function GET(
   request: NextRequest,
-  { params }: { params: { ticker: string } }
+  { params }: { params: Promise<{ ticker: string }> }
 ) {
   try {
-    const { ticker } = params;
+    const { ticker } = await params;
     const tickerUpper = ticker.toUpperCase();
     const { searchParams } = new URL(request.url);
 
@@ -148,10 +148,10 @@ export async function GET(
 // POST /api/prices/[ticker] - Update price data for a ticker
 export async function POST(
   request: NextRequest,
-  { params }: { params: { ticker: string } }
+  { params }: { params: Promise<{ ticker: string }> }
 ) {
   try {
-    const { ticker } = params;
+    const { ticker } = await params;
     const tickerUpper = ticker.toUpperCase();
     const body = await request.json();
 

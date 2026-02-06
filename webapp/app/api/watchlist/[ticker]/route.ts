@@ -33,10 +33,10 @@ interface WatchlistData {
 // PUT /api/watchlist/[ticker] - Update watchlist entry
 export async function PUT(
   request: NextRequest,
-  { params }: { params: { ticker: string } }
+  { params }: { params: Promise<{ ticker: string }> }
 ) {
   try {
-    const { ticker } = params;
+    const { ticker } = await params;
     const body = await request.json();
     const tickerUpper = ticker.toUpperCase();
 
@@ -87,10 +87,10 @@ export async function PUT(
 // DELETE /api/watchlist/[ticker] - Remove from watchlist
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { ticker: string } }
+  { params }: { params: Promise<{ ticker: string }> }
 ) {
   try {
-    const { ticker } = params;
+    const { ticker } = await params;
     const tickerUpper = ticker.toUpperCase();
 
     if (!existsSync(WATCHLIST_PATH)) {

@@ -14,10 +14,10 @@ const VALID_TYPES = ['technical', 'fundamental', 'thesis'];
 // GET /api/analytics/[ticker]/[type] - Fetch specific analytics type
 export async function GET(
   request: NextRequest,
-  { params }: { params: { ticker: string; type: string } }
+  { params }: { params: Promise<{ ticker: string; type: string }> }
 ) {
   try {
-    const { ticker, type } = params;
+    const { ticker, type } = await params;
     const tickerUpper = ticker.toUpperCase();
 
     if (!VALID_TYPES.includes(type)) {
@@ -44,10 +44,10 @@ export async function GET(
 // PUT /api/analytics/[ticker]/[type] - Update specific analytics type
 export async function PUT(
   request: NextRequest,
-  { params }: { params: { ticker: string; type: string } }
+  { params }: { params: Promise<{ ticker: string; type: string }> }
 ) {
   try {
-    const { ticker, type } = params;
+    const { ticker, type } = await params;
     const tickerUpper = ticker.toUpperCase();
     const body = await request.json();
 
@@ -81,10 +81,10 @@ export async function PUT(
 // DELETE /api/analytics/[ticker]/[type] - Delete specific analytics type
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { ticker: string; type: string } }
+  { params }: { params: Promise<{ ticker: string; type: string }> }
 ) {
   try {
-    const { ticker, type } = params;
+    const { ticker, type } = await params;
     const tickerUpper = ticker.toUpperCase();
 
     if (!VALID_TYPES.includes(type)) {

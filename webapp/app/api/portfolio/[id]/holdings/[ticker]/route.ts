@@ -25,10 +25,10 @@ interface PortfolioData {
 // PUT /api/portfolio/[id]/holdings/[ticker] - Update holding
 export async function PUT(
   request: NextRequest,
-  { params }: { params: { id: string; ticker: string } }
+  { params }: { params: Promise<{ id: string; ticker: string }> }
 ) {
   try {
-    const { id, ticker } = params;
+    const { id, ticker } = await params;
     const body = await request.json();
     const tickerUpper = ticker.toUpperCase();
 
@@ -82,10 +82,10 @@ export async function PUT(
 // DELETE /api/portfolio/[id]/holdings/[ticker] - Remove holding
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { id: string; ticker: string } }
+  { params }: { params: Promise<{ id: string; ticker: string }> }
 ) {
   try {
-    const { id, ticker } = params;
+    const { id, ticker } = await params;
     const tickerUpper = ticker.toUpperCase();
 
     if (!existsSync(PORTFOLIO_PATH)) {

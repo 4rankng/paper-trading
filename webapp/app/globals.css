@@ -1,9 +1,9 @@
+/* Import Fira Code font - must come before other CSS rules */
+@import url('https://fonts.googleapis.com/css2?family=Fira+Code:wght@400;500;600&display=swap');
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
-
-/* Import Fira Code font */
-@import url('https://fonts.googleapis.com/css2?family=Fira+Code:wght@400;500;600&display=swap');
 
 /* Mobile viewport handling */
 :root {

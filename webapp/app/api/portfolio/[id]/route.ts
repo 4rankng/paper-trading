@@ -25,10 +25,10 @@ interface PortfolioData {
 // GET /api/portfolio/[id] - Fetch specific portfolio
 export async function GET(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const { id } = params;
+    const { id } = await params;
 
     if (!existsSync(PORTFOLIO_PATH)) {
       return NextResponse.json({ error: 'Portfolio file not found' }, { status: 404 });
@@ -54,10 +54,10 @@ export async function GET(
 // PUT /api/portfolio/[id] - Update portfolio metadata
 export async function PUT(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const { id } = params;
+    const { id } = await params;
     const body = await request.json();
 
     if (!existsSync(PORTFOLIO_PATH)) {

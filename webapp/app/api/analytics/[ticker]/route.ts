@@ -12,10 +12,10 @@ const FILEDB_BASE = process.env.FILEDB_PATH || join(process.cwd(), '../filedb');
 // GET /api/analytics/[ticker] - Fetch all analytics for a ticker
 export async function GET(
   request: NextRequest,
-  { params }: { params: { ticker: string } }
+  { params }: { params: Promise<{ ticker: string }> }
 ) {
   try {
-    const { ticker } = params;
+    const { ticker } = await params;
     const tickerUpper = ticker.toUpperCase();
 
     const analyticsDir = join(FILEDB_BASE, 'analytics', tickerUpper);
@@ -57,10 +57,10 @@ export async function GET(
 // POST /api/analytics/[ticker] - Create/update analytics for a ticker
 export async function POST(
   request: NextRequest,
-  { params }: { params: { ticker: string } }
+  { params }: { params: Promise<{ ticker: string }> }
 ) {
   try {
-    const { ticker } = params;
+    const { ticker } = await params;
     const tickerUpper = ticker.toUpperCase();
     const body = await request.json();
 
