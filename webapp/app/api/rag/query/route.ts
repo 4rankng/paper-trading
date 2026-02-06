@@ -44,6 +44,15 @@ export async function GET(request: NextRequest) {
 
     let output = '';
     let errorOutput = '';
+    let resolved = false;
+
+    const cleanup = () => {
+      if (!resolved) {
+        resolved = true;
+        clearTimeout(timeoutId);
+        python.kill();
+      }
+    };
 
     python.stdout.on('data', (data) => {
       output += data.toString();
@@ -54,6 +63,9 @@ export async function GET(request: NextRequest) {
     });
 
     python.on('close', (code) => {
+      if (resolved) return; // Already timed out
+      cleanup();
+
       if (code !== 0) {
         console.error('[RAG Query] Error:', errorOutput);
         resolve(NextResponse.json(
@@ -86,9 +98,9 @@ export async function GET(request: NextRequest) {
     });
 
     // Timeout after 10 seconds
-    setTimeout(() => {
-      python.kill();
+    const timeoutId = setTimeout(() => {
       console.error('[RAG Query] Timeout');
+      cleanup();
       resolve(NextResponse.json(
         {
           error: 'Search timeout',

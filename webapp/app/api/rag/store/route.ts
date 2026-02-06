@@ -40,7 +40,8 @@ async function addToVectorStore(
   docId: string,
   text: string,
   metadata: Record<string, any>,
-  collection: string
+  collection: string,
+  timeoutMs: number = 10000
 ): Promise<void> {
   return new Promise((resolve, reject) => {
     const python = spawn('python3', [
@@ -62,6 +63,15 @@ print('OK')
 
     let output = '';
     let errorOutput = '';
+    let resolved = false;
+
+    const cleanup = () => {
+      if (!resolved) {
+        resolved = true;
+        clearTimeout(timeoutId);
+        python.kill();
+      }
+    };
 
     python.stdout.on('data', (data) => {
       output += data.toString();
@@ -72,12 +82,20 @@ print('OK')
     });
 
     python.on('close', (code) => {
+      if (resolved) return;
+      cleanup();
+
       if (code !== 0) {
         reject(new Error(`Vector store error: ${errorOutput || output}`));
       } else {
         resolve();
       }
     });
+
+    const timeoutId = setTimeout(() => {
+      cleanup();
+      reject(new Error('Vector store timeout'));
+    }, timeoutMs);
   });
 }
 

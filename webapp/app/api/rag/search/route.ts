@@ -32,12 +32,21 @@ interface SearchResponse {
   results: SearchResult[];
 }
 
-// Helper function to run Python script
-function runPythonScript(args: string[]): Promise<string> {
+// Helper function to run Python script with timeout
+function runPythonScript(args: string[], timeoutMs: number = 10000): Promise<string> {
   return new Promise((resolve, reject) => {
     const python = spawn('python3', args);
     let output = '';
     let errorOutput = '';
+    let resolved = false;
+
+    const cleanup = () => {
+      if (!resolved) {
+        resolved = true;
+        clearTimeout(timeoutId);
+        python.kill();
+      }
+    };
 
     python.stdout.on('data', (data) => {
       output += data.toString();
@@ -48,12 +57,20 @@ function runPythonScript(args: string[]): Promise<string> {
     });
 
     python.on('close', (code) => {
+      if (resolved) return;
+      cleanup();
+
       if (code !== 0) {
         reject(new Error(`Python script failed: ${errorOutput || output}`));
       } else {
         resolve(output);
       }
     });
+
+    const timeoutId = setTimeout(() => {
+      cleanup();
+      reject(new Error('Python script timeout'));
+    }, timeoutMs);
   });
 }
 
