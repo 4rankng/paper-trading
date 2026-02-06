@@ -167,6 +167,64 @@ function preprocessJSON(jsonStr: string): string {
   return processed;
 }
 
+/**
+ * Check if JSON string appears to be complete
+ * Detects common incomplete patterns during streaming
+ */
+function isJSONComplete(jsonStr: string): boolean {
+  const trimmed = jsonStr.trim();
+
+  // Quick check: must end with } or ]
+  if (!trimmed.endsWith('}') && !trimmed.endsWith(']')) {
+    return false;
+  }
+
+  // Check for incomplete string at the end
+  // If we have an odd number of quotes, a string is likely unclosed
+  let quoteCount = 0;
+  let escapeNext = false;
+  for (let i = 0; i < trimmed.length; i++) {
+    const char = trimmed[i];
+    if (escapeNext) {
+      escapeNext = false;
+      continue;
+    }
+    if (char === '\\') {
+      escapeNext = true;
+      continue;
+    }
+    if (char === '"') {
+      quoteCount++;
+    }
+  }
+
+  // Odd number of quotes means unclosed string
+  if (quoteCount % 2 !== 0) {
+    return false;
+  }
+
+  // Check for trailing comma (common LLM streaming artifact)
+  if (/,\s*[,}\]]/.test(trimmed)) {
+    return false;
+  }
+
+  // Check for incomplete patterns that suggest truncation
+  // e.g., "value": ... (no closing quote or bracket)
+  const incompletePatterns = [
+    /"[^"]*:\s*"[^"]*$/,  // Unclosed string value
+    /"[^"]*:\s*\{[^}]*$/, // Unclosed object value
+    /"[^"]*:\s*\[[^\]]*$/, // Unclosed array value
+  ];
+
+  for (const pattern of incompletePatterns) {
+    if (pattern.test(trimmed)) {
+      return false;
+    }
+  }
+
+  return true;
+}
+
 // Extract complete JSON by matching parentheses
 // Returns { json, endIndex } on success, { json: null, endIndex } on error (to capture full range for error display)
 function extractJSON(text: string, startIndex: number): { json: string | null; endIndex: number } | null {
@@ -207,6 +265,12 @@ function extractJSON(text: string, startIndex: number): { json: string | null; e
         if (parenCount === 0) {
           // Found matching closing parenthesis - validate JSON is complete
           let json = text.substring(startIndex, i);
+
+          // Check if JSON appears complete before parsing (prevents parsing incomplete streaming data)
+          if (!isJSONComplete(json)) {
+            // JSON looks incomplete - don't try to parse yet, return null to wait for more data
+            continue;
+          }
 
           // Pre-process JSON to fix common LLM mistakes (duplicate keys, etc.)
           json = preprocessJSON(json);
