@@ -94,7 +94,7 @@ export default function Table({ command }: TableProps) {
               <th
                 key={i}
                 onClick={() => handleSort(i)}
-                className={`px-3 py-2.5 text-xs font-semibold uppercase tracking-wider border-b-2 border-[#3E3E42] ${
+                className={`px-3 py-2.5 text-xs font-semibold uppercase tracking-wider border-b-2 border-[#3E3E42] min-w-[120px] whitespace-nowrap ${
                   options?.sortable
                     ? 'cursor-pointer hover:text-[#75BEFF] transition-colors'
                     : ''
@@ -119,7 +119,7 @@ export default function Table({ command }: TableProps) {
               {row.map((cell, j) => (
                 <td
                   key={j}
-                  className={`px-3 py-2.5 text-sm ${getCellClass(cell.toString())}`}
+                  className={`px-3 py-2.5 text-sm min-w-[120px] whitespace-nowrap ${getCellClass(cell.toString())}`}
                 >
                   <MarkdownCell content={cell.toString()} />
                 </td>

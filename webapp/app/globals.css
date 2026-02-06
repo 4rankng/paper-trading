@@ -242,4 +242,14 @@ body {
   ::-webkit-scrollbar-thumb {
     border-radius: 2px;
   }
+
+  /* But for horizontal scroll on tables, make it more visible and touch-friendly */
+  .overflow-x-auto::-webkit-scrollbar {
+    height: 6px;
+  }
+
+  .overflow-x-auto::-webkit-scrollbar-thumb {
+    background: var(--text-dim);
+    border-radius: 3px;
+  }
 }

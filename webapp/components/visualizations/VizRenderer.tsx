@@ -37,17 +37,17 @@ export default function VizRenderer({ command }: VizRendererProps) {
   const titleColor = isPieChart ? 'text-gray-800' : 'text-[#4FC1FF]';
 
   return (
-    <div className={`${cardBg} border ${borderColor} rounded-lg p-4 my-4`}>
+    <div className={`${cardBg} border ${borderColor} rounded-lg p-3 md:p-4 my-4`}>
       {/* Header */}
       <div className="flex items-center gap-2 mb-3">
-        <span className="text-lg">{icon}</span>
-        <span className={`${titleColor} text-sm font-semibold font-['Fira_Code',monospace]`}>
+        <span className="text-base md:text-lg">{icon}</span>
+        <span className={`${titleColor} text-xs md:text-sm font-semibold font-['Fira_Code',monospace]`}>
           {title}
         </span>
       </div>
 
       {/* Content */}
-      <div className={`${contentBg} rounded p-3`}>
+      <div className={`${contentBg} rounded p-2 md:p-3`}>
         <VizContent command={command} />
       </div>
     </div>

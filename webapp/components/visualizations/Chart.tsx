@@ -93,18 +93,24 @@ export default function Chart({ command }: ChartProps) {
           family: "'Fira Code', monospace",
           size: 11,
         },
+        padding: 10,
+        displayColors: true,
         ...userPlugins.tooltip,
       },
       // Ensure legend color is never overridden
       legend: {
         display: true,
+        position: 'top' as const,
+        align: 'start' as const,
         ...userPlugins.legend,
         labels: {
           color: '#E0E0E0',
           font: {
             family: "'Fira Code', monospace",
-            size: 12,
+            size: 11,
           },
+          boxWidth: 12,
+          padding: 8,
           ...userPlugins.legend?.labels,
         },
       },
@@ -165,7 +171,7 @@ export default function Chart({ command }: ChartProps) {
   const ChartComponent = chartType === 'bar' ? Bar : chartType === 'scatter' ? Scatter : Line;
 
   return (
-    <div className="h-72">
+    <div className="h-64 md:h-72 w-full">
       <ChartComponent data={chartData} options={chartOptions} />
     </div>
   );
