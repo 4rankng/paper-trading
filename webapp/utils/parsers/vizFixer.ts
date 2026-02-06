@@ -65,7 +65,7 @@ function removeDuplicateKeys(json: string): FixResult {
   while ((match = keyPattern.exec(json)) !== null) {
     const key = match[1];
     const start = match.index;
-    const end = keyPattern.lastIndex;
+    const end = match.index + match[0].length; // End of the key pattern match
 
     if (seenKeys.has(key)) {
       duplicates.push(seenKeys.get(key)!);
@@ -260,18 +260,33 @@ function fixSchemaIssues(json: string, vizType: string): FixResult {
     const obj = JSON.parse(json);
     const fixed = { ...obj };
 
-    if (vizType === 'chart' || vizType === 'line' || vizType === 'bar') {
+    // Infer viz type from content if unknown
+    let inferredType = vizType;
+    if (vizType === 'unknown') {
+      if (fixed.chartType || (fixed.labels && fixed.datasets)) {
+        inferredType = 'chart';
+      } else if (fixed.headers && fixed.rows) {
+        inferredType = 'table';
+      } else if (Array.isArray(fixed.data) && fixed.data.every((d: any) => 'value' in d)) {
+        inferredType = 'pie';
+      }
+      if (inferredType !== 'unknown') {
+        warnings.push(`Inferred viz type as "${inferredType}" from content`);
+      }
+    }
+
+    if (inferredType === 'chart' || inferredType === 'line' || inferredType === 'bar') {
       if (fixed.type === 'line' || fixed.type === 'bar') {
         const chartType = fixed.type;
         delete fixed.type;
         fixed.chartType = chartType;
-        if (!fixed.type) fixed.type = 'chart';
+        fixed.type = 'chart';
         warnings.push(`Converted type:"${chartType}" to chartType:"${chartType}"`);
       }
       if (!fixed.type) fixed.type = 'chart';
     }
 
-    if (vizType === 'table') {
+    if (inferredType === 'table') {
       if (!fixed.type) fixed.type = 'table';
       if (fixed.columns && !fixed.headers) {
         fixed.headers = fixed.columns;
@@ -285,6 +300,23 @@ function fixSchemaIssues(json: string, vizType: string): FixResult {
       if (!fixed.rows) {
         fixed.rows = [];
         warnings.push('Added empty rows array');
+      }
+    }
+
+    if (inferredType === 'pie') {
+      if (!fixed.type) fixed.type = 'pie';
+      if (!fixed.data) {
+        fixed.data = [];
+        warnings.push('Added empty data array');
+      }
+      // Convert 'name' to 'label' if present
+      if (Array.isArray(fixed.data) && fixed.data.some((d: any) => d.name && !d.label)) {
+        fixed.data = fixed.data.map((d: any) => ({
+          label: d.label ?? d.name,
+          value: d.value,
+          color: d.color
+        }));
+        warnings.push('Converted "name" to "label" in pie data');
       }
     }
 
@@ -320,7 +352,6 @@ export function autoFixVisualization(jsonStr: string, vizType: string): FixResul
   const passes: Array<{ name: string; fn: (s: string) => FixResult }> = [
     { name: 'surrogate-chars', fn: fixSurrogateCharacters },
     { name: 'trailing-commas', fn: removeTrailingCommas },
-    { name: 'duplicate-keys', fn: removeDuplicateKeys },
     { name: 'bracket-balance', fn: balanceBrackets },
     { name: 'missing-commas', fn: addMissingCommas },
     { name: 'schema-validation', fn: (s: string) => fixSchemaIssues(s, vizType) },

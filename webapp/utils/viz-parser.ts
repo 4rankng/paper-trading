@@ -1,6 +1,6 @@
 import { VizCommand, ParsedViz, VizType } from '@/types/visualizations';
 import { autoFixVisualization, sanitizeLoneSurrogates } from './parsers/vizFixer';
-import { parseMarkdownTable, extractJSON, findVisualizationEnd, isCovered } from './parsers/vizExtractor';
+import { parseMarkdownTable, extractJSON, findVisualizationEnd, isCovered, detectTruncation } from './parsers/vizExtractor';
 
 // Re-export for other modules
 export { sanitizeLoneSurrogates, autoFixVisualization };
@@ -12,6 +12,7 @@ export interface VizParseError {
   type: string;
   error: string;
   hint: string;
+  truncationDetected?: boolean; // True if LLM response was cut off
 }
 
 // Match viz markdown: ![viz:type](...)
@@ -43,7 +44,31 @@ export function parseVizCommands(text: string): { vizs: ParsedViz[]; errors: Viz
     const startIndex = match.index;
     const openParenIndex = startIndex + match[0].length;
 
-    const result = extractJSON(text, openParenIndex);
+    // Skip if this visualization is inside a code block (backticks)
+    // Look backwards from startIndex to see if we're inside `...` or ```...```
+    let inCodeBlock = false;
+    let backtickCount = 0;
+    for (let i = startIndex - 1; i >= 0; i--) {
+      if (text[i] === '`') backtickCount++;
+      else if (text[i] === '\n') break; // Stop at newline
+
+      // If we found an odd number of backticks, we're inside a code span
+      if (backtickCount === 1 || backtickCount === 3) {
+        inCodeBlock = true;
+        break;
+      }
+      // If we found more than 3, we're definitely in a code block
+      if (backtickCount > 3) {
+        inCodeBlock = true;
+        break;
+      }
+    }
+
+    if (inCodeBlock) {
+      continue; // Skip this match - it's inside a code example
+    }
+
+    const result = extractJSON(text, openParenIndex, typeStr);
 
     if (!result) {
       const endIndex = findVisualizationEnd(text, openParenIndex);
@@ -60,12 +85,15 @@ export function parseVizCommands(text: string): { vizs: ParsedViz[]; errors: Viz
     const { json: jsonStr, endIndex } = result;
 
     if (jsonStr === null) {
+      // extractJSON already tried auto-fix and failed - add error marker
+      // The raw text was too incomplete even after auto-fix attempts
       errors.push({
         startIndex,
         endIndex,
         type: typeStr,
-        error: 'Invalid JSON syntax',
-        hint: 'Check for missing quotes, commas, or mismatched brackets',
+        error: 'Response truncated - JSON too incomplete to auto-fix',
+        hint: '💬 Try requesting fewer visualizations (1-2 at a time) or a simpler analysis. The LLM got cut off mid-generation.',
+        truncationDetected: true,
       });
       continue;
     }
@@ -158,7 +186,15 @@ export function parseVizCommands(text: string): { vizs: ParsedViz[]; errors: Viz
       }
 
       let hint = 'Check JSON syntax';
-      if (error.message.includes('array')) {
+      let errorMsg = error.message;
+
+      // Detect if this is a truncation issue
+      const truncationCheck = detectTruncation(jsonStr);
+
+      if (truncationCheck.isTruncated && truncationCheck.confidence > 0.7) {
+        errorMsg = `Response truncated: ${truncationCheck.reason}`;
+        hint = 'Try requesting fewer visualizations or a simpler analysis. The LLM got cut off mid-generation.';
+      } else if (error.message.includes('array')) {
         hint = 'The "rows" key should be inside the object: {"headers":[...],"rows":[[...]]}';
       } else if (error.message.includes('JSON')) {
         hint = 'Check for missing quotes, commas, or brackets';
@@ -168,8 +204,9 @@ export function parseVizCommands(text: string): { vizs: ParsedViz[]; errors: Viz
         startIndex,
         endIndex,
         type: typeStr,
-        error: error.message,
+        error: errorMsg,
         hint,
+        truncationDetected: truncationCheck.isTruncated && truncationCheck.confidence > 0.7,
       });
     }
   }
@@ -243,8 +280,25 @@ export function replaceVizsWithErrors(
 
   errors
     .sort((a, b) => b.startIndex - a.startIndex)
-    .forEach(({ startIndex, endIndex, type, error, hint }) => {
-      const errorPlaceholder = `[⚠️ ${type} chart error: ${error}\n💡 Hint: ${hint}]`;
+    .forEach(({ startIndex, endIndex, type, error, hint, truncationDetected }, index) => {
+      let errorPlaceholder: string;
+
+      if (truncationDetected) {
+        // More helpful message for truncation with regenerate option
+        errorPlaceholder = `
+⚠️ ${type} incomplete - LLM response was cut off
+
+${hint}
+
+[Type "regenerate ${index + 1}" to try again]
+`;
+      } else {
+        // Standard error message
+        errorPlaceholder = `[⚠️ ${type} error: ${error}
+
+💡 ${hint}]`;
+      }
+
       result =
         result.substring(0, startIndex) + errorPlaceholder + result.substring(endIndex);
     });

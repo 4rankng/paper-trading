@@ -92,12 +92,6 @@ export function isJSONComplete(jsonStr: string): boolean {
   }
   if (braceCount !== 0 || bracketCount !== 0) return false;
 
-  let stringCount = 0;
-  for (const token of tokens) {
-    if (token.type === 'string') stringCount++;
-  }
-  if (stringCount % 2 !== 0) return false;
-
   const nonWsTokens = tokens.filter(t => t.type !== 'whitespace');
   if (nonWsTokens.length >= 2) {
     const lastToken = nonWsTokens[nonWsTokens.length - 1];

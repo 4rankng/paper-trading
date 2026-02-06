@@ -2,6 +2,49 @@ import { isJSONComplete } from './vizTokenizer';
 import { autoFixVisualization } from './vizFixer';
 
 /**
+ * Detect if JSON appears to be truncated (LLM response cut off mid-generation)
+ * Returns: { isTruncated, confidence, reason }
+ */
+export function detectTruncation(jsonStr: string): { isTruncated: boolean; confidence: number; reason?: string } {
+  const trimmed = jsonStr.trim();
+
+  // High confidence truncation patterns
+  if (trimmed.endsWith(',')) {
+    return { isTruncated: true, confidence: 0.9, reason: 'Ends with comma - more items expected' };
+  }
+
+  if (trimmed.endsWith('"')) {
+    return { isTruncated: true, confidence: 0.7, reason: 'Ends with open quote' };
+  }
+
+  if (trimmed.match(/:\s*\[?\s*$/)) {
+    return { isTruncated: true, confidence: 0.95, reason: 'Empty property value' };
+  }
+
+  if (trimmed.match(/\[\s*\{?[^}]*$/)) {
+    return { isTruncated: true, confidence: 0.85, reason: 'Incomplete object in array' };
+  }
+
+  // Check for unbalanced brackets WITH substantial content
+  const openBraces = (trimmed.match(/\{/g) || []).length;
+  const closeBraces = (trimmed.match(/\}/g) || []).length;
+  const openBrackets = (trimmed.match(/\[/g) || []).length;
+  const closeBrackets = (trimmed.match(/\]/g) || []).length;
+
+  const hasContent = trimmed.length > 50; // Substantial content but unbalanced
+
+  if (hasContent && (openBraces > closeBraces || openBrackets > closeBrackets)) {
+    return {
+      isTruncated: true,
+      confidence: 0.8,
+      reason: `Unbalanced brackets (${openBraces - closeBraces} unclosed braces, ${openBrackets - closeBrackets} unclosed brackets) with ${trimmed.length} chars`
+    };
+  }
+
+  return { isTruncated: false, confidence: 0 };
+}
+
+/**
  * Parse a markdown table and convert to viz:table format
  */
 export function parseMarkdownTable(text: string, startIndex: number): {
@@ -63,14 +106,21 @@ export function parseMarkdownTable(text: string, startIndex: number): {
 }
 
 /**
- * Extract complete JSON by matching parentheses
+ * Extract JSON by balancing brackets, not by looking for literal )
+ * This works even if LLM forgets the closing parenthesis
  */
-export function extractJSON(text: string, startIndex: number): { json: string | null; endIndex: number } | null {
-  let parenCount = 1;
+export function extractJSON(text: string, startIndex: number, vizType?: string): { json: string | null; endIndex: number } | null {
+  let braceDepth = 0; // Track { } depth
+  let bracketDepth = 0; // Track [ ] depth
   let i = startIndex;
   let inString = false;
   let escapeNext = false;
-  let lastClosingParen = -1;
+  let firstChar = text.charAt(startIndex);
+
+  // If we start with { or [, we're looking for balanced JSON
+  if (firstChar !== '{' && firstChar !== '[') {
+    return null; // Not JSON
+  }
 
   while (i < text.length) {
     const char = text[i];
@@ -94,23 +144,33 @@ export function extractJSON(text: string, startIndex: number): { json: string | 
     }
 
     if (!inString) {
-      if (char === '(') {
-        parenCount++;
-      } else if (char === ')') {
-        parenCount--;
-        lastClosingParen = i;
-
-        if (parenCount === 0) {
-          let json = text.substring(startIndex, i);
-
-          if (!isJSONComplete(json)) {
-            continue;
-          }
-
-          const fixResult = autoFixVisualization(json, 'unknown');
-
+      if (char === '{') braceDepth++;
+      else if (char === '}') braceDepth--;
+      else if (char === '[') bracketDepth++;
+      else if (char === ']') bracketDepth--;
+      else if (char === ')') {
+        // Found closing ) - extract JSON and auto-fix it
+        let json = text.substring(startIndex, i);
+        const fixResult = autoFixVisualization(json, vizType ?? 'unknown');
+        if (isJSONComplete(fixResult.fixed)) {
           try {
             JSON.parse(fixResult.fixed);
+            return { json: fixResult.fixed, endIndex: i + 1 };
+          } catch {
+            return { json: null, endIndex: i + 1 };
+          }
+        }
+      }
+
+      // Check if we've closed all braces and brackets - we found the end of JSON
+      // (This handles cases where JSON is complete but no closing ) exists)
+      if (braceDepth === 0 && bracketDepth === 0 && i > startIndex) {
+        let json = text.substring(startIndex, i + 1);
+        const fixResult = autoFixVisualization(json, vizType ?? 'unknown');
+        if (isJSONComplete(fixResult.fixed)) {
+          try {
+            JSON.parse(fixResult.fixed);
+            // Return the JSON, and point to after it (caller will skip the ) if it exists)
             return { json: fixResult.fixed, endIndex: i + 1 };
           } catch {
             return { json: null, endIndex: i + 1 };
@@ -122,8 +182,18 @@ export function extractJSON(text: string, startIndex: number): { json: string | 
     i++;
   }
 
-  if (lastClosingParen > startIndex) {
-    return { json: null, endIndex: lastClosingParen + 1 };
+  // If we reached end of text, try to salvage what we have and let auto-fixer balance it
+  if (i > startIndex) {
+    let json = text.substring(startIndex, i);
+    const fixResult = autoFixVisualization(json, vizType ?? 'unknown');
+    if (isJSONComplete(fixResult.fixed)) {
+      try {
+        JSON.parse(fixResult.fixed);
+        return { json: fixResult.fixed, endIndex: i };
+      } catch {
+        return { json: null, endIndex: i };
+      }
+    }
   }
 
   return null;
@@ -171,6 +241,7 @@ export function findProperClosingParen(content: string, openParenIndex: number):
 
 /**
  * Find the end of a visualization
+ * For truncated visualizations, limits to the current line to avoid eating subsequent content
  */
 export function findVisualizationEnd(content: string, openParenIndex: number): number {
   const properEnd = findProperClosingParen(content, openParenIndex);
@@ -183,12 +254,15 @@ export function findVisualizationEnd(content: string, openParenIndex: number): n
     return nextViz;
   }
 
+  // Find the end of the current line (don't eat subsequent content)
   const nextNewline = content.indexOf('\n', openParenIndex);
   if (nextNewline !== -1) {
+    // Only go to end of current line, not include the newline itself
     return nextNewline;
   }
 
-  return Math.min(openParenIndex + 1000, content.length);
+  // Last resort: limit to a reasonable amount (500 chars max)
+  return Math.min(openParenIndex + 500, content.length);
 }
 
 /**

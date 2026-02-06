@@ -369,6 +369,29 @@ const TOOLS = [
       required: ['query'],
     },
   },
+  {
+    name: 'create_visualization',
+    description: 'Create a visualization from structured data. Use this for complex charts requiring data fetched from other tools.',
+    input_schema: {
+      type: 'object' as const,
+      properties: {
+        viz_type: {
+          type: 'string' as const,
+          enum: ['line', 'bar', 'pie', 'table', 'scatter'],
+          description: 'Visualization type',
+        },
+        data: {
+          type: 'object' as const,
+          description: 'Visualization data object - structure depends on viz_type',
+        },
+        options: {
+          type: 'object' as const,
+          description: 'Optional: title, axis labels, legend, colors, etc.',
+        },
+      },
+      required: ['viz_type', 'data'],
+    },
+  },
 ];
 
 const SYSTEM_PROMPT = `You are TermAI Explorer, a financial AI assistant with access to REAL portfolio and market data.
@@ -380,17 +403,23 @@ CRITICAL RULES:
 4. CRITICAL: Before discussing ANY portfolio holdings, you MUST call get_portfolios tool. Conversation history may contain outdated or incorrect holdings information - ONLY trust live data from get_portfolios
 5. Distinguish between "on watchlist" vs "owned in portfolio" - these are different things
 6. CONSOLIDATE and INTERPRET the data - then PRESENT WITH VISUALIZATIONS
-7. NEVER use ASCII tables, terminal art, or markdown tables - USE THE PROVIDED VISUALIZATION FORMAT ONLY
-8. DOUBLE-CHECK your visualization JSON syntax - malformed visualizations won't render
-9. CRITICAL: For charts, ALWAYS use type="chart" with chartType="line/bar" inside - NEVER use type="line" or type="bar" directly
+7. NEVER use ASCII tables, terminal art, or markdown tables - USE THE create_visualization TOOL
+8. For complex visualizations with lots of data, use create_visualization tool - it generates guaranteed-valid JSON
+9. For simple 2-4 row tables, you MAY write viz:table syntax directly - but tool is safer
 10. LET DATA SPEAK - Use visualizations to show information, supplement with key insights
 
-🎨 HOW VISUALIZATIONS WORK:
-Visualizations are NOT tools - they are SPECIAL MARKDOWN SYNTAX you write in your text response!
-- You create charts/tables/pie charts by writing viz:table/viz:chart/viz:pie in your response
-- The frontend AUTOMATICALLY detects and renders these visualizations
-- Example: Just write "![viz:table]({"headers":[...],"rows":[[...]]})" in your response - it will render as a table!
-- NO TOOL CALL NEEDED - just write the syntax in your text response after fetching data
+🎨 HOW TO CREATE VISUALIZATIONS:
+You have TWO options:
+
+OPTION 1 - Use create_visualization tool (RECOMMENDED for data-heavy charts):
+- Use for: line charts, bar charts, pie charts with many data points
+- Process: get_portfolios → analyze → create_visualization({viz_type, data, options})
+- Returns ready-to-use visualization markdown - just include it in your response
+
+OPTION 2 - Write viz: syntax directly (ONLY for simple tables):
+- Use for: small tables (2-4 rows), quick summaries
+- Format: ![viz:table]({"headers":["A","B"],"rows":[["x","y"]]})
+- Risk: Syntax errors will cause visualization to fail
 
 FORBIDDEN FORMATS (NEVER USE THESE):
 ❌ MARKDOWN TABLES (these will NOT render properly):
@@ -479,13 +508,17 @@ CORRECT (viz:table - WILL render):
 RESPONSE STRUCTURE:
 1. Fetch data using tools (get_portfolios, get_news, etc.)
 2. Provide a clear summary of key findings
-3. Write visualization syntax directly in your response (NOT a tool call!)
-   - Just type: ![viz:table]({...}) or ![viz:chart]({...}) or ![viz:pie]({...})
-   - These will AUTOMATICALLY render as charts/tables on the frontend
-4. Provide detailed analysis and insights to complement the visualizations
-5. Include context, trends, and actionable recommendations when relevant
+3. For complex charts (lots of data points): Use create_visualization tool
+   - Returns ready-to-use visualization markdown
+   - Just include the returned string in your response
+4. For simple tables (2-4 rows): Write viz:table syntax directly
+5. Provide detailed analysis and insights to complement the visualizations
 
-REMEMBER: Visualizations are TEXT you write, not tools you call!
+RECOMMENDED WORKFLOW FOR CHARTS:
+Step 1: get_portfolios → extract dates/values from result
+Step 2: create_visualization({viz_type: "line", data: {labels: [...], datasets: [...]}, options: {...}})
+Step 3: Include the returned visualization in your response
+Step 4: Add your analysis and insights
 
 EXAMPLE GOOD RESPONSE:
 "Your portfolio is down $49K (-28%) across all positions. LAES is your biggest loser at -$34K.
@@ -915,12 +948,134 @@ async function executeToolCall(toolName: string, toolInput: any) {
         };
       }
 
+      case 'create_visualization': {
+        // Generate visualization JSON from structured data
+        const { viz_type, data, options } = toolInput;
+
+        let vizCommand: any = {
+          type: viz_type,
+          ...data,
+        };
+
+        // Add options if provided
+        if (options) {
+          vizCommand = { ...vizCommand, ...options };
+        }
+
+        // For chart types, ensure proper structure
+        if (viz_type === 'line' || viz_type === 'bar' || viz_type === 'scatter') {
+          vizCommand = {
+            type: 'chart',
+            chartType: viz_type,
+            ...data,
+            ...options,
+          };
+        }
+
+        // Generate the viz markdown string
+        const vizString = JSON.stringify(vizCommand);
+        const vizMarkdown = `![viz:${viz_type}](${vizString})`;
+
+        return {
+          success: true,
+          data: {
+            visualization: vizMarkdown,
+            type: viz_type,
+            data: vizCommand,
+          },
+        };
+      }
+
       default:
         return { error: `Unknown tool: ${toolName}` };
     }
   } catch (error: any) {
     console.error(`[Chat API] Tool execution error for ${toolName}:`, error);
     return { error: error.message || 'Tool execution failed' };
+  }
+}
+
+/**
+ * Attempt to auto-regenerate truncated visualizations
+ */
+async function attemptRegenerate(
+  text: string,
+  errors: any[],
+  anthropic: any,
+  model: string,
+  systemPrompt: string,
+  conversationHistory: any[]
+): Promise<{ success: boolean; text: string; fixedCount: number }> {
+  try {
+    // Extract viz types that need regeneration
+    const vizTypes = errors.map(e => e.type);
+
+    const regeneratePrompt = `${systemPrompt}
+
+The previous response had ${errors.length} truncated visualization(s) that need to be regenerated. The user's request remains the same.
+
+Please regenerate ONLY these visualization types with complete, properly formatted JSON:
+${vizTypes.map((t, i) => `${i + 1}. ${t}`).join('\n')}
+
+CRITICAL:
+- Ensure ALL JSON is complete and properly closed
+- Use the correct viz syntax: ![viz:type](...)
+- Double-check bracket matching: every { must have }, every [ must have ]
+- No trailing commas inside objects/arrays
+- Provide complete data (no truncated arrays or objects)
+
+Generate the visualizations now:`;
+
+    const response = await anthropic.messages.create({
+      model,
+      max_tokens: 128000, // Full token limit for GLM-4 (same as main request)
+      system: regeneratePrompt,
+      messages: conversationHistory.slice(-2), // Only last 2 turns for context
+    });
+
+    let regeneratedText = '';
+    for (const block of response.content) {
+      if (block.type === 'text') {
+        regeneratedText += block.text;
+      }
+    }
+
+    // Validate the regenerated visualizations
+    const { validateAndFixVisualizations } = await import('./viz-validator');
+    const validationResult = validateAndFixVisualizations(regeneratedText);
+
+    if (validationResult.isValid) {
+      // Success! Extract just the viz markdown from the response
+      const vizRegex = /!\[viz:\w+\]\([^)]+\)/g;
+      const regeneratedVizs = regeneratedText.match(vizRegex) || [];
+
+      if (regeneratedVizs.length > 0) {
+        // Replace error markers with regenerated vizs
+        let updatedText = text;
+        let replacedCount = 0;
+
+        errors.forEach((error, index) => {
+          if (index < regeneratedVizs.length) {
+            // Find and replace the error marker
+            const errorMarker = updatedText.substring(error.startIndex, error.endIndex);
+            if (errorMarker.includes('⚠️')) {
+              updatedText =
+                updatedText.substring(0, error.startIndex) +
+                regeneratedVizs[index] +
+                updatedText.substring(error.endIndex);
+              replacedCount++;
+            }
+          }
+        });
+
+        return { success: true, text: updatedText, fixedCount: replacedCount };
+      }
+    }
+
+    return { success: false, text, fixedCount: 0 };
+  } catch (error) {
+    console.error('[Chat API] Auto-regeneration failed:', error);
+    return { success: false, text, fixedCount: 0 };
   }
 }
 
@@ -1038,6 +1193,23 @@ ${context}`;
       console.error('Failed to store user message:', error);
     }
 
+    // Progressive Token Allocation: Detect complex visualization requests
+    const vizCount = (message.match(/visualization|chart|graph|plot|table|pie/gi) || []).length;
+    const hasMultipleVizRequest = vizCount >= 3 || message.includes('all') && message.includes('visualization');
+
+    if (hasMultipleVizRequest) {
+      console.log(`[Chat API] Detected complex visualization request (${vizCount} viz keywords) - using optimized prompt`);
+
+      // Add optimization hint to system prompt
+      enhancedPrompt += `
+
+IMPORTANT: Generate visualizations ONE AT A TIME, ensuring each is complete before starting the next.
+- Focus on quality over quantity
+- If unsure about token limits, prioritize the most important 2-3 visualizations
+- Each visualization must be COMPLETE: all brackets closed, all arrays filled, all objects valid
+- It's better to show 2 complete visualizations than 5 incomplete ones`;
+    }
+
     const encoder = new TextEncoder();
     const readable = new ReadableStream({
       async start(controller) {
@@ -1054,7 +1226,7 @@ ${context}`;
             // Call LLM API
             const response = await anthropic.messages.create({
               model,
-              max_tokens: 32768,
+              max_tokens: 128000, // Maximum for GLM-4 via Z.AI proxy
               system: enhancedPrompt,
               messages,
               tools: TOOLS,
@@ -1076,6 +1248,29 @@ ${context}`;
               }
               console.log(`[Chat API] No tools used - collected ${finalTextResponse.length} characters of text`);
               console.log(`[Chat API] Response preview: ${finalTextResponse.substring(0, 100)}...`);
+
+              // Early validation: check for obvious truncation patterns before main validation
+              const { detectTruncation } = await import('@/utils/parsers/vizExtractor');
+              const vizMatches = finalTextResponse.match(/!\[viz:(\w+)\]\(/g) || [];
+              console.log(`[Chat API] Found ${vizMatches.length} visualization(s) in response`);
+
+              if (vizMatches.length >= 3) {
+                // Multiple visualizations detected - warn about potential truncation
+                const truncatedCheck = detectTruncation(finalTextResponse.slice(-500)); // Check last 500 chars
+                if (truncatedCheck.isTruncated) {
+                  console.warn(`[Chat API] ⚠️ Early warning: Response may be truncated (${truncatedCheck.reason})`);
+                  controller.enqueue(
+                    encoder.encode(
+                      `data: ${JSON.stringify({
+                        validation_warning: {
+                          message: `⚠️ Response may be incomplete - auto-regeneration will be attempted if needed`,
+                        },
+                      })}\n\n`
+                    )
+                  );
+                }
+              }
+
               break;
             }
 
@@ -1138,6 +1333,7 @@ ${context}`;
 
           // Now validate the text response before streaming
           let validatedResponse = sanitizeLoneSurrogates(finalTextResponse);
+          const originalResponse = validatedResponse; // Store original before error replacement for troubleshooting
 
           // Send validation progress event
           controller.enqueue(
@@ -1168,17 +1364,63 @@ ${context}`;
           }
 
           if (!validationResult.isValid) {
-            // Has errors - stream with warning (but continue streaming)
-            console.log(`[Chat API] Note: ${validationResult.errors.length} visualization(s) have errors - error markers will be shown in response`);
-            controller.enqueue(
-              encoder.encode(
-                `data: ${JSON.stringify({
-                  validation_warning: {
-                    message: `${validationResult.errors.length} visualization(s) have errors`,
-                  },
-                })}\n\n`
-              )
-            );
+            // Check if errors are due to truncation (auto-regeneratable)
+            const truncatedErrors = validationResult.errors.filter(e => e.truncationDetected);
+            const otherErrors = validationResult.errors.filter(e => !e.truncationDetected);
+
+            if (truncatedErrors.length > 0) {
+              console.log(`[Chat API] Detected ${truncatedErrors.length} truncated visualization(s) - attempting auto-regenerate`);
+
+              controller.enqueue(
+                encoder.encode(
+                  `data: ${JSON.stringify({
+                    validation_progress: {
+                      message: `Auto-regenerating ${truncatedErrors.length} truncated visualization(s)...`,
+                    },
+                  })}\n\n`
+                )
+              );
+
+              // Try to auto-regenerate truncated visualizations
+              const regenerated = await attemptRegenerate(
+                validatedResponse,
+                truncatedErrors,
+                anthropic,
+                model,
+                enhancedPrompt,
+                messages
+              );
+
+              if (regenerated.success) {
+                console.log(`[Chat API] Successfully regenerated ${regenerated.fixedCount} visualization(s)`);
+                validatedResponse = regenerated.text;
+
+                controller.enqueue(
+                  encoder.encode(
+                    `data: ${JSON.stringify({
+                      validation_progress: {
+                        message: `Successfully regenerated ${regenerated.fixedCount} visualization(s)`,
+                      },
+                    })}\n\n`
+                  )
+                );
+              } else {
+                console.warn(`[Chat API] Auto-regenerate failed, showing error markers for ${truncatedErrors.length} visualization(s)`);
+              }
+            }
+
+            if (otherErrors.length > 0) {
+              console.log(`[Chat API] Note: ${otherErrors.length} non-truncation error(s) - error markers will be shown`);
+              controller.enqueue(
+                encoder.encode(
+                  `data: ${JSON.stringify({
+                    validation_warning: {
+                      message: `${otherErrors.length} visualization(s) have syntax errors`,
+                    },
+                  })}\n\n`
+                )
+              );
+            }
           }
 
           validatedResponse = validationResult.fixedText;
@@ -1196,7 +1438,7 @@ ${context}`;
 
           console.log(`[Chat API] Finished streaming ${fullResponse.length} characters`);
 
-          // Store assistant response
+          // Store assistant response (original LLM output, not error-replaced)
           try {
             const messageId = crypto.randomUUID();
             await fetch(`${BASE_URL}/api/rag/store`, {
@@ -1207,7 +1449,7 @@ ${context}`;
                 type: 'conversation',
                 document: {
                   id: messageId,
-                  text: fullResponse,
+                  text: originalResponse, // Store original for troubleshooting
                   metadata: {
                     role: 'assistant',
                     timestamp: new Date().toISOString(),

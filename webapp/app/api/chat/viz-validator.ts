@@ -18,6 +18,7 @@ export { sanitizeLoneSurrogates };
  * - parseVizCommands auto-fixes common errors (trailing commas, duplicate keys, etc.)
  * - If errors remain after auto-fix, they're replaced with error markers in the text
  * - This ensures the client always receives valid text with broken vizs clearly marked
+ * - Original LLM response is stored in conversation for troubleshooting
  */
 export function validateAndFixVisualizations(text: string): VizValidationResult {
   const { vizs, errors } = parseVizCommands(text);
