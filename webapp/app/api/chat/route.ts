@@ -3,6 +3,7 @@ import Anthropic from '@anthropic-ai/sdk';
 import { Message } from '@/types';
 import { config } from 'dotenv';
 import { join } from 'path';
+import { validateAndFixVisualizations, generateRegenerationPrompt, extractCorrectedVisualizations, sanitizeLoneSurrogates } from './viz-validator';
 
 // Load environment variables from project root .env
 const envPath = join(process.cwd(), '../.env');
@@ -373,14 +374,16 @@ const TOOLS = [
 const SYSTEM_PROMPT = `You are TermAI Explorer, a financial AI assistant with access to REAL portfolio and market data.
 
 CRITICAL RULES:
-1. ALWAYS use the available tools to fetch REAL data before responding
-2. NEVER make up or fabricate numbers, holdings, prices, or financial information
-3. CRITICAL: Before discussing ANY portfolio holdings, you MUST call get_portfolios tool. Conversation history may contain outdated or incorrect holdings information - ONLY trust live data from get_portfolios
-4. Distinguish between "on watchlist" vs "owned in portfolio" - these are different things
-5. CONSOLIDATE and INTERPRET the data - then PRESENT WITH VISUALIZATIONS
-6. NEVER use ASCII tables, terminal art, or markdown tables - USE THE PROVIDED VISUALIZATION FORMAT ONLY
-7. DOUBLE-CHECK your visualization JSON syntax - malformed visualizations won't render
-8. CRITICAL: For charts, ALWAYS use type="chart" with chartType="line/bar" inside - NEVER use type="line" or type="bar" directly
+1. BE CONCISE - Max 2-3 sentences per point, NO verbose explanations or unnecessary fluff
+2. ALWAYS use the available tools to fetch REAL data before responding
+3. NEVER make up or fabricate numbers, holdings, prices, or financial information
+4. CRITICAL: Before discussing ANY portfolio holdings, you MUST call get_portfolios tool. Conversation history may contain outdated or incorrect holdings information - ONLY trust live data from get_portfolios
+5. Distinguish between "on watchlist" vs "owned in portfolio" - these are different things
+6. CONSOLIDATE and INTERPRET the data - then PRESENT WITH VISUALIZATIONS
+7. NEVER use ASCII tables, terminal art, or markdown tables - USE THE PROVIDED VISUALIZATION FORMAT ONLY
+8. DOUBLE-CHECK your visualization JSON syntax - malformed visualizations won't render
+9. CRITICAL: For charts, ALWAYS use type="chart" with chartType="line/bar" inside - NEVER use type="line" or type="bar" directly
+10. PREFER DATA OVER WORDS - Show visualizations and let data speak, minimize text
 
 🎨 HOW VISUALIZATIONS WORK:
 Visualizations are NOT tools - they are SPECIAL MARKDOWN SYNTAX you write in your text response!
@@ -475,12 +478,13 @@ CORRECT (viz:table - WILL render):
 
 RESPONSE STRUCTURE:
 1. Fetch data using tools (get_portfolios, get_news, etc.)
-2. One sentence summary of the key insight
+2. One sentence summary of the key insight (MAX 20 words)
 3. Write visualization syntax directly in your response (NOT a tool call!)
    - Just type: ![viz:table]({...}) or ![viz:chart]({...}) or ![viz:pie]({...})
    - These will AUTOMATICALLY render as charts/tables on the frontend
-4. 2-3 bullet points with observations or insights
-5. No fluff, no ASCII art, just clean formatted visualizations
+4. MAX 3 bullet points with observations or insights (10-15 words each)
+5. NO fluff, NO preamble, NO "Here's what I found", NO "Let me explain" - just data + insights
+6. Total response should fit on ONE screen when rendered
 
 REMEMBER: Visualizations are TEXT you write, not tools you call!
 
@@ -492,7 +496,14 @@ EXAMPLE GOOD RESPONSE:
 • Core portfolio needs attention - all positions underwater
 • Consider trimming losers or waiting for recovery"
 
-Keep responses concise. Always cite data sources.`;
+CRITICAL: Keep responses ULTRA-CONCISE. Users want insights, NOT essays.
+- NO verbose explanations
+- NO repeating data shown in visualizations
+- NO "Based on the data" or "As you can see" filler phrases
+- Get straight to the point: data → insight → action
+- If it takes more than 5 seconds to read, it's too long
+
+Always cite data sources.`;
 
 // Helper function to safely fetch and parse JSON
 async function safeFetch(url: string, options?: RequestInit): Promise<any> {
@@ -1034,11 +1045,13 @@ ${context}`;
         try {
           // Main loop for handling tool use
           let maxIterations = 5; // Prevent infinite loops
+          let finalTextResponse = '';
+
           while (maxIterations-- > 0) {
             // Call LLM API
             const response = await anthropic.messages.create({
               model,
-              max_tokens: 4096,
+              max_tokens: 32768,
               system: enhancedPrompt,
               messages,
               tools: TOOLS,
@@ -1050,12 +1063,10 @@ ${context}`;
             );
 
             if (toolUseBlocks.length === 0) {
-              // No tool use, stream the text response
+              // No tool use - collect the text response for validation
               for (const block of response.content) {
                 if (block.type === 'text') {
-                  const text = block.text;
-                  fullResponse += text;
-                  controller.enqueue(encoder.encode(`data: ${JSON.stringify({ text })}\n\n`));
+                  finalTextResponse += block.text;
                 }
               }
               break;
@@ -1117,6 +1128,61 @@ ${context}`;
             messages.push({ role: 'assistant', content: response.content });
             messages.push({ role: 'user', content: toolResults });
           }
+
+          // Now validate the text response before streaming
+          let validatedResponse = sanitizeLoneSurrogates(finalTextResponse);
+
+          // Send validation progress event
+          controller.enqueue(
+            encoder.encode(
+              `data: ${JSON.stringify({
+                validation_start: {
+                  message: 'Validating visualizations...',
+                },
+              })}\n\n`
+            )
+          );
+
+          // Validate once and rely on auto-fix (no LLM regeneration)
+          const validationResult = validateAndFixVisualizations(validatedResponse);
+
+          if (validationResult.autoFixedCount > 0) {
+            console.log(`[Chat API] Auto-fixed ${validationResult.autoFixedCount} visualization(s)`);
+            // Send auto-fix notification
+            controller.enqueue(
+              encoder.encode(
+                `data: ${JSON.stringify({
+                  validation_progress: {
+                    message: `Auto-fixed ${validationResult.autoFixedCount} visualization(s)`,
+                  },
+                })}\n\n`
+              )
+            );
+          }
+
+          if (!validationResult.isValid) {
+            // Has errors - stream with warning
+            console.warn(`[Chat API] Found ${validationResult.errors.length} visualization error(s) - streaming with errors`);
+            controller.enqueue(
+              encoder.encode(
+                `data: ${JSON.stringify({
+                  validation_warning: {
+                    message: `${validationResult.errors.length} visualization(s) have errors`,
+                  },
+                })}\n\n`
+              )
+            );
+          }
+
+          validatedResponse = validationResult.fixedText;
+
+          // Stream the final validated response character by character for smooth UX
+          for (const char of validatedResponse) {
+            controller.enqueue(encoder.encode(`data: ${JSON.stringify({ text: char })}\n\n`));
+            // Small delay for smooth streaming effect
+            await new Promise(resolve => setTimeout(resolve, 5));
+          }
+          fullResponse = validatedResponse;
 
           // Store assistant response
           try {

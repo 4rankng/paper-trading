@@ -10,18 +10,24 @@ interface HybridTerminalProps {
   className?: string;
 }
 
-interface ToolExecution {
+export interface ToolExecution {
   name: string;
   status: 'running' | 'success' | 'error';
   result?: string;
+}
+
+export interface ValidationProgress {
+  message: string;
 }
 
 export default function HybridTerminal({ className = '' }: HybridTerminalProps) {
   const [input, setInput] = useState('');
   const [historyIndex, setHistoryIndex] = useState(-1);
   const [activeTool, setActiveTool] = useState<ToolExecution | null>(null);
+  const [validationProgress, setValidationProgress] = useState<string | null>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const outputContainerRef = useRef<HTMLDivElement>(null);
+  const toolTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   const {
     sessionId,
@@ -43,6 +49,15 @@ export default function HybridTerminal({ className = '' }: HybridTerminalProps) 
       outputContainerRef.current.scrollTop = outputContainerRef.current.scrollHeight;
     }
   }, [messages.length, isLoading]);
+
+  // Cleanup tool timeout on unmount
+  useEffect(() => {
+    return () => {
+      if (toolTimeoutRef.current) {
+        clearTimeout(toolTimeoutRef.current);
+      }
+    };
+  }, []);
 
   // Execute command
   const executeCommand = useCallback(async (command: string) => {
@@ -118,12 +133,37 @@ export default function HybridTerminal({ className = '' }: HybridTerminalProps) 
                     result: parsed.tool_use.result,
                   });
                   // Clear the tool status after 2 seconds
-                  setTimeout(() => setActiveTool(null), 2000);
+                  if (toolTimeoutRef.current) clearTimeout(toolTimeoutRef.current);
+                  toolTimeoutRef.current = setTimeout(() => setActiveTool(null), 2000);
+                  continue;
+                }
+
+                // Handle validation progress events
+                if (parsed.validation_start) {
+                  setValidationProgress(parsed.validation_start.message);
+                  continue;
+                }
+
+                if (parsed.validation_progress) {
+                  setValidationProgress(parsed.validation_progress.message);
+                  continue;
+                }
+
+                if (parsed.validation_warning) {
+                  setValidationProgress(parsed.validation_warning.message);
+                  // Clear warning after 3 seconds
+                  if (toolTimeoutRef.current) clearTimeout(toolTimeoutRef.current);
+                  toolTimeoutRef.current = setTimeout(() => setValidationProgress(null), 3000);
                   continue;
                 }
 
                 if (parsed.text) {
                   assistantMessage += parsed.text;
+
+                  // Clear validation progress once text starts streaming
+                  if (validationProgress) {
+                    setValidationProgress(null);
+                  }
 
                   // Parse visualizations from accumulated text
                   const { parseVizCommands } = await import('@/utils/viz-parser');
@@ -211,50 +251,13 @@ export default function HybridTerminal({ className = '' }: HybridTerminalProps) 
             </div>
           </div>
         )}
-        <TerminalOutput messages={messages} />
-        {isLoading && (
+        <TerminalOutput messages={messages} isLoading={isLoading} activeTool={activeTool} validationProgress={validationProgress} />
+        {isLoading && messages.length === 0 && (
           <div className="flex items-center gap-3 mt-6 py-3 px-4 bg-[#252526]/50 rounded-lg border border-[#3E3E42] animate-fadeIn">
-            {activeTool?.status === 'running' ? (
-              <>
-                <svg className="animate-spin h-5 w-5 text-[#BB86FC]" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                </svg>
-                <span className="text-[#BB86FC] font-semibold font-['Fira_Code',monospace] text-sm md:text-base">
-                  {activeTool.name}...
-                </span>
-              </>
-            ) : activeTool ? (
-              <>
-                <div className="flex gap-1">
-                  <span className="w-2 h-2 bg-[#BB86FC] rounded-full animate-pulse" style={{ animationDelay: '0ms' }}></span>
-                  <span className="w-2 h-2 bg-[#BB86FC] rounded-full animate-pulse" style={{ animationDelay: '150ms' }}></span>
-                  <span className="w-2 h-2 bg-[#BB86FC] rounded-full animate-pulse" style={{ animationDelay: '300ms' }}></span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <span className="text-[#BB86FC] font-semibold font-['Fira_Code',monospace] text-sm md:text-base">
-                    {activeTool.name}
-                  </span>
-                  {activeTool.status === 'success' && (
-                    <span className="text-green-400 text-xs font-['Fira_Code',monospace]">✓</span>
-                  )}
-                  {activeTool.status === 'error' && (
-                    <span className="text-red-400 text-xs font-['Fira_Code',monospace]">✗</span>
-                  )}
-                </div>
-              </>
-            ) : (
-              <>
-                <div className="flex gap-1">
-                  <span className="w-2 h-2 bg-[#BB86FC] rounded-full animate-pulse" style={{ animationDelay: '0ms' }}></span>
-                  <span className="w-2 h-2 bg-[#BB86FC] rounded-full animate-pulse" style={{ animationDelay: '150ms' }}></span>
-                  <span className="w-2 h-2 bg-[#BB86FC] rounded-full animate-pulse" style={{ animationDelay: '300ms' }}></span>
-                </div>
-                <span className="text-[#BB86FC] font-semibold font-['Fira_Code',monospace] text-sm md:text-base">
-                  Processing...
-                </span>
-              </>
-            )}
+            <PulsingDots size="md" />
+            <span className="text-[#BB86FC] font-semibold font-['Fira_Code',monospace] text-sm md:text-base">
+              Processing...
+            </span>
           </div>
         )}
         {error && (
@@ -287,6 +290,17 @@ export default function HybridTerminal({ className = '' }: HybridTerminalProps) 
         {/* StatusBar */}
         <StatusBar />
       </div>
+    </div>
+  );
+}
+
+function PulsingDots({ size = 'sm' }: { size?: 'sm' | 'md' }) {
+  const dotSize = size === 'sm' ? 'w-1.5 h-1.5' : 'w-2 h-2';
+  return (
+    <div className="flex gap-1">
+      <span className={`${dotSize} bg-[#BB86FC] rounded-full animate-pulse`} style={{ animationDelay: '0ms' }}></span>
+      <span className={`${dotSize} bg-[#BB86FC] rounded-full animate-pulse`} style={{ animationDelay: '150ms' }}></span>
+      <span className={`${dotSize} bg-[#BB86FC] rounded-full animate-pulse`} style={{ animationDelay: '300ms' }}></span>
     </div>
   );
 }

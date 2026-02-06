@@ -5,23 +5,47 @@ import { parseVizCommands, splitTextByVizs, replaceVizsWithErrors } from '@/util
 import VizRenderer from '@/components/visualizations/VizRenderer';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
+import { ToolExecution } from './HybridTerminal';
 
 interface TerminalOutputProps {
   messages: Message[];
+  isLoading?: boolean;
+  activeTool?: ToolExecution | null;
+  validationProgress?: string | null;
 }
 
-export default function TerminalOutput({ messages }: TerminalOutputProps) {
+export default function TerminalOutput({ messages, isLoading = false, activeTool = null, validationProgress = null }: TerminalOutputProps) {
+  const shouldShowLoading = isLoading && messages.length > 0;
+  const lastIndex = messages.length - 1;
+
   return (
     <div className="space-y-6">
-      {messages.map((msg, i) => (
-        <div key={i} className="animate-fadeIn break-words overflow-wrap-anywhere" style={{ animationDuration: '0.3s' }}>
-          {msg.role === 'user' ? (
-            <UserMessage content={msg.content} />
-          ) : (
-            <AssistantMessage message={msg} />
-          )}
-        </div>
-      ))}
+      {messages.map((msg, i) => {
+        const isLast = i === lastIndex;
+        const isLastAssistant = isLast && msg.role === 'assistant';
+        const isLastUser = isLast && msg.role === 'user';
+        return (
+          <div key={i} className="animate-fadeIn break-words overflow-wrap-anywhere" style={{ animationDuration: '0.3s' }}>
+            {msg.role === 'user' ? (
+              <>
+                <UserMessage content={msg.content} />
+                {/* Show loading indicator after the last user message when waiting for assistant */}
+                {shouldShowLoading && isLastUser && (
+                  <LoadingIndicator activeTool={activeTool} validationProgress={validationProgress} />
+                )}
+              </>
+            ) : (
+              <>
+                <AssistantMessage message={msg} />
+                {/* Show loading indicator after the last assistant message when streaming */}
+                {shouldShowLoading && isLastAssistant && (
+                  <LoadingIndicator activeTool={activeTool} validationProgress={validationProgress} />
+                )}
+              </>
+            )}
+          </div>
+        );
+      })}
     </div>
   );
 }
@@ -37,11 +61,73 @@ function UserMessage({ content }: { content: string }) {
   );
 }
 
+function PulsingDots({ size = 'sm' }: { size?: 'sm' | 'md' }) {
+  const dotSize = size === 'sm' ? 'w-1.5 h-1.5' : 'w-2 h-2';
+  return (
+    <div className="flex gap-1">
+      <span className={`${dotSize} bg-[#BB86FC] rounded-full animate-pulse`} style={{ animationDelay: '0ms' }}></span>
+      <span className={`${dotSize} bg-[#BB86FC] rounded-full animate-pulse`} style={{ animationDelay: '150ms' }}></span>
+      <span className={`${dotSize} bg-[#BB86FC] rounded-full animate-pulse`} style={{ animationDelay: '300ms' }}></span>
+    </div>
+  );
+}
+
+function LoadingIndicator({ activeTool, validationProgress }: { activeTool: ToolExecution | null; validationProgress?: string | null }) {
+  return (
+    <div className="flex items-center gap-3 mt-4 py-2 px-3 bg-[#1E1E1E]/50 rounded border border-[#3E3E42]/50">
+      {activeTool?.status === 'running' ? (
+        <>
+          <svg className="animate-spin h-4 w-4 text-[#BB86FC]" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+          </svg>
+          <span className="text-[#BB86FC] font-semibold font-['Fira_Code',monospace] text-xs">
+            {activeTool.name}...
+          </span>
+        </>
+      ) : activeTool ? (
+        <>
+          <PulsingDots size="sm" />
+          <div className="flex items-center gap-2">
+            <span className="text-[#BB86FC] font-semibold font-['Fira_Code',monospace] text-xs">
+              {activeTool.name}
+            </span>
+            {activeTool.status === 'success' && (
+              <span className="text-green-400 text-xs font-['Fira_Code',monospace]">✓</span>
+            )}
+            {activeTool.status === 'error' && (
+              <span className="text-red-400 text-xs font-['Fira_Code',monospace]">✗</span>
+            )}
+          </div>
+        </>
+      ) : validationProgress ? (
+        <>
+          <svg className="animate-spin h-4 w-4 text-[#03A9F4]" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+          </svg>
+          <span className="text-[#03A9F4] font-semibold font-['Fira_Code',monospace] text-xs">
+            {validationProgress}
+          </span>
+        </>
+      ) : (
+        <>
+          <PulsingDots size="sm" />
+          <span className="text-[#BB86FC] font-semibold font-['Fira_Code',monospace] text-xs">
+            Thinking...
+          </span>
+        </>
+      )}
+    </div>
+  );
+}
+
 function AssistantMessage({ message }: { message: Message }) {
-  // Parse viz commands and get any errors
+  // Parse viz commands (server-side validated, so minimal client-side parsing needed)
   const { vizs, errors } = parseVizCommands(message.content);
 
-  // Replace error vizs with helpful error messages
+  // If we somehow still have errors (shouldn't happen with server validation), replace them
+  // This is a fallback for edge cases
   const contentWithErrors = errors.length > 0
     ? replaceVizsWithErrors(message.content, errors)
     : message.content;
