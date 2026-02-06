@@ -28,7 +28,7 @@ export default function TerminalOutput({ messages }: TerminalOutputProps) {
 
 function UserMessage({ content }: { content: string }) {
   return (
-    <div className="bg-[#252526] px-4 py-3 pb-[75px] rounded-r border-l-3 border-[#5C6AC4] border-l-[3px] break-words overflow-wrap-anywhere">
+    <div className="bg-[#252526] px-4 py-3 rounded-r border-l-3 border-[#5C6AC4] border-l-[3px] break-words overflow-wrap-anywhere">
       <div className="text-[#E0E0E0] font-['Fira_Code',monospace] text-sm break-words whitespace-pre-wrap">
         <span className="text-[#5C6AC4] font-semibold">➜ user@termai:~$ </span>
         {content}
@@ -50,7 +50,7 @@ function AssistantMessage({ message }: { message: Message }) {
   const parts = splitTextByVizs(contentWithErrors, vizs);
 
   return (
-    <div className="bg-[#252526] px-4 py-4 pb-[75px] rounded-r border-l-3 border-[#BB86FC] border-l-[3px] break-words overflow-wrap-anywhere">
+    <div className="bg-[#252526] px-4 py-4 rounded-r border-l-3 border-[#BB86FC] border-l-[3px] break-words overflow-wrap-anywhere">
       {/* Content with inline visualizations */}
       <div className="text-[#E0E0E0] text-sm leading-relaxed break-words overflow-wrap-anywhere">
         {parts.map((part, i) => {

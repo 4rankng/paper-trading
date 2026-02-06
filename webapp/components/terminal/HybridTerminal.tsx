@@ -195,11 +195,11 @@ export default function HybridTerminal({ className = '' }: HybridTerminalProps) 
   };
 
   return (
-    <div className={`flex flex-col h-full bg-[#1E1E1E] overflow-hidden ${className}`}>
+    <div className={`flex flex-col h-full bg-[#1E1E1E] ${className}`}>
       {/* Message output area with inline visualizations */}
       <div
         ref={outputContainerRef}
-        className="flex-1 overflow-y-auto overflow-x-hidden p-3 md:p-5 pb-[240px+var(--safe-area-inset-bottom,0px)] scroll-area-above-input smooth-scroll-touch"
+        className="flex-1 overflow-y-auto overflow-x-hidden p-3 md:p-5 scroll-area-above-input smooth-scroll-touch"
       >
         {messages.length === 0 && (
           <div className="text-center py-12 md:py-16">
@@ -264,17 +264,17 @@ export default function HybridTerminal({ className = '' }: HybridTerminalProps) 
         )}
       </div>
 
-      {/* Fixed bottom area: Input + StatusBar */}
-      <div className="fixed bottom-0 left-0 right-0 z-50 flex flex-col bg-[#1E1E1E]" style={{ paddingBottom: 'env(safe-area-inset-bottom, 0px)' }}>
+      {/* Bottom area: Input + StatusBar */}
+      <div className="shrink-0 bg-[#1E1E1E] flex flex-col" style={{ paddingBottom: 'env(safe-area-inset-bottom, 0px)' }}>
         {/* Terminal Input Area */}
-        <div className="bg-[#252526] border-t border-[#333333] px-3 md:px-4 py-2 md:py-3 flex flex-col shrink-0">
+        <div className="bg-[#252526] border-t border-[#333333] px-3 md:px-4 py-2 md:py-3">
           <textarea
             ref={textareaRef}
             value={input}
             onChange={(e) => setInput(e.target.value)}
             onKeyDown={handleKeyDown}
             placeholder="Type a command... (Press Enter to send, Shift+Enter for new line)"
-            className="flex-1 bg-[#1E1E1E] border border-[#3E3E42] rounded px-2 md:px-3 py-2 md:py-2 text-[#E0E0E0] font-['Fira_Code',monospace] text-xs md:text-sm resize-none outline-none focus:border-[#5C6AC4] placeholder:text-[#858585] wrap-soft min-h-[44px] touch-target"
+            className="w-full bg-[#1E1E1E] border border-[#3E3E42] rounded px-2 md:px-3 py-2 md:py-2 text-[#E0E0E0] font-['Fira_Code',monospace] text-xs md:text-sm resize-none outline-none focus:border-[#5C6AC4] placeholder:text-[#858585] wrap-soft min-h-[44px] touch-target"
             rows={2}
             wrap="soft"
             autoComplete="off"
