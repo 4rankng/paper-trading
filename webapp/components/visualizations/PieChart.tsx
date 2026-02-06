@@ -30,12 +30,24 @@ const DEFAULT_COLORS = [
 export default function PieChart({ command }: PieChartProps) {
   const { data, options } = command;
 
+  // Detect if values are percentages (sum close to 100) or actual values (dollar amounts)
+  const totalValue = data.reduce((sum, d) => sum + d.value, 0);
+  const isPercentage = totalValue > 90 && totalValue < 110;
+
+  // Convert to percentages if values are actual dollar amounts
+  const normalizedData = isPercentage
+    ? data
+    : data.map((d) => ({
+        ...d,
+        value: totalValue > 0 ? (d.value / totalValue) * 100 : 0,
+      }));
+
   const chartData = {
-    labels: data.map((d) => d.label),
+    labels: normalizedData.map((d) => d.label),
     datasets: [
       {
-        data: data.map((d) => d.value),
-        backgroundColor: data.map((d, i) => d.color || DEFAULT_COLORS[i % DEFAULT_COLORS.length]),
+        data: normalizedData.map((d) => d.value),
+        backgroundColor: normalizedData.map((d, i) => d.color || DEFAULT_COLORS[i % DEFAULT_COLORS.length]),
         borderColor: '#1E1E1E',
         borderWidth: 2,
         hoverOffset: 4,
@@ -53,19 +65,24 @@ export default function PieChart({ command }: PieChartProps) {
         labels: {
           color: '#1a1a1a',
           font: {
-            family: "'Fira Code', monospace",
+            family: 'monospace',
             size: 12,
           },
           padding: 16,
           generateLabels: function(chart: any) {
-            const data = chart.data;
-            return data.labels.map((label: string, i: number) => ({
-              text: `${label} (${data.datasets[0].data[i]}%)`,
-              fillStyle: data.datasets[0].backgroundColor[i],
-              color: '#1a1a1a',
-              hidden: false,
-              index: i,
-            }));
+            const chartData = chart.data;
+            return chartData.labels.map((label: string, i: number) => {
+              const percentage = chartData.datasets[0].data[i];
+              const labelText = `${label} (${percentage.toFixed(1)}%)`;
+
+              return {
+                text: labelText,
+                fillStyle: chartData.datasets[0].backgroundColor[i],
+                color: '#1a1a1a',
+                hidden: false,
+                index: i,
+              };
+            });
           },
         },
       },
@@ -74,7 +91,7 @@ export default function PieChart({ command }: PieChartProps) {
         text: options?.title,
         color: '#1a1a1a',
         font: {
-          family: "'Fira Code', monospace",
+          family: 'monospace',
           size: 14,
         },
       },
@@ -85,16 +102,30 @@ export default function PieChart({ command }: PieChartProps) {
         borderColor: '#e0e0e0',
         borderWidth: 1,
         titleFont: {
-          family: "'Fira Code', monospace",
+          family: 'monospace',
           size: 12,
         },
         bodyFont: {
-          family: "'Fira Code', monospace",
+          family: 'monospace',
           size: 11,
         },
         callbacks: {
           label: function(context: any) {
-            return ` ${context.label}: ${context.parsed}%`;
+            const percentage = context.parsed;
+            const originalValue = data[context.dataIndex].value;
+
+            if (isPercentage) {
+              return ` ${context.label}: ${percentage.toFixed(1)}%`;
+            } else {
+              const formattedValue = new Intl.NumberFormat('en-US', {
+                style: 'currency',
+                currency: 'USD',
+                minimumFractionDigits: 0,
+                maximumFractionDigits: 0,
+              }).format(originalValue);
+
+              return ` ${context.label}: ${percentage.toFixed(1)}% (${formattedValue})`;
+            }
           },
         },
       },
