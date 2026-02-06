@@ -4,6 +4,7 @@ import { Message } from '@/types';
 import { parseVizCommands, splitTextByVizs, replaceVizsWithErrors } from '@/utils/viz-parser';
 import VizRenderer from '@/components/visualizations/VizRenderer';
 import ReactMarkdown from 'react-markdown';
+import remarkGfm from 'remark-gfm';
 
 interface TerminalOutputProps {
   messages: Message[];
@@ -27,7 +28,7 @@ export default function TerminalOutput({ messages }: TerminalOutputProps) {
 
 function UserMessage({ content }: { content: string }) {
   return (
-    <div className="bg-[#252526] px-4 py-3 pb-[25px] rounded-r border-l-3 border-[#5C6AC4] border-l-[3px] break-words overflow-wrap-anywhere">
+    <div className="bg-[#252526] px-4 py-3 pb-[75px] rounded-r border-l-3 border-[#5C6AC4] border-l-[3px] break-words overflow-wrap-anywhere">
       <div className="text-[#E0E0E0] font-['Fira_Code',monospace] text-sm break-words whitespace-pre-wrap">
         <span className="text-[#5C6AC4] font-semibold">➜ user@termai:~$ </span>
         {content}
@@ -58,6 +59,7 @@ function AssistantMessage({ message }: { message: Message }) {
               <ReactMarkdown
                 key={i}
                 className="prose prose-invert max-w-none prose-sm break-words"
+                remarkPlugins={[remarkGfm]}
                 components={{
                   h1: ({ children }) => <h1 className="text-white font-bold text-lg mb-3 mt-4 tracking-wide break-words">{children}</h1>,
                   h2: ({ children }) => <h2 className="text-white font-semibold text-base mb-2.5 mt-3 tracking-wide break-words">{children}</h2>,
