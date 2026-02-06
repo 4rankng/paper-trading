@@ -148,7 +148,8 @@ export async function POST(
 
     const content = yaml + (body.content || '');
 
-    const filePath = join(targetDir, filename);
+    // Use string interpolation to avoid Next.js 16 broad pattern warning
+    const filePath = `${targetDir}/${filename}`;
     await writeFile(filePath, content, 'utf-8');
 
     return NextResponse.json({

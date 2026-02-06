@@ -1,4 +1,4 @@
-.PHONY: help webapp-install webapp-dev dev
+.PHONY: help webapp-install webapp-dev webapp-build webapp-start dev prod
 
 help: ## Show this help message
 	@echo 'Usage: make [target]'
@@ -12,4 +12,12 @@ webapp-install: ## Install webapp dependencies
 webapp-dev: webapp-install ## Start webapp development server
 	cd webapp && npm run dev
 
+webapp-build: webapp-install ## Build webapp for production
+	cd webapp && npm run build
+
+webapp-start: ## Start webapp production server (requires build first)
+	cd webapp && npm run start
+
 dev: webapp-dev ## Alias for webapp-dev
+
+prod: webapp-build webapp-start ## Build and start webapp in production mode
