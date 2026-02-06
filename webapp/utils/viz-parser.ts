@@ -175,6 +175,12 @@ function attemptAutoFix(
 ): { fixed: string; fixDescription: string } | null {
   const trimmed = jsonStr.trim();
 
+  // Quick check: if JSON is incomplete (ends mid-value), don't try to fix
+  // This handles streaming truncation
+  if (trimmed.length > 0 && !trimmed.endsWith('}') && !trimmed.endsWith(']')) {
+    return null;
+  }
+
   // Pattern 1: Array-at-root + datasets (most common error)
   // Example: ["AAPL","MSFT"],"datasets":[{"label":"P/L %","data":[12.5,8.3]}]}}
   if (trimmed.startsWith('[') && trimmed.includes('"datasets"')) {
@@ -320,6 +326,75 @@ function attemptAutoFix(
       }
     } catch (e) {
       // Auto-fix pattern 4 failed
+    }
+  }
+
+  // Pattern 5: Trailing commas in objects or arrays (common LLM error)
+  if (trimmed.includes(',}') || trimmed.includes(',]')) {
+    try {
+      const fixedStr = trimmed.replace(/,\s*}/g, '}').replace(/,\s*]/g, ']');
+      const parsed = JSON.parse(fixedStr);
+
+      // Re-wrap with proper structure if needed
+      const fixed = typeStr === 'table' && parsed.headers && parsed.rows
+        ? { type: 'table', headers: parsed.headers, rows: parsed.rows }
+        : typeStr === 'chart' && parsed.data
+        ? { type: 'chart', ...parsed }
+        : typeStr === 'pie' && parsed.data
+        ? { type: 'pie', options: parsed.options, data: parsed.data }
+        : parsed;
+
+      return {
+        fixed: JSON.stringify(fixed),
+        fixDescription: 'Fixed: Removed trailing commas'
+      };
+    } catch (e) {
+      // Auto-fix pattern 5 failed
+    }
+  }
+
+  // Pattern 6: Missing quotes around property names (common in Python-like syntax)
+  // Example: {headers: [...], rows: [...]} instead of {"headers": [...], "rows": [...]}
+  if (/^[a-zA-Z_][a-zA-Z0-9_]*\s*:/.test(trimmed)) {
+    try {
+      // Add quotes around unquoted property names
+      const fixedStr = trimmed.replace(/([{,]\s*)([a-zA-Z_][a-zA-Z0-9_]*)\s*:/g, '$1"$2":');
+      const parsed = JSON.parse(fixedStr);
+
+      // Wrap in proper structure
+      const fixed = typeStr === 'table' && parsed.headers && parsed.rows
+        ? { type: 'table', headers: parsed.headers, rows: parsed.rows }
+        : parsed;
+
+      return {
+        fixed: JSON.stringify(fixed),
+        fixDescription: 'Fixed: Added quotes around property names'
+      };
+    } catch (e) {
+      // Auto-fix pattern 6 failed
+    }
+  }
+
+  // Pattern 7: Single quotes instead of double quotes
+  if (trimmed.includes("'") && !trimmed.includes('"')) {
+    try {
+      // Replace single quotes with double quotes, escaping properly
+      const fixedStr = trimmed
+        .replace(/'/g, '"')
+        .replace(/"\s*:\s*"/g, '": "');  // Fix any double colons
+
+      const parsed = JSON.parse(fixedStr);
+
+      const fixed = typeStr === 'table' && parsed.headers && parsed.rows
+        ? { type: 'table', headers: parsed.headers, rows: parsed.rows }
+        : parsed;
+
+      return {
+        fixed: JSON.stringify(fixed),
+        fixDescription: 'Fixed: Replaced single quotes with double quotes'
+      };
+    } catch (e) {
+      // Auto-fix pattern 7 failed
     }
   }
 
