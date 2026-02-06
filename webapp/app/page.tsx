@@ -15,33 +15,46 @@ const HybridTerminal = dynamic(
 
 export default function Home() {
   const { sessionId, setSessionId } = useTerminalStore();
+  const [mounted, setMounted] = useState(false);
 
-  // Initialize session synchronously on mount - localStorage is instant
+  // Wait for client-side mount to avoid hydration mismatch
   useEffect(() => {
+    setMounted(true);
     if (!sessionId) {
       Storage.getOrCreateSession().then(setSessionId).catch(console.error);
     }
   }, [sessionId, setSessionId]);
 
-  // Only show loading briefly on first visit (no sessionId yet)
-  if (!sessionId) {
+  // During SSR or before mount, show minimal loading state
+  if (!mounted) {
     return (
-      <div className="h-screen bg-[#1E1E1E] flex items-center justify-center">
-        <div className="text-[#5C6AC4]">Initializing TermAI Explorer...</div>
-      </div>
+      <main className="h-screen flex flex-col bg-[#1E1E1E] overflow-hidden">
+        <div className="flex-1 flex items-center justify-center">
+          <div className="text-[#5C6AC4]">Initializing TermAI Explorer...</div>
+        </div>
+      </main>
     );
   }
 
+  // After mount, render full app
   return (
     <main className="h-screen flex flex-col bg-[#1E1E1E] overflow-hidden">
-      {/* TitleBar and TabBar */}
-      <TitleBar />
-      <TabBar />
+      {!sessionId ? (
+        <div className="flex-1 flex items-center justify-center">
+          <div className="text-[#5C6AC4]">Initializing TermAI Explorer...</div>
+        </div>
+      ) : (
+        <>
+          {/* TitleBar and TabBar */}
+          <TitleBar />
+          <TabBar />
 
-      {/* Terminal with inline visualizations */}
-      <div className="flex-1 overflow-hidden">
-        <HybridTerminal />
-      </div>
+          {/* Terminal with inline visualizations */}
+          <div className="flex-1 overflow-hidden">
+            <HybridTerminal />
+          </div>
+        </>
+      )}
     </main>
   );
 }
