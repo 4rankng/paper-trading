@@ -1,4 +1,4 @@
-import { VizParseError, parseVizCommands, sanitizeLoneSurrogates } from '@/utils/viz-parser';
+import { VizParseError, parseVizCommands, sanitizeLoneSurrogates, replaceVizsWithErrors } from '@/utils/viz-parser';
 import { ParsedViz } from '@/types/visualizations';
 
 export interface VizValidationResult {
@@ -14,24 +14,26 @@ export { sanitizeLoneSurrogates };
 /**
  * Validate and auto-fix visualizations in LLM response
  * Called server-side before sending to client
+ *
+ * - parseVizCommands auto-fixes common errors (trailing commas, duplicate keys, etc.)
+ * - If errors remain after auto-fix, they're replaced with error markers in the text
+ * - This ensures the client always receives valid text with broken vizs clearly marked
  */
 export function validateAndFixVisualizations(text: string): VizValidationResult {
   const { vizs, errors } = parseVizCommands(text);
 
-  // Check if any errors couldn't be auto-fixed
-  const hasUnfixableErrors = errors.length > 0;
-
   // Count successful auto-fixes
   const autoFixedCount = vizs.filter(v => v.autoFixed).length;
 
-  // If there are errors, we need to extract the fixed portions
-  // For now, return the original text if there are unfixable errors
-  // The calling code will handle regeneration
+  // Check if any errors couldn't be auto-fixed
+  const hasUnfixableErrors = errors.length > 0;
+
   let fixedText = text;
-  if (!hasUnfixableErrors) {
-    // All visualizations were parsed successfully (with or without auto-fix)
-    // We can stream this to the client
-    fixedText = text;
+
+  if (hasUnfixableErrors) {
+    // Replace broken visualizations with error markers
+    // This prevents the client from seeing broken JSON syntax
+    fixedText = replaceVizsWithErrors(text, errors);
   }
 
   return {
