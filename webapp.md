@@ -37,29 +37,6 @@ OLLAMA_BASE_URL=http://localhost:11434
 FILEDB_PATH=./filedb
 ```
 
-## Visualization Syntax
-
-Claude can generate visualizations using special syntax:
-
-### Line Chart
-```
-![viz:chart]({"type":"line","data":{"labels":["Jan","Feb","Mar"],"datasets":[{"label":"Sales","data":[100,150,200]}]}})
-```
-
-### Bar Chart
-```
-![viz:chart]({"type":"bar","data":{"labels":["A","B","C"],"datasets":[{"label":"Values","data":[10,20,30]}]}})
-```
-
-### Table
-```
-![viz:table]({"headers":["Name","Value","Status"],"rows":[["Item 1",100,"Active"],["Item 2",200,"Inactive"]],"options":{"sortable":true}})
-```
-
-### Pie Chart
-```
-![viz:pie]({"data":[{"label":"Category A","value":45},{"label":"Category B","value":30},{"label":"Category C","value":25}],"options":{"title":"Distribution"}})
-```
 
 ## Architecture
 
@@ -166,11 +143,6 @@ Uses Zustand for global state:
 - Loading states
 - Command history
 
-### Visualization Parsing
-The `viz-parser.ts` module:
-1. Parses `![viz:type](json)` syntax from AI responses
-2. Extracts JSON configuration
-3. Dispatches to appropriate component
 
 ### Error Handling
 - ErrorBoundary catches component errors

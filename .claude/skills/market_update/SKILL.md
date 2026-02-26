@@ -30,10 +30,6 @@ Generate at-a-glance market update for current holdings with fresh data and LLM-
 /market-update --force-refresh
 ```
 
-## Output Format
-
-**CRITICAL: NEVER use markdown tables in responses.** Use viz:table and viz:chart format per [visualization guide](../references/visualization-guide.md).
-
 ### Example Output Structure
 
 ```
@@ -44,21 +40,6 @@ Generate at-a-glance market update for current holdings with fresh data and LLM-
 **Fear & Greed:** 45 Neutral (→ No change)
 **Macro Stance:** RISK-ON | Risk: MEDIUM
 *Summary: Moderate growth with policy uncertainty.*
-
----
-
-### Holdings Summary (3 positions)
-
-![viz:table]({
-  "headers": ["Ticker", "Price", "Change", "Value", "P/L %", "Thesis"],
-  "rows": [
-    ["LAES", "$3.52", "-2.5%", "$63,360", "-45.0%", "VALID ✓"],
-    ["WRD", "$7.70", "+1.8%", "$21,560", "-30.0%", "WARNING ⚠"],
-    ["PONY", "$13.35", "+0.5%", "$18,690", "-38.2%", "VALID ✓"]
-  ]
-})
-
-**Total Value:** $103,610 | **Cash:** $22.18 | **Total P/L:** -41.2%
 
 ---
 
@@ -149,7 +130,6 @@ Generate at-a-glance market update for current holdings with fresh data and LLM-
 - **Does NOT update thesis files automatically**
 
 ### Step 6: Generate Output
-- Format with viz:table for holdings
 - Include macro summary at top
 - Add latest news and thesis reassessment
 - Include data freshness warnings at bottom
@@ -160,7 +140,6 @@ Generate at-a-glance market update for current holdings with fresh data and LLM-
 
 2. **Data Freshness First:** Always checks file timestamps, fetches fresh data via WebSearch/yfinance if files are stale.
 
-3. **Visualization Format:** Uses viz:table and viz:chart format (not markdown tables) per project standards.
 
 4. **Error Resilience:** Continues with partial data if some components fail (e.g., no news → show empty news section with warning).
 

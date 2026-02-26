@@ -224,8 +224,7 @@ Apply Inertia Principle: Existing positions are VALID unless proven DEAD.
 
 **Process:**
 1. Combine all data from previous steps
-2. Format with viz:table for holdings
-3. Format with viz:chart for P/L comparison (optional)
+
 4. Include macro summary at top
 5. Add latest news and thesis reassessment
 6. Include data freshness warnings at bottom
@@ -233,7 +232,7 @@ Apply Inertia Principle: Existing positions are VALID unless proven DEAD.
 **Output Sections:**
 1. Header (portfolio name, timestamp)
 2. Market Context (Fear & Greed, Macro Stance, Summary)
-3. Holdings Summary (viz:table)
+
 4. Portfolio Totals (Total Value, Cash, Total P/L)
 5. Latest News (grouped by ticker with thesis status)
 6. Thesis Reassessment (LLM Analysis table)

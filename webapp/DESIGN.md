@@ -227,24 +227,6 @@ Recommendation: BUY at $175-180
 
 ---
 
-## Visualization Syntax
-
-### Markdown-like Syntax
-
-Visualizations use special markdown-like syntax in AI responses:
-
-```markdown
-Analyzing AAPL stock performance...
-
-![viz:chart]({"type":"chart","chartType":"line","data":{"labels":["1/1","1/2","1/3"],"datasets":[{"label":"Price","data":[175,178,180]}]},"options":{"plugins":{"title":{"display":true,"text":"AAPL Price"}}}})
-
-Key metrics:
-
-![viz:table]({"type":"table","headers":["Metric","Value","Change"],"rows":[["Price","$178","+2.3%"],["Volume","45M","-5%"]],"options":{"caption":"Financial Metrics","sortable":true}})
-
-Recommendation: Buy at $175-180
-```
-
 ### Parsing & Rendering
 
 1. **Parser** (`lib/viz-parser.ts`) extracts viz commands from text
