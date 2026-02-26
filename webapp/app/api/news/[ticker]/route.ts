@@ -1,13 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { readFile, writeFile, mkdir } from 'fs/promises';
-import { join } from 'path';
 import { config } from 'dotenv';
-import { existsSync, readdirSync, statSync } from 'fs';
+import { existsSync, readdirSync } from 'fs';
 
-const envPath = join(process.cwd(), '../.env');
+const envPath = `${process.cwd()}/../.env`;
 config({ path: envPath });
 
-const FILEDB_BASE = process.env.FILEDB_PATH || join(process.cwd(), '../filedb');
+const FILEDB_BASE = process.env.FILEDB_PATH || `${process.cwd()}/../filedb`;
 
 interface NewsArticle {
   date: string;
@@ -32,7 +31,7 @@ export async function GET(
     const year = searchParams.get('year');
     const month = searchParams.get('month');
 
-    const newsDir = join(FILEDB_BASE, 'news', tickerUpper);
+    const newsDir = `${FILEDB_BASE}/news/${tickerUpper}`;
 
     if (!existsSync(newsDir)) {
       return NextResponse.json({ ticker: tickerUpper, articles: [] });
@@ -42,19 +41,19 @@ export async function GET(
     const years = year ? [year] : readdirSync(newsDir);
 
     for (const y of years) {
-      const yearDir = join(newsDir, y);
+      const yearDir = `${newsDir}/${y}`;
       if (!existsSync(yearDir)) continue;
 
       const months = month ? [month.padStart(2, '0')] : readdirSync(yearDir);
 
       for (const m of months) {
-        const monthDir = join(yearDir, m);
+        const monthDir = `${yearDir}/${m}`;
         if (!existsSync(monthDir)) continue;
 
         const files = readdirSync(monthDir).filter(f => f.endsWith('.md'));
 
         for (const file of files) {
-          const filePath = join(monthDir, file);
+          const filePath = `${monthDir}/${file}`;
           const content = await readFile(filePath, 'utf-8');
 
           // Extract YAML frontmatter and content
@@ -132,7 +131,7 @@ export async function POST(
     const year = dateObj.getFullYear().toString();
     const month = (dateObj.getMonth() + 1).toString().padStart(2, '0');
 
-    const targetDir = join(FILEDB_BASE, 'news', tickerUpper, year, month);
+    const targetDir = `${FILEDB_BASE}/news/${tickerUpper}/${year}/${month}`;
 
     if (!existsSync(targetDir)) {
       await mkdir(targetDir, { recursive: true });

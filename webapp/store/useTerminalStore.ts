@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import { Message, TerminalState } from '@/types';
+import { Message, TerminalState, RegenerateButton } from '@/types';
 import { VizCommand } from '@/types/visualizations';
 import { Storage } from '@/utils/storage';
 
@@ -14,6 +14,7 @@ interface TerminalStore extends TerminalState {
   setSessionId: (id: string) => void;
   addMessage: (message: Message) => void;
   updateLastMessage: (content: string, visualizations?: VizCommand[]) => void;
+  addRegenerateButtons: (buttons: RegenerateButton[]) => void;
   setLoading: (loading: boolean) => void;
   setError: (error: string | null) => void;
   addToCommandHistory: (command: string) => void;
@@ -76,6 +77,21 @@ export const useTerminalStore = create<TerminalStore>((set, get) => ({
         messages,
         visualizations: visualizations || [],
       };
+    }),
+
+  addRegenerateButtons: (buttons) =>
+    set((state) => {
+      const messages = [...state.messages];
+      const lastMessage = messages[messages.length - 1];
+
+      if (lastMessage && lastMessage.role === 'assistant') {
+        messages[messages.length - 1] = {
+          ...lastMessage,
+          regenerateButtons: buttons,
+        };
+      }
+
+      return { messages };
     }),
 
   setLoading: (loading) => set({ isLoading: loading }),

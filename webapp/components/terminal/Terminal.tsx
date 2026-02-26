@@ -15,6 +15,7 @@ export default function Terminal() {
     commandHistory,
     commandIndex,
     addMessage,
+    addRegenerateButtons,
     setLoading,
     setError,
     addToCommandHistory,
@@ -27,6 +28,47 @@ export default function Terminal() {
   useEffect(() => {
     outputRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages]);
+
+  const handleRegenerate = async (vizType: string, userMessage: string) => {
+    if (!sessionId) {
+      setError('No session active');
+      return;
+    }
+
+    setLoading(true);
+    setError(null);
+
+    try {
+      const response = await fetch('/api/chat/regenerate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          vizType,
+          userMessage,
+          session_id: sessionId,
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to regenerate visualization');
+      }
+
+      const data = await response.json();
+
+      const regeneratedMessage: Message = {
+        role: 'assistant',
+        content: data.content || `Regenerated ${vizType} visualization`,
+        timestamp: new Date().toISOString(),
+      };
+
+      addMessage(regeneratedMessage);
+    } catch (err) {
+      console.error('Regeneration error:', err);
+      setError(err instanceof Error ? err.message : 'Failed to regenerate visualization');
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const handleSubmit = async (command: string) => {
     if (!sessionId) {
@@ -62,6 +104,7 @@ export default function Terminal() {
 
       let assistantMessage = '';
       const startTime = Date.now();
+      const regenerateButtons: Array<{ vizType: string; vizIndex: number }> = [];
 
       if (reader) {
         while (true) {
@@ -90,6 +133,9 @@ export default function Terminal() {
                       existingMsg.content = assistantMessage;
                     }
                   }
+                } else if (parsed.regenerate_button) {
+                  // Store regenerate button info
+                  regenerateButtons.push(parsed.regenerate_button);
                 }
               } catch (e) {
                 // Ignore parse errors for incomplete chunks
@@ -103,6 +149,13 @@ export default function Terminal() {
         role: 'assistant',
         content: assistantMessage,
         timestamp: new Date().toISOString(),
+        regenerateButtons: regenerateButtons.length > 0
+          ? regenerateButtons.map(b => ({
+              ...b,
+              userMessage: command,
+              originalResponse: assistantMessage,
+            }))
+          : undefined,
       };
 
       addMessage(finalMessage);
@@ -128,7 +181,7 @@ export default function Terminal() {
   return (
     <div className="flex flex-col h-full font-mono bg-terminal-black p-4">
       <div className="flex-1 overflow-y-auto mb-4" ref={outputRef}>
-        <TerminalOutput messages={messages} />
+        <TerminalOutput messages={messages} onRegenerate={handleRegenerate} />
         {isLoading && (
           <div className="text-terminal-green animate-pulse">
             Processing...

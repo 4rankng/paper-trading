@@ -1,10 +1,18 @@
 import { VizCommand } from './visualizations';
 
+export interface RegenerateButton {
+  vizType: string;
+  vizIndex: number;
+  userMessage: string;
+  originalResponse: string;
+}
+
 export interface Message {
   role: 'user' | 'assistant';
   content: string;
   timestamp: string;
   visualizations?: VizCommand[];
+  regenerateButtons?: RegenerateButton[];
 }
 
 export interface Session {

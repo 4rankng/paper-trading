@@ -1030,7 +1030,7 @@ Generate the visualizations now:`;
       model,
       max_tokens: 128000, // Full token limit for GLM-4 (same as main request)
       system: regeneratePrompt,
-      messages: conversationHistory.slice(-2), // Only last 2 turns for context
+      messages: [{ role: 'user', content: 'Please regenerate the visualizations as requested above.' }],
     });
 
     let regeneratedText = '';
@@ -1406,6 +1406,20 @@ IMPORTANT: Generate visualizations ONE AT A TIME, ensuring each is complete befo
                 );
               } else {
                 console.warn(`[Chat API] Auto-regenerate failed, showing error markers for ${truncatedErrors.length} visualization(s)`);
+
+                // Send regeneration button info to frontend for each truncated viz
+                truncatedErrors.forEach((error, index) => {
+                  controller.enqueue(
+                    encoder.encode(
+                      `data: ${JSON.stringify({
+                        regenerate_button: {
+                          vizType: error.type,
+                          vizIndex: index,
+                        },
+                      })}\n\n`
+                    )
+                  );
+                });
               }
             }
 

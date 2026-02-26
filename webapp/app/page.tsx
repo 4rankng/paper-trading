@@ -28,7 +28,7 @@ export default function Home() {
   // During SSR or before mount, show minimal loading state
   if (!mounted) {
     return (
-      <main className="h-screen flex flex-col bg-[#1E1E1E] overflow-hidden">
+      <main className="h-[100dvh] flex flex-col bg-[#1E1E1E] overflow-hidden">
         <div className="flex-1 flex items-center justify-center">
           <div className="text-[#5C6AC4]">Initializing TermAI Explorer...</div>
         </div>
@@ -38,7 +38,7 @@ export default function Home() {
 
   // After mount, render full app
   return (
-    <main className="h-screen flex flex-col bg-[#1E1E1E] overflow-hidden">
+    <main className="h-[100dvh] flex flex-col bg-[#1E1E1E] overflow-hidden">
       {!sessionId ? (
         <div className="flex-1 flex items-center justify-center">
           <div className="text-[#5C6AC4]">Initializing TermAI Explorer...</div>

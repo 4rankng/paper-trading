@@ -13,6 +13,14 @@
   --safe-area-inset-right: env(safe-area-inset-right, 0px);
 }
 
+html {
+  /* Ensure html element also uses dynamic viewport height */
+  height: 100dvh;
+  height: 100vh; /* Fallback */
+  /* Prevent iOS from zooming when inputs are focused */
+  touch-action: manipulation;
+}
+
 :root {
   /* Modern One Dark-inspired color scheme */
   --bg-primary: #1E1E1E;
@@ -48,14 +56,13 @@ body {
   letter-spacing: 0.02em;
   /* Mobile: no margin, prevent bounce */
   margin: 0;
-  /* Use dynamic viewport height for mobile */
-  height: 100dvh;
   /* Prevent rubber-band scrolling on iOS */
   overscroll-behavior-y: none;
   padding: 0;
   overflow: hidden; /* Prevent body scroll, handle in containers */
-  height: 100vh;
-  height: 100dvh; /* Mobile viewport height */
+  /* Use dynamic viewport height to exclude mobile browser chrome */
+  height: 100dvh;
+  height: 100vh; /* Fallback for browsers without dvh support */
 }
 
 * {
@@ -163,6 +170,7 @@ canvas {
 /* Scrollable area above fixed input - updated for input+statusbar */
 .scroll-area-above-input {
   height: 100%;
+  max-height: 100dvh;
   padding-bottom: calc(6rem + var(--safe-area-inset-bottom));
 }
 
@@ -179,15 +187,10 @@ canvas {
 
 /* Safe area padding for bottom elements (mobile browser toolbars) */
 .safe-bottom {
-  padding-bottom: calc(0.5rem + var(--safe-area-inset-bottom));
-}
-
-.pb-safe-area {
   padding-bottom: var(--safe-area-inset-bottom);
 }
 
-/* Safe area padding for bottom-fixed elements */
-.safe-bottom {
+.pb-safe-area {
   padding-bottom: var(--safe-area-inset-bottom);
 }
 
@@ -222,9 +225,25 @@ canvas {
   }
 }
 
-/* Prevent pull-to-refresh on mobile */
-body {
-  overscroll-behavior-y: contain;
+/* Ensure mobile browsers respect viewport height */
+@supports (height: 100dvh) {
+  body {
+    height: 100dvh;
+  }
+}
+
+@supports not (height: 100dvh) {
+  body {
+    height: 100vh;
+  }
+}
+
+/* Fix for mobile browsers that have collapsing address bars */
+@supports (-webkit-touch-callout: none) {
+  body {
+    /* iOS-specific fix */
+    min-height: -webkit-fill-available;
+  }
 }
 
 /* Better text selection on touch */

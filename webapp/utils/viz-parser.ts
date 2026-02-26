@@ -284,13 +284,13 @@ export function replaceVizsWithErrors(
       let errorPlaceholder: string;
 
       if (truncationDetected) {
-        // More helpful message for truncation with regenerate option
+        // Truncation error with button hint
         errorPlaceholder = `
 ⚠️ ${type} incomplete - LLM response was cut off
 
 ${hint}
 
-[Type "regenerate ${index + 1}" to try again]
+💡 A regeneration button will appear below - click it to try regenerating this visualization.
 `;
       } else {
         // Standard error message

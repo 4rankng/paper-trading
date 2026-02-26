@@ -74,14 +74,14 @@ export default function TabBar({ onNewTab, onTabClose, onTabSwitch }: TabBarProp
   // Don't render tabs until sessionId is loaded
   if (tabs.length === 0) {
     return (
-      <div className="h-9 bg-[#252526] flex items-center px-2">
+      <div className="h-9 bg-[#252526] flex items-center px-2 shrink-0">
         <span className="text-sm text-[#858585]">Loading...</span>
       </div>
     );
   }
 
   return (
-    <div className="h-9 bg-[#252526] flex items-center px-2 gap-1.5">
+    <div className="h-9 bg-[#252526] flex items-center px-2 gap-1.5 shrink-0">
       {tabs.map(tab => (
         <div
           key={tab.id}

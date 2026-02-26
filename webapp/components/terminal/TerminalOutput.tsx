@@ -12,9 +12,10 @@ interface TerminalOutputProps {
   isLoading?: boolean;
   activeTool?: ToolExecution | null;
   validationProgress?: string | null;
+  onRegenerate?: (vizType: string, userMessage: string) => void;
 }
 
-export default function TerminalOutput({ messages, isLoading = false, activeTool = null, validationProgress = null }: TerminalOutputProps) {
+export default function TerminalOutput({ messages, isLoading = false, activeTool = null, validationProgress = null, onRegenerate }: TerminalOutputProps) {
   const shouldShowLoading = isLoading && messages.length > 0;
   const lastIndex = messages.length - 1;
 
@@ -36,7 +37,7 @@ export default function TerminalOutput({ messages, isLoading = false, activeTool
               </>
             ) : (
               <>
-                <AssistantMessage message={msg} />
+                <AssistantMessage message={msg} onRegenerate={onRegenerate} />
                 {/* Show loading indicator after the last assistant message when streaming */}
                 {shouldShowLoading && isLastAssistant && (
                   <LoadingIndicator activeTool={activeTool} validationProgress={validationProgress} />
@@ -122,7 +123,7 @@ function LoadingIndicator({ activeTool, validationProgress }: { activeTool: Tool
   );
 }
 
-function AssistantMessage({ message }: { message: Message }) {
+function AssistantMessage({ message, onRegenerate }: { message: Message; onRegenerate?: (vizType: string, userMessage: string) => void }) {
   // Parse viz commands (server-side validated, so minimal client-side parsing needed)
   const { vizs, errors } = parseVizCommands(message.content);
 
@@ -179,6 +180,24 @@ function AssistantMessage({ message }: { message: Message }) {
           }
           return null;
         })}
+
+        {/* Render regeneration buttons if present */}
+        {message.regenerateButtons && message.regenerateButtons.length > 0 && onRegenerate && (
+          <div className="mt-4 flex flex-wrap gap-2">
+            {message.regenerateButtons.map((button, idx) => (
+              <button
+                key={idx}
+                onClick={() => onRegenerate(button.vizType, button.userMessage)}
+                className="px-3 py-1.5 bg-[#5C6AC4] hover:bg-[#75BEFF] text-white text-xs font-['Fira_Code',monospace] rounded border border-[#5C6AC4]/50 transition-all duration-200 flex items-center gap-2"
+              >
+                <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                </svg>
+                Regenerate {button.vizType}
+              </button>
+            ))}
+          </div>
+        )}
       </div>
     </div>
   );

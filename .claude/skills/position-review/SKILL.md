@@ -77,6 +77,28 @@ See [Data Gap Detection Workflow](references/data-gap-detection.md) for the comp
 Before ANY position review, you MUST follow the 3-step checklist:
 **[Data-First Decision Making](references/data-first-decision-making.md)**
 
+## ⚠️ CRITICAL: Live Price Fetching (MANDATORY)
+
+**NEVER use stale prices from portfolios.json or hallucinate prices.**
+
+Before making ANY recommendation, you MUST fetch the current live price:
+
+```bash
+# Fetch live price for ticker(s)
+python .claude/skills/market_update/scripts/fetch_current_prices.py --tickers TICKER
+
+# Example:
+python .claude/skills/market_update/scripts/fetch_current_prices.py --tickers CPRX
+```
+
+**Price Validation Rules:**
+1. If live price fetch fails, check the price CSV: `filedb/prices/{TICKER}.csv`
+2. NEVER estimate or guess a price
+3. If no price data is available, ABORT the review and report the data issue
+4. Always cite the price source and timestamp in your output
+
+**Sanity Check:** If the price seems wrong (e.g., differs significantly from avg_cost without news), verify with web search before proceeding.
+
 ## Macro Risk Check
 
 **Before thesis validation, read latest macro thesis:** `macro/theses/macro_thesis_YYYY_MM.md`

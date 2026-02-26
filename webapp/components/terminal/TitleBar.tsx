@@ -30,7 +30,7 @@ export default function TitleBar({ onNewTab }: TitleBarProps) {
   };
 
   return (
-    <div className="h-10 bg-[#252526] border-b border-[#333333] flex items-center justify-between px-4 select-none">
+    <div className="h-10 bg-[#252526] border-b border-[#333333] flex items-center justify-between px-4 select-none" style={{ paddingTop: 'max(0px, env(safe-area-inset-top))' }}>
       {/* Window controls - macOS style */}
       <div className="flex items-center gap-2">
         <button

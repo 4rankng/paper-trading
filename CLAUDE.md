@@ -9,16 +9,6 @@ Stdout responses must be mobile-friendly:
 - Concise lines, avoid horizontal scrolling
 - Emojis sparingly for clarity only
 
-**CRITICAL: NEVER use markdown tables in LLM agent responses.**
-- Use `![viz:table]({...})` format for tabular data
-- Use `![viz:chart]({"type":"chart","chartType":"line"/"bar",...})` for charts
-- Use `![viz:pie]({...})` for distributions
-- See `.claude/skills/references/visualization-guide.md` for details
-
-*(Files: research/analytics/plans may use any format)*
-
-## Data Storage Architecture
-
 All persistent data is centralized in `filedb/` directory:
 
 ```
